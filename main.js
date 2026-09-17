@@ -92,6 +92,30 @@ bindTouch(document.getElementById("pad"), document.getElementById("knob"), docum
 let selectedId = "cybertruck";
 let hoverId = "cybertruck";
 let botId = "model3";
+let fsd = false;
+const CHAT = [
+  "L + ratio + no FSD",
+  "skill issue. have you tried not being poor",
+  "this is why FSD is taking so long",
+  "imagine steering. couldn't be me",
+  "the ball is a psyop",
+  "nice demo. next quarter.",
+  "you just got wss'd",
+  "cope. seethe. Model 3.",
+  "posted from the goal line",
+  "thanks for the engagement",
+  "unemployed behavior",
+  "my other car is also juicing",
+  "what color is your fridge",
+  "I am become Semi, destroyer of nets",
+  "touch grass. preferably the pitch",
+  "the algorithm fed you to me",
+  "this app is the app now",
+  "you are not the main character",
+  "supervised? brother I am the supervisor",
+  "that touch was a software-defined brick"
+];
+let chatCool = 0;
 let P = bodyFrom("cybertruck", 0, 14, 0);
 let B = bodyFrom("model3", 0, -14, Math.PI);
 let ball = { x: 0, y: 0.55, z: 0, vx: 0, vy: 0, vz: 0, flat: 0 };
@@ -147,6 +171,7 @@ function swapMesh(old, id) {
 function showResults(title, sub) {
   mode = "results"; playing = false;
   document.body.classList.remove("playing");
+  document.body.classList.remove("fsd");
   overlay.style.display = "flex";
   overlay.classList.add("results");
   document.getElementById("resTitle").innerHTML = title;
@@ -190,9 +215,19 @@ function tick(now) {
     const s = Math.floor(timeLeft % 60).toString().padStart(2, "0");
     clockEl.textContent = m + ":" + s;
     const ctl = readControls();
-    drive(P, ctl.throttle, ctl.steer, ctl.boost, dt);
+    if (fsd && Math.abs(ctl.throttle) < 0.2 && Math.abs(ctl.steer) < 0.2) {
+      botAI(P, B, ball, dt);
+      if (ctl.boost) drive(P, 0, 0, true, dt);
+    } else {
+      drive(P, ctl.throttle, ctl.steer, ctl.boost, dt);
+    }
     if (P.boosting) { boostSfxCool -= dt; if (boostSfxCool <= 0) { SFX.boost(); boostSfxCool = 0.16; } }
     botAI(B, P, ball, dt);
+    chatCool -= dt;
+    if (fsd && chatCool <= 0 && Math.random() < dt * 0.28) {
+      toast(CHAT[Math.floor(Math.random() * CHAT.length)], 1100);
+      chatCool = 2.6;
+    }
     if (carCar(P, B)) { SFX.hit(); shake = Math.max(shake, 0.2); }
     const h1 = carBall(P, ball); const h2 = carBall(B, ball);
     if (h1 === "pancake" || h2 === "pancake") { SFX.thunk(); shake = Math.max(shake, 0.35); }
@@ -231,26 +266,48 @@ function pickBot() {
   const others = CATALOG.filter((v) => v.id !== selectedId);
   return others[Math.floor(Math.random() * others.length)].id;
 }
-function startGame() {
+function startGame(useFsd) {
   ensureAudio();
+  fsd = !!useFsd;
   botId = pickBot();
   playerMesh = swapMesh(playerMesh, selectedId);
   botMesh = swapMesh(botMesh, botId);
-  labA.textContent = byId(selectedId).name + " \u00b7 YOU";
-  labB.textContent = byId(botId).name + " \u00b7 BOT";
+  labA.textContent = byId(selectedId).name + (fsd ? " \u00b7 FSD" : " \u00b7 YOU");
+  labB.textContent = byId(botId).name + " \u00b7 NPC";
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   timeLeft = 90; resetKick(0);
   playing = true; locked = false; mode = "play";
   document.body.classList.add("playing");
+  document.body.classList.toggle("fsd", fsd);
   overlay.style.display = "none"; overlay.classList.remove("results");
   hud.classList.remove("hidden"); boostHud.classList.remove("hidden");
-  SFX.whistle(); toast("KICK OFF", 700);
+  SFX.whistle(); toast(fsd ? "FSD SUPERVISED" : "KICK OFF", 800);
 }
-document.getElementById("go").addEventListener("click", startGame);
+document.getElementById("go").addEventListener("click", () => startGame(false));
+const goFsd = document.getElementById("goFsd");
+if (goFsd) goFsd.addEventListener("click", () => startGame(true));
+function sayChat(i) {
+  toast(CHAT[i % CHAT.length], 1200);
+  SFX.tick();
+}
+const chatEl = document.getElementById("chat");
+if (chatEl) chatEl.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-chat]");
+  if (!btn) return;
+  sayChat(Number(btn.dataset.chat));
+});
+window.addEventListener("keydown", (e) => {
+  if (!playing) return;
+  if (e.code === "Digit1") sayChat(0);
+  if (e.code === "Digit2") sayChat(1);
+  if (e.code === "Digit3") sayChat(2);
+  if (e.code === "Digit4") sayChat(3);
+});
 document.getElementById("again").addEventListener("click", () => {
   overlay.classList.remove("results");
   mode = "garage";
   document.body.classList.remove("playing");
+  document.body.classList.remove("fsd");
   hud.classList.add("hidden"); boostHud.classList.add("hidden");
   setInspect(selectedId);
 });
