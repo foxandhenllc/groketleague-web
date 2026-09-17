@@ -1,1 +1,1 @@
-PLACEHOLDER_WILL_FAIL
+import*as m from"three";var le=[{id:"cybertruck",name:"CYBERTRUCK"}];console.warn('incomplete');export{};
