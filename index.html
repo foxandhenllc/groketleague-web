@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>GROKET LEAGUE</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Ops+One&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
+</head>
+<body>
+  <div id="brand">GROKET LEAGUE</div>
+  <div id="hud" class="hidden">
+    <div id="topbar">
+      <div class="scorebox" style="border-color:#3b82ff">
+        <div class="lab" style="color:#8ab4ff" id="labB">BOT</div>
+        <div class="num" id="scoreB">0</div>
+      </div>
+      <div id="clockwrap">
+        <div id="clock">1:30</div>
+        <div id="maptag">DAY PITCH</div>
+      </div>
+      <div class="scorebox">
+        <div class="lab" id="labA">YOU</div>
+        <div class="num" id="scoreA">0</div>
+      </div>
+    </div>
+  </div>
+  <div id="boostHud" class="hidden"><div class="lab">BOOST</div><div id="boostBar"><div id="boostFill"></div></div></div>
+  <div id="toast"></div>
+  <div id="touch">
+    <div class="pad" id="pad"><div class="knob" id="knob"></div></div>
+    <div class="boostbtn" id="boostBtn">BOOST</div>
+  </div>
+  <div id="overlay">
+    <div class="mast"><div><h1>GROKET LEAGUE</h1><div class="sub">GARAGE · PICK YOUR RIDE</div></div></div>
+    <div id="inspect">
+      <div class="name" id="inspName">CYBERTRUCK</div>
+      <div class="meme" id="inspMeme">A stainless fridge that learned football.</div>
+      <div class="stats" id="inspStats">MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE</div>
+    </div>
+    <div id="garage"></div>
+    <div class="row">
+      <button class="cta" id="go">KICK OFF</button>
+      <button class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
+    </div>
+    <div class="hint">Hover a vehicle to inspect. Click to lock it in. Bot takes something else.<br>WASD drive · SHIFT/SPACE boost · N night map. Satirical fan toy — not Tesla, SpaceX, or xAI.</div>
+    <div id="resultsPanel">
+      <h2 id="resTitle">TRUCK WINS</h2>
+      <div class="sub" id="resSub" style="margin:10px 0 18px;letter-spacing:3px">0 — 0</div>
+      <button class="cta" id="again">REMATCH</button>
+    </div>
+  </div>
+  <script type="module" src="/game.js"></script>
+</body>
+</html>
