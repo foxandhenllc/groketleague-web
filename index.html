@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>GROKET LEAGUE</title>
-  <meta name="description" content="Instant vehicle soccer. Pick a wedge, boot a bot, share the toy." />
+  <meta name="description" content="Ludicrous Juice. FSD vs your hands. Quick chat so rude it belongs on X." />
   <link rel="canonical" href="https://groketleague.com/" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/og-square.png" />
   <meta property="og:site_name" content="Groket League" />
   <meta property="og:title" content="GROKET LEAGUE" />
-  <meta property="og:description" content="Pick a wedge. Score on a bot. Instant SNES-pitch vehicle soccer." />
+  <meta property="og:description" content="Rocket League if Elon shipped it on a dare. FSD or grab the wheel. Dump Ludicrous Juice." />
   <meta property="og:image" content="https://groketleague.com/og.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -18,7 +18,7 @@
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="GROKET LEAGUE" />
-  <meta name="twitter:description" content="Pick a wedge. Score on a bot. Instant vehicle soccer." />
+  <meta name="twitter:description" content="FSD vs your hands. Ludicrous Juice. Quick chat from the worst timeline." />
   <meta name="twitter:image" content="https://groketleague.com/og.png" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Ops+One&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
@@ -29,7 +29,7 @@
   <div id="hud" class="hidden">
     <div id="topbar">
       <div class="scorebox" style="border-color:#3b82ff">
-        <div class="lab" style="color:#8ab4ff" id="labB">BOT</div>
+        <div class="lab" style="color:#8ab4ff" id="labB">NPC</div>
         <div class="num" id="scoreB">0</div>
       </div>
       <div id="clockwrap">
@@ -42,25 +42,32 @@
       </div>
     </div>
   </div>
-  <div id="boostHud" class="hidden"><div class="lab">BOOST</div><div id="boostBar"><div id="boostFill"></div></div></div>
+  <div id="boostHud" class="hidden"><div class="lab">LUDICROUS JUICE</div><div id="boostBar"><div id="boostFill"></div></div></div>
   <div id="toast"></div>
+  <div id="chat">
+    <button class="qc" data-chat="0">1 · L + ratio + no FSD</button>
+    <button class="qc" data-chat="1">2 · skill issue. try not being poor</button>
+    <button class="qc" data-chat="2">3 · this is why FSD is late</button>
+    <button class="qc" data-chat="3">4 · imagine steering</button>
+  </div>
   <div id="touch">
     <div class="pad" id="pad"><div class="knob" id="knob"></div></div>
-    <div class="boostbtn" id="boostBtn">BOOST</div>
+    <div class="boostbtn" id="boostBtn">JUICE</div>
   </div>
   <div id="overlay">
-    <div class="mast"><div><h1>GROKET LEAGUE</h1><div class="sub">GARAGE · PICK YOUR RIDE</div></div></div>
+    <div class="mast"><div><h1>GROKET LEAGUE</h1><div class="sub">ROCKET LEAGUE IF THE CARS HAD OPINIONS</div></div></div>
     <div id="inspect">
       <div class="name" id="inspName">CYBERTRUCK</div>
-      <div class="meme" id="inspMeme">A stainless fridge that learned football.</div>
+      <div class="meme" id="inspMeme">Bulletproof dumpster that learned Rocket League.</div>
       <div class="stats" id="inspStats">MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE</div>
     </div>
     <div id="garage"></div>
     <div class="row">
-      <button class="cta" id="go">KICK OFF</button>
+      <button class="cta" id="go">DRIVE IT YOURSELF</button>
+      <button class="cta fsd" id="goFsd">FULL SELF-DRIVING</button>
       <button class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
     </div>
-    <div class="hint">Hover a vehicle to inspect. Click to lock it in. Bot takes something else.<br>WASD drive · SHIFT/SPACE boost · N night map. Satirical fan toy — not Tesla, SpaceX, or xAI.</div>
+    <div class="hint">Two kickoffs. Same pitch. One of them doesn't need you.<br>WASD · SHIFT/SPACE Ludicrous Juice · 1–4 quick chat · N night map.<br>Satirical fan toy — not Tesla, SpaceX, xAI, or Psyonix.</div>
     <div id="credit">A FOX & HEN PRODUCT · <a href="https://foxandhenllc.com" target="_blank" rel="noopener">foxandhenllc.com</a></div>
     <div id="resultsPanel">
       <h2 id="resTitle">TRUCK WINS</h2>
@@ -68,6 +75,6 @@
       <button class="cta" id="again">REMATCH</button>
     </div>
   </div>
-  <script type="module" src="https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@857829cf149be0063923eb3f93721e6c7dc220f5/main.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@873473bc2dadb723685233d4b621d188c63cff6b/main.js"></script>
 </body>
 </html>
