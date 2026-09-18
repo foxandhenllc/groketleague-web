@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CATALOG, byId } from "./catalog.js";
-import { ensureAudio, SFX, startCrowd, stopCrowd } from "./audio.js";
+import { ensureAudio, SFX, startCrowd, stopCrowd, playBed } from "./audio.js";
 import { bindInput, bindTouch, readControls, setQaKeys } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
@@ -90,38 +90,22 @@ function applyMap() {
   nightExtra.visible = mapMode === "night";
   mapTag.textContent = m.label;
   mapBtn.textContent = "MAP: " + m.label;
+  if (typeof mode !== "undefined") {
+    if (mode === "garage" || mode === "results") playBed("garage");
+    else playBed(mapMode === "night" ? "night" : "day");
+  }
 }
 applyMap();
 function cycleMap() { mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
 mapBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); cycleMap(); });
 bindInput(cycleMap);
+window.addEventListener("pointerdown", () => { ensureAudio(); if (mode === "garage") playBed("garage"); }, { once: true });
 bindTouch(document.getElementById("pad"), document.getElementById("knob"), document.getElementById("boostBtn"));
 let selectedId = "cybertruck";
 let hoverId = "cybertruck";
 let botId = "model3";
 let fsd = false;
-const CHAT = [
-  "L + ratio + no FSD",
-  "skill issue. have you tried not being poor",
-  "this is why FSD is taking so long",
-  "imagine steering. couldn't be me",
-  "the ball is a psyop",
-  "nice demo. next quarter.",
-  "you just got wss'd",
-  "cope. seethe. Model 3.",
-  "posted from the goal line",
-  "thanks for the engagement",
-  "unemployed behavior",
-  "my other car is also juicing",
-  "what color is your fridge",
-  "I am become Semi, destroyer of nets",
-  "touch grass. preferably the pitch",
-  "the algorithm fed you to me",
-  "this app is the app now",
-  "you are not the main character",
-  "supervised? brother I am the supervisor",
-  "that touch was a software-defined brick"
-];
+const CHAT = ["L + ratio + no FSD","skill issue. have you tried not being poor","this is why FSD is taking so long","imagine steering. couldn't be me","the ball is a psyop","nice demo. next quarter.","you just got wss'd","cope. seethe. Model 3.","posted from the goal line","thanks for the engagement","unemployed behavior","my other car is also juicing","what color is your fridge","I am become Semi, destroyer of nets","touch grass. preferably the pitch","the algorithm fed you to me","this app is the app now","you are not the main character","supervised? brother I am the supervisor","that touch was a software-defined brick"];
 let chatCool = 0;
 let P = bodyFrom("cybertruck", 0, 14, 0);
 let B = bodyFrom("model3", 0, -14, Math.PI);
@@ -182,10 +166,7 @@ function resetKick(toward = 0) {
   ball = { x: 0, y: 0.55, z: toward * 4, vx: 0, vy: 6, vz: toward * 3, flat: 0 };
 }
 function markTeam(mesh, color) {
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(1.15, 1.45, 20),
-    new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
-  );
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.45, 20), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.06;
   mesh.add(ring);
@@ -201,6 +182,7 @@ function showResults(title, sub, winner) {
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
   stopCrowd();
+  playBed("garage");
   if (faceLayer) faceLayer.classList.add("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
   overlay.style.display = "flex";
@@ -327,11 +309,13 @@ function kickoffNow() {
   hud.classList.remove("hidden");
   boostHud.classList.remove("hidden");
   startCrowd();
+  playBed(mapMode === "night" ? "night" : "day");
   SFX.whistle();
   toast(fsd ? "P1 · FSD SUPERVISED" : "P1 · KICK OFF", 800, "p1");
 }
 function startGame(useFsd) {
   ensureAudio();
+  playBed(mapMode === "night" ? "night" : "day");
   fsd = !!useFsd;
   botId = pickBot();
   playerMesh = swapMesh(playerMesh, selectedId, "#f0c020");
@@ -417,6 +401,7 @@ document.getElementById("shareBtn") && document.getElementById("shareBtn").addEv
 document.getElementById("newGameBtn") && document.getElementById("newGameBtn").addEventListener("click", () => {
   paused = false; playing = false; mode = "garage";
   stopCrowd();
+  playBed("garage");
   if (pauseLayer) pauseLayer.classList.add("hidden");
   if (faceLayer) faceLayer.classList.add("hidden");
   overlay.style.display = "flex";
@@ -430,6 +415,7 @@ document.getElementById("again").addEventListener("click", () => {
   overlay.classList.remove("faceoff");
   mode = "garage";
   stopCrowd();
+  playBed("garage");
   if (faceLayer) faceLayer.classList.add("hidden");
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
