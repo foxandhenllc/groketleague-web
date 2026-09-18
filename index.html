@@ -7,11 +7,11 @@
   <meta name="description" content="FSD Soccer. Grab the wheel or go Full Self-Driving. Ludicrous Mode. Built with Grok." />
   <link rel="canonical" href="https://groketleague.com/" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="apple-touch-icon" href="/og.png?v=12" />
+  <link rel="apple-touch-icon" href="/og.png?v=13" />
   <meta property="og:site_name" content="GROKET LEAGUE" />
   <meta property="og:title" content="GROKET LEAGUE — FSD Soccer" />
-  <meta property="og:description" content="FSD Soccer. P1 vs GROK. Built with Grok." />
-  <meta property="og:image" content="https://groketleague.com/og.png?v=12" />
+  <meta property="og:description" content="FSD Soccer. P1 vs GROK or online 1v1. Built with Grok." />
+  <meta property="og:image" content="https://groketleague.com/og.png?v=13" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -19,10 +19,10 @@
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="GROKET LEAGUE — FSD Soccer" />
-  <meta name="twitter:description" content="FSD Soccer. P1 vs GROK. Built with Grok." />
-  <meta name="twitter:image" content="https://groketleague.com/og.png?v=12" />
+  <meta name="twitter:description" content="FSD Soccer. P1 vs GROK or online 1v1. Built with Grok." />
+  <meta name="twitter:image" content="https://groketleague.com/og.png?v=13" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Ops+One&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@main/style.css" />
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -82,7 +82,7 @@
     <div id="inspect">
       <div class="name" id="inspName">CYBERTRUCK</div>
       <div class="meme" id="inspMeme">Bulletproof dumpster that learned Rocket League.</div>
-      <div class="stats" id="inspStats">MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE</div>
+      <div class="stats" id="inspStats">MASS 10 · SPEED 4 · SPECIAL: PANCAKE</div>
     </div>
     <div id="garage"></div>
     <div class="row">
@@ -90,7 +90,15 @@
       <button class="cta fsd" id="goFsd">FULL SELF-DRIVING</button>
       <button class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
     </div>
-    <div class="hint">P1 vs GROK. Click once for audio.<br>WASD · SHIFT/SPACE Ludicrous Mode · ESC pause · N night map.</div>
+    <div class="row netrow">
+      <button class="cta ghost" id="netQuick">QUICK MATCH</button>
+      <button class="cta ghost" id="netCreate">CREATE ROOM</button>
+      <input id="roomCodeIn" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" />
+      <button class="cta ghost" id="netJoin">JOIN</button>
+    </div>
+    <div class="hint" id="netStatus">ONLINE 1v1 · QUICK MATCH OR ROOM CODE</div>
+    <div class="hint" id="roomCodeOut"></div>
+    <div class="hint">P1 vs GROK offline, or anyone online. Click once for audio.<br>WASD · SHIFT/SPACE Ludicrous Mode · ESC pause · N night map.</div>
     <div id="credit"><a href="https://foxandhenllc.com" target="_blank" rel="noopener" id="foxHenLink">A FOX & HEN PRODUCT</a> · BUILT WITH GROK</div>
     <div id="resultsPanel">
       <div class="who" id="resWho">P1</div>
@@ -106,6 +114,6 @@
     try { window.va && window.va("event", { name: "fox_hen_click" }); } catch (_) {}
   });
   </script>
-  <script type="module" src="/main.js"></script>
+  <script type="module" src="https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@main/main.js"></script>
 </body>
 </html>
