@@ -1,35 +1,29 @@
 let actx = null;
 let crowdNode = null;
+const GH = "https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@main/music/";
 const beds = {
-  garage: "/music/garage.mp3",
-  day: "/music/day.mp3",
-  night: "/music/night.mp3"
+  garage: ["/music/garage.mp3", GH + "garage.mp3"],
+  day: ["/music/day.mp3", GH + "day.mp3"],
+  night: ["/music/night.mp3", GH + "night.mp3"]
 };
-const MAX_PARTS = 16;
 const players = {};
 const loading = {};
 let currentBed = null;
 
 async function resolveBedUrl(name) {
-  const mp3 = beds[name];
-  try {
-    const res = await fetch(mp3, { method: "GET", cache: "force-cache" });
-    if (res.ok) {
-      const buf = await res.arrayBuffer();
-      if (buf.byteLength > 4000) {
-        return URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+  const urls = beds[name] || [];
+  for (const mp3 of urls) {
+    try {
+      const res = await fetch(mp3, { cache: "force-cache" });
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        if (buf.byteLength > 4000) {
+          return URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+        }
       }
-    }
-  } catch {}
-  const texts = await Promise.all(
-    Array.from({ length: MAX_PARTS }, (_, i) =>
-      fetch(`/music/${name}.${i + 1}.b64`).then((r) => (r.ok ? r.text() : "")).catch(() => "")
-    )
-  );
-  const b64 = texts.join("").replace(/\s+/g, "");
-  if (!b64) return mp3;
-  const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  return URL.createObjectURL(new Blob([bin], { type: "audio/mpeg" }));
+    } catch {}
+  }
+  return urls[urls.length - 1] || "";
 }
 
 function ensureAudio() {
@@ -47,7 +41,7 @@ function getBed(name) {
   el.preload = "auto";
   el.volume = 0;
   el.crossOrigin = "anonymous";
-  el.src = beds[name];
+  el.src = (beds[name] && beds[name][0]) || "";
   players[name] = el;
   if (!loading[name]) {
     loading[name] = resolveBedUrl(name).then((url) => {
