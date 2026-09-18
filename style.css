@@ -62,3 +62,15 @@ body.playing #chat { display: flex; }
   #chat { right: 8px; top: auto; bottom: 190px; transform: none; }
   .qc { font-size: 12px; max-width: 46vw; padding: 6px 8px; }
 }
+#faceoffPanel { display: none; text-align: center; padding: 28px 16px 0; pointer-events: none; }
+#faceoffPanel .vs { letter-spacing: 8px; color: #f0c020; font-size: 16px; }
+#faceoffPanel h2 { font-family: "Black Ops One", sans-serif; font-size: clamp(28px, 6vw, 56px); color: #fff; text-shadow: 4px 4px 0 #000; margin: 8px 0 10px; }
+#overlay.faceoff { justify-content: flex-start; align-items: center; background: linear-gradient(180deg, rgba(10,16,28,.72) 0%, rgba(10,16,28,.12) 42%, rgba(10,16,28,.08) 100%); }
+#overlay.faceoff #garage,
+#overlay.faceoff .mast,
+#overlay.faceoff #inspect,
+#overlay.faceoff .hint,
+#overlay.faceoff .row,
+#overlay.faceoff #resultsPanel { display: none; }
+#overlay.faceoff #faceoffPanel { display: block; }
+#overlay.faceoff #credit { display: block; margin-top: auto; }
