@@ -2,9 +2,14 @@ import { byId, FW, FL, GOAL_W, GOAL_H } from "./catalog.js";
 function forwardXZ(yaw) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) };
 }
+function wrapPi(a) {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
 function bodyFrom(id, x, z, yaw) {
   const c = byId(id);
-  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false };
+  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _ai: { orbit: 0, lastAng: 0, t: 0 } };
 }
 function clampFieldCar(c) {
   const limX = FW / 2 - 0.3;
@@ -136,33 +141,57 @@ function stepBall(ball, dt) {
   }
   return null;
 }
-function botAI(B, P, ball, dt) {
-  const pred = { x: ball.x + ball.vx * 0.35, z: ball.z + ball.vz * 0.35 };
-  const ballInOwnThird = pred.z < -FL * 0.18;
-  const dBall = Math.hypot(pred.x - B.x, pred.z - B.z);
-  const youCloser = Math.hypot(ball.x - P.x, ball.z - P.z) + 1.2 < dBall;
-  let tx, tz;
-  if (ballInOwnThird && (youCloser || pred.z < -18)) {
-    tx = pred.x * 0.7;
-    tz = Math.min(pred.z - 2.2, -20);
-  } else {
+function botAI(me, foe, ball, dt, attackSign) {
+  if (attackSign !== 1 && attackSign !== -1) attackSign = 1;
+  if (!me._ai) me._ai = { orbit: 0, lastAng: 0, t: 0 };
+  const ai = me._ai;
+  ai.t += dt;
+  const predT = attackSign > 0 ? 0.22 : 0.32;
+  const pred = { x: ball.x + ball.vx * predT, z: ball.z + ball.vz * predT };
+  const dBall = Math.hypot(pred.x - me.x, pred.z - me.z);
+  const ownGoalZ = -attackSign * (FL / 2);
+  const ang = Math.atan2(me.x - pred.x, me.z - pred.z);
+  const spin = Math.abs(wrapPi(ang - ai.lastAng)) / Math.max(dt, 0.008);
+  ai.lastAng = ang;
+  if (dBall < 7.5 && spin > 1.7) ai.orbit += dt;
+  else ai.orbit = Math.max(0, ai.orbit - dt * 0.9);
+  const kickoff = Math.abs(ball.x) < 1.4 && Math.abs(ball.z) < 2.8 && Math.hypot(ball.vx, ball.vz) < 5 && ai.t < 2.4;
+  const inBox = attackSign > 0 ? pred.z < -FL * 0.16 : pred.z > FL * 0.16;
+  const rushingOwn = (ball.vz * attackSign) < -6 && Math.abs(pred.z - ownGoalZ) < 16;
+  const needSave = inBox || rushingOwn;
+  const wrongSide = (me.z - pred.z) * attackSign > 1.0;
+  let tx = pred.x * 0.82;
+  let tz = pred.z - attackSign * 2.5;
+  if (kickoff) {
+    tx = pred.x * 0.15;
+    tz = pred.z;
+  } else if (needSave) {
     tx = pred.x;
-    tz = pred.z - 3.1;
+    tz = pred.z - attackSign * 1.1;
+  } else if (wrongSide) {
+    const side = me.x >= pred.x ? 1 : -1;
+    tx = pred.x + side * 5.4;
+    tz = pred.z - attackSign * 3.6;
   }
-  if (B.z > ball.z + 0.6 && Math.abs(B.x - ball.x) < 3 && !ballInOwnThird) {
-    tx = ball.x + (B.x >= ball.x ? 4.5 : -4.5);
-    tz = ball.z - 4;
+  if (ai.orbit > 0.5) {
+    const side = me.x >= 0 ? 1 : -1;
+    tx = side * 8.5;
+    tz = pred.z - attackSign * 6.5;
+    if (ai.orbit > 1.35) ai.orbit = 0;
   }
-  const ax = tx - B.x;
-  const az = tz - B.z;
-  let err = Math.atan2(-ax, -az) - B.yaw;
-  while (err > Math.PI) err -= Math.PI * 2;
-  while (err < -Math.PI) err += Math.PI * 2;
-  const steer = Math.max(-1, Math.min(1, err * 2.1));
+  const ax = tx - me.x;
+  const az = tz - me.z;
+  const err = wrapPi(Math.atan2(-ax, -az) - me.yaw);
   const dist = Math.hypot(ax, az);
-  let throttle = dist > 1 ? 1 : 0.35;
-  if (Math.abs(err) > 1.2 && dist < 5) throttle = 0.25;
-  const shouldBoost = Math.abs(err) < 0.38 && (dBall > 7 || dBall < 5);
-  drive(B, throttle, steer, shouldBoost, dt);
+  const gain = kickoff ? 0.85 : attackSign > 0 ? 1.35 : 1.7;
+  const steer = Math.max(-1, Math.min(1, err * gain));
+  let throttle = 1;
+  if (Math.abs(err) > 1.25) throttle = dist < 6.5 ? -0.4 : 0.18;
+  else if (Math.abs(err) > 0.65 && dist < 3.8) throttle = 0.32;
+  if (kickoff) throttle = Math.abs(err) > 0.9 ? 0.45 : 1;
+  const lined = Math.abs(err) < (attackSign > 0 ? 0.24 : 0.32);
+  let boost = lined && !kickoff && dBall < (attackSign > 0 ? 4.2 : 6.2);
+  if (needSave && lined) boost = true;
+  drive(me, throttle, steer, boost, dt);
 }
 export { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
