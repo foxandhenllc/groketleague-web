@@ -5,8 +5,13 @@ canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; 
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #hud.hidden { display: none; }
 #topbar { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 22px 0; }
-.scorebox { min-width: 150px; text-align: center; background: #140c08ee; border: 4px solid var(--yel); padding: 6px 16px 2px; }
+.scorebox { min-width: 168px; text-align: center; background: #140c08ee; border: 4px solid var(--yel); padding: 6px 16px 2px; }
+.scorebox .who { font-size: 12px; letter-spacing: 3px; }
 .scorebox .lab { font-size: 13px; letter-spacing: 2px; color: var(--yel); }
+.scorebox.p1 { border-color: var(--yel); }
+.scorebox.p1 .who { color: var(--yel); }
+.scorebox.cpu { border-color: var(--blu); }
+.scorebox.cpu .who, .scorebox.cpu .lab { color: #8ab4ff; }
 .scorebox .num { font-family: "Black Ops One", sans-serif; font-size: 42px; line-height: 1; }
 #clockwrap { text-align: center; }
 #clock { font-family: "Black Ops One", sans-serif; font-size: 28px; color: var(--yel); text-shadow: 3px 3px 0 #000; }
@@ -62,15 +67,23 @@ body.playing #chat { display: flex; }
   #chat { right: 8px; top: auto; bottom: 190px; transform: none; }
   .qc { font-size: 12px; max-width: 46vw; padding: 6px 8px; }
 }
-#faceoffPanel { display: none; text-align: center; padding: 28px 16px 0; pointer-events: none; }
-#faceoffPanel .vs { letter-spacing: 8px; color: #f0c020; font-size: 16px; }
-#faceoffPanel h2 { font-family: "Black Ops One", sans-serif; font-size: clamp(28px, 6vw, 56px); color: #fff; text-shadow: 4px 4px 0 #000; margin: 8px 0 10px; }
-#overlay.faceoff { justify-content: flex-start; align-items: center; background: linear-gradient(180deg, rgba(10,16,28,.72) 0%, rgba(10,16,28,.12) 42%, rgba(10,16,28,.08) 100%); }
-#overlay.faceoff #garage,
-#overlay.faceoff .mast,
-#overlay.faceoff #inspect,
-#overlay.faceoff .hint,
-#overlay.faceoff .row,
-#overlay.faceoff #resultsPanel { display: none; }
-#overlay.faceoff #faceoffPanel { display: block; }
-#overlay.faceoff #credit { display: block; margin-top: auto; }
+#pauseHint { font-size: 11px; letter-spacing: 2px; color: #fff6; margin-top: 4px; }
+#toast.from-p1 { color: var(--yel); }
+#toast.from-cpu { color: #8ab4ff; }
+#chatLog { position: fixed; left: 14px; top: 110px; z-index: 8; display: none; flex-direction: column; gap: 6px; pointer-events: none; max-width: min(320px, 42vw); }
+body.playing #chatLog { display: flex; }
+.chatline { background: #140c08ee; border: 3px solid #ffffff22; padding: 6px 10px; font-size: 15px; letter-spacing: 0.4px; }
+.chatline.p1 { border-color: var(--yel); color: var(--yel); }
+.chatline.cpu { border-color: var(--blu); color: #8ab4ff; }
+.chatline .tag { font-size: 11px; letter-spacing: 2px; display: block; opacity: 0.85; }
+#faceoffLayer, #pauseLayer { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 8vh; text-align: center; }
+#faceoffLayer { background: linear-gradient(180deg, rgba(10,16,28,.78) 0%, rgba(10,16,28,.08) 48%, rgba(10,16,28,.05) 100%); cursor: pointer; }
+#faceoffLayer.hidden, #pauseLayer.hidden { display: none; }
+#faceoffLayer .vs, #pauseLayer .vs { letter-spacing: 8px; color: var(--yel); font-size: 16px; }
+#faceoffLayer h2, #pauseLayer h2 { font-family: "Black Ops One", sans-serif; font-size: clamp(28px, 6vw, 56px); color: #fff; text-shadow: 4px 4px 0 #000; margin: 8px 16px 10px; }
+#faceoffLayer .sides { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+.p1tag { color: var(--yel); letter-spacing: 2px; }
+.cputag { color: #8ab4ff; letter-spacing: 2px; }
+#pauseLayer { background: rgba(10,16,28,.82); justify-content: center; padding-top: 0; }
+#pauseLayer .row { pointer-events: auto; }
+#resultsPanel .who { letter-spacing: 6px; color: var(--yel); font-size: 18px; }
