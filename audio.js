@@ -5,6 +5,7 @@ const beds = {
   day: "/music/day.mp3",
   night: "/music/night.mp3"
 };
+const MAX_PARTS = 16;
 const players = {};
 const loading = {};
 let currentBed = null;
@@ -12,17 +13,20 @@ let currentBed = null;
 async function resolveBedUrl(name) {
   const mp3 = beds[name];
   try {
-    const head = await fetch(mp3, { method: "GET" });
-    if (head.ok) {
-      const buf = await head.arrayBuffer();
-      if (buf.byteLength > 1000) return URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+    const res = await fetch(mp3, { method: "GET", cache: "force-cache" });
+    if (res.ok) {
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength > 4000) {
+        return URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+      }
     }
   } catch {}
-  const parts = await Promise.all([
-    fetch(`/music/${name}.1.b64`).then((r) => r.ok ? r.text() : ""),
-    fetch(`/music/${name}.2.b64`).then((r) => r.ok ? r.text() : "")
-  ]);
-  const b64 = (parts[0] + parts[1]).replace(/\s+/g, "");
+  const texts = await Promise.all(
+    Array.from({ length: MAX_PARTS }, (_, i) =>
+      fetch(`/music/${name}.${i + 1}.b64`).then((r) => (r.ok ? r.text() : "")).catch(() => "")
+    )
+  );
+  const b64 = texts.join("").replace(/\s+/g, "");
   if (!b64) return mp3;
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   return URL.createObjectURL(new Blob([bin], { type: "audio/mpeg" }));
@@ -42,11 +46,16 @@ function getBed(name) {
   el.loop = true;
   el.preload = "auto";
   el.volume = 0;
+  el.crossOrigin = "anonymous";
   el.src = beds[name];
   players[name] = el;
   if (!loading[name]) {
     loading[name] = resolveBedUrl(name).then((url) => {
-      if (url && url !== el.src) el.src = url;
+      if (url && url !== el.src) {
+        const playing = currentBed === name && !el.paused;
+        el.src = url;
+        if (playing) void el.play().catch(() => {});
+      }
       return el;
     }).catch(() => el);
   }
@@ -73,9 +82,14 @@ function playBed(name, vol = 0.38) {
   }
   const el = getBed(name);
   currentBed = name;
-  el.volume = 0;
-  const start = () => void el.play().then(() => fadeTo(el, vol, 700)).catch(() => {});
-  if (loading[name]) loading[name].then(start); else start();
+  if (el.volume < 0.02) el.volume = 0;
+  void el.play().then(() => fadeTo(el, vol, 700)).catch(() => {
+    if (loading[name]) {
+      loading[name].then(() => {
+        if (currentBed === name) void el.play().then(() => fadeTo(el, vol, 700)).catch(() => {});
+      });
+    }
+  });
 }
 
 function stopBed() {
