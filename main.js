@@ -41,6 +41,8 @@ const camTarget = new THREE.Vector3();
 const desired = new THREE.Vector3();
 const garageCam = new THREE.Vector3(6.4, 3.1, 9.2);
 const garageLook = new THREE.Vector3(0, 1.05, 6);
+const faceCam = new THREE.Vector3(0, 12.5, 24);
+const faceLook = new THREE.Vector3(0, 0.6, 0);
 const playLook = new THREE.Vector3();
 let shake = 0;
 const hemi = new THREE.HemisphereLight("#8ec8ff", "#4a2a10", 1.15);
@@ -121,6 +123,7 @@ let B = bodyFrom("model3", 0, -14, Math.PI);
 let ball = { x: 0, y: 0.55, z: 0, vx: 0, vy: 0, vz: 0, flat: 0 };
 let scoreA = 0, scoreB = 0, timeLeft = 90, playing = false, locked = false;
 let mode = "garage";
+let faceoffT = 0;
 let last = performance.now();
 let boostSfxCool = 0;
 window.__controlsTest = { getYaw: () => P.yaw, getSpeed: () => Math.hypot(P.vx, P.vz), setKeys: (codes) => setQaKeys(codes) };
@@ -240,6 +243,17 @@ function tick(now) {
     preview.rotation.y += dt * 0.7;
     camera.position.lerp(garageCam, 1 - Math.pow(0.002, dt));
     camTarget.lerp(garageLook, 1 - Math.pow(0.002, dt));
+  } else if (mode === "faceoff") {
+    preview.visible = false; playerMesh.visible = true; botMesh.visible = true; ballMesh.visible = true;
+    syncMesh(playerMesh, P); syncMesh(botMesh, B);
+    ballMesh.scale.set(1, 1, 1);
+    ballMesh.position.set(ball.x, ball.y, ball.z);
+    camera.position.lerp(faceCam, 1 - Math.pow(0.002, dt));
+    camTarget.lerp(faceLook, 1 - Math.pow(0.002, dt));
+    faceoffT -= dt;
+    const sub = document.getElementById("faceSub");
+    if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " \u00b7 " + Math.max(1, Math.ceil(faceoffT)) + " \u00b7 TAP TO SKIP";
+    if (faceoffT <= 0) kickoffNow();
   } else {
     preview.visible = false; playerMesh.visible = true; botMesh.visible = true; ballMesh.visible = true;
     syncMesh(playerMesh, P); syncMesh(botMesh, B);
@@ -266,6 +280,21 @@ function pickBot() {
   const others = CATALOG.filter((v) => v.id !== selectedId);
   return others[Math.floor(Math.random() * others.length)].id;
 }
+function kickoffNow() {
+  if (mode !== "faceoff") return;
+  mode = "play";
+  playing = true;
+  locked = false;
+  document.body.classList.add("playing");
+  document.body.classList.toggle("fsd", fsd);
+  overlay.style.display = "none";
+  overlay.classList.remove("faceoff");
+  overlay.classList.remove("results");
+  hud.classList.remove("hidden");
+  boostHud.classList.remove("hidden");
+  SFX.whistle();
+  toast(fsd ? "FSD SUPERVISED" : "KICK OFF", 800);
+}
 function startGame(useFsd) {
   ensureAudio();
   fsd = !!useFsd;
@@ -276,13 +305,28 @@ function startGame(useFsd) {
   labB.textContent = byId(botId).name + " \u00b7 NPC";
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   timeLeft = 90; resetKick(0);
-  playing = true; locked = false; mode = "play";
-  document.body.classList.add("playing");
-  document.body.classList.toggle("fsd", fsd);
-  overlay.style.display = "none"; overlay.classList.remove("results");
-  hud.classList.remove("hidden"); boostHud.classList.remove("hidden");
-  SFX.whistle(); toast(fsd ? "FSD SUPERVISED" : "KICK OFF", 800);
+  playing = false; locked = false; mode = "faceoff"; faceoffT = 2.8;
+  document.body.classList.remove("playing");
+  document.body.classList.remove("fsd");
+  overlay.style.display = "flex";
+  overlay.classList.remove("results");
+  overlay.classList.add("faceoff");
+  const title = document.getElementById("faceTitle");
+  if (title) title.textContent = byId(selectedId).name + " vs " + byId(botId).name;
+  const sub = document.getElementById("faceSub");
+  if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " \u00b7 TAP TO SKIP";
+  hud.classList.add("hidden");
+  boostHud.classList.add("hidden");
+  SFX.tick();
 }
+overlay.addEventListener("pointerdown", (e) => {
+  if (mode !== "faceoff") return;
+  if (e.target.closest("button")) return;
+  kickoffNow();
+});
+window.addEventListener("keydown", (e) => {
+  if (mode === "faceoff" && (e.code === "Space" || e.code === "Enter")) kickoffNow();
+});
 document.getElementById("go").addEventListener("click", () => startGame(false));
 const goFsd = document.getElementById("goFsd");
 if (goFsd) goFsd.addEventListener("click", () => startGame(true));
@@ -305,6 +349,7 @@ window.addEventListener("keydown", (e) => {
 });
 document.getElementById("again").addEventListener("click", () => {
   overlay.classList.remove("results");
+  overlay.classList.remove("faceoff");
   mode = "garage";
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
