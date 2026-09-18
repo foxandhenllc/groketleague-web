@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14305a"/>
+      <stop offset="1" stop-color="#0a1028"/>
+    </linearGradient>
+    <pattern id="turf" width="64" height="64" patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#2f9a3a"/>
+      <rect width="32" height="64" fill="#278634"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <rect y="268" width="1200" height="362" fill="url(#turf)"/>
+  <rect x="0" y="0" width="1200" height="18" fill="#f0c020"/>
+  <g fill="none" stroke="#e6f0e6" stroke-width="6">
+    <rect x="48" y="300" width="1104" height="300"/>
+    <line x1="600" y1="300" x2="600" y2="600"/>
+    <circle cx="600" cy="450" r="78"/>
+    <rect x="48" y="372" width="140" height="156"/>
+    <rect x="1012" y="372" width="140" height="156"/>
+  </g>
+  <g transform="translate(210,355)">
+    <polygon points="0,70 28,12 210,12 262,70 262,108 0,108" fill="#c5ccd1" stroke="#1a1d20" stroke-width="4"/>
+    <polygon points="46,20 86,20 70,52 32,52" fill="#2a4a72"/>
+    <circle cx="52" cy="112" r="22" fill="#141416"/>
+    <circle cx="198" cy="112" r="22" fill="#141416"/>
+    <rect x="0" y="70" width="262" height="10" fill="#f0c020"/>
+  </g>
+  <g transform="translate(760,400)">
+    <rect x="0" y="28" width="196" height="48" rx="10" fill="#3a6fff"/>
+    <polygon points="42,28 70,4 132,4 160,28" fill="#1c335f"/>
+    <circle cx="40" cy="78" r="16" fill="#141416"/>
+    <circle cx="150" cy="78" r="16" fill="#141416"/>
+  </g>
+  <circle cx="600" cy="455" r="28" fill="#f4f4ee" stroke="#111" stroke-width="4"/>
+  <text x="52" y="118" font-family="Impact, Arial Black, sans-serif" font-size="86" fill="#f0c020" stroke="#000" stroke-width="8" paint-order="stroke">GROKET LEAGUE</text>
+  <text x="56" y="176" font-family="Impact, Arial Black, sans-serif" font-size="42" fill="#ffffff" letter-spacing="8">FSD SOCCER</text>
+  <text x="56" y="220" font-family="Arial, sans-serif" font-size="22" fill="#fff6c8">Built with Grok  ·  A Fox & Hen product</text>
+</svg>
