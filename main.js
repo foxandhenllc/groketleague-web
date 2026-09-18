@@ -123,10 +123,10 @@ function pushChat(who, msg) {
   if (!chatLog) return;
   const el = document.createElement("div");
   el.className = "chatline " + who;
-  el.innerHTML = `<span class="tag">${who === "cpu" ? "CPU" : "P1"}</span>${msg}`;
+  el.innerHTML = `<span class="tag">${who === "cpu" ? "GROK" : "P1"}</span>${msg}`;
   chatLog.prepend(el);
   while (chatLog.children.length > 4) chatLog.removeChild(chatLog.lastChild);
-  toast((who === "cpu" ? "CPU · " : "P1 · ") + msg, 1200, who);
+  toast((who === "cpu" ? "GROK · " : "P1 · ") + msg, 1200, who);
 }
 function setInspect(id) {
   const v = byId(id);
@@ -197,13 +197,13 @@ async function onGoal(who) {
   locked = true;
   SFX.goal(); SFX.crowd(who === "A"); shake = 0.55;
   if (who === "A") { scoreA++; toast("P1 GOAL · " + byId(selectedId).name, 1100, "p1"); }
-  else { scoreB++; toast("CPU GOAL · " + byId(botId).name, 1100, "cpu"); }
+  else { scoreB++; toast("GROK GOAL · " + byId(botId).name, 1100, "cpu"); }
   scoreAEl.textContent = String(scoreA);
   scoreBEl.textContent = String(scoreB);
   if (scoreA >= 3 || scoreB >= 3) {
     setTimeout(() => {
       const winP1 = scoreA > scoreB;
-      showResults((winP1 ? "P1" : "CPU") + "<br>" + (winP1 ? byId(selectedId).name : byId(botId).name) + " WINS", "P1 " + scoreA + " — " + scoreB + " CPU", winP1 ? "P1" : "CPU");
+      showResults((winP1 ? "P1" : "GROK") + "<br>" + (winP1 ? byId(selectedId).name : byId(botId).name) + " WINS", "P1 " + scoreA + " — " + scoreB + " GROK", winP1 ? "P1" : "GROK");
       locked = false;
     }, 1100);
     return;
@@ -221,21 +221,21 @@ function tick(now) {
     if (timeLeft <= 0) {
       timeLeft = 0; SFX.whistle();
       const winP1 = scoreA > scoreB;
-      const title = scoreA === scoreB ? "DRAW" : (winP1 ? "P1" : "CPU") + "<br>" + (winP1 ? byId(selectedId).name : byId(botId).name) + " WINS";
-      showResults(title, "P1 " + scoreA + " — " + scoreB + " CPU", scoreA === scoreB ? "DRAW" : winP1 ? "P1" : "CPU");
+      const title = scoreA === scoreB ? "DRAW" : (winP1 ? "P1" : "GROK") + "<br>" + (winP1 ? byId(selectedId).name : byId(botId).name) + " WINS";
+      showResults(title, "P1 " + scoreA + " — " + scoreB + " GROK", scoreA === scoreB ? "DRAW" : winP1 ? "P1" : "GROK");
     }
     const m = Math.floor(timeLeft / 60);
     const s = Math.floor(timeLeft % 60).toString().padStart(2, "0");
     clockEl.textContent = m + ":" + s;
     const ctl = readControls();
     if (fsd && Math.abs(ctl.throttle) < 0.2 && Math.abs(ctl.steer) < 0.2) {
-      botAI(P, B, ball, dt);
+      botAI(P, B, ball, dt, -1);
       if (ctl.boost) drive(P, 0, 0, true, dt);
     } else {
       drive(P, ctl.throttle, ctl.steer, ctl.boost, dt);
     }
     if (P.boosting) { boostSfxCool -= dt; if (boostSfxCool <= 0) { SFX.boost(); boostSfxCool = 0.16; } }
-    botAI(B, P, ball, dt);
+    botAI(B, P, ball, dt, 1);
     chatCool -= dt;
     if (fsd && chatCool <= 0 && Math.random() < dt * 0.28) {
       pushChat("cpu", CHAT[Math.floor(Math.random() * CHAT.length)]);
@@ -329,7 +329,7 @@ function startGame(useFsd) {
   overlay.classList.remove("faceoff");
   if (chatLog) chatLog.innerHTML = "";
   const title = document.getElementById("faceTitle");
-  if (title) title.textContent = "P1 " + byId(selectedId).name + "  vs  CPU " + byId(botId).name;
+  if (title) title.textContent = "P1 " + byId(selectedId).name + "  vs  GROK " + byId(botId).name;
   const sub = document.getElementById("faceSub");
   if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " · TAP ANYWHERE TO SKIP";
   if (faceLayer) faceLayer.classList.remove("hidden");
@@ -373,7 +373,7 @@ function togglePause(force) {
     playing = false;
     SFX.pause();
     if (pauseLayer) {
-      document.getElementById("pauseScore").textContent = "P1 " + scoreA + " — " + scoreB + " CPU";
+      document.getElementById("pauseScore").textContent = "P1 " + scoreA + " — " + scoreB + " GROK";
       pauseLayer.classList.remove("hidden");
     }
   } else {
@@ -382,7 +382,7 @@ function togglePause(force) {
   }
 }
 function shareOnX() {
-  const text = encodeURIComponent("P1 " + byId(selectedId).name + " " + scoreA + "–" + scoreB + " CPU " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.");
+  const text = encodeURIComponent("P1 " + byId(selectedId).name + " " + scoreA + "–" + scoreB + " GROK " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.");
   const url = encodeURIComponent("https://groketleague.com/");
   try {
     const shot = renderer.domElement.toDataURL("image/png");
