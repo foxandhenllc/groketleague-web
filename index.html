@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>GROKET LEAGUE — FSD Soccer</title>
-  <meta name="description" content="FSD Soccer. Grab the wheel or go Full Self-Driving. Dump Ludicrous Juice. Built with Grok." />
+  <meta name="description" content="FSD Soccer. Grab the wheel or go Full Self-Driving. Ludicrous Mode. Built with Grok." />
   <link rel="canonical" href="https://groketleague.com/" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="apple-touch-icon" href="/og.svg?v=3" />
+  <link rel="apple-touch-icon" href="/og.svg?v=4" />
   <meta property="og:site_name" content="GROKET LEAGUE" />
   <meta property="og:title" content="GROKET LEAGUE — FSD Soccer" />
-  <meta property="og:description" content="FSD Soccer. Cybertruck vs Model 3. Built with Grok." />
-  <meta property="og:image" content="https://groketleague.com/og.svg?v=3" />
+  <meta property="og:description" content="FSD Soccer. P1 vs CPU. Built with Grok." />
+  <meta property="og:image" content="https://groketleague.com/og.svg?v=4" />
   <meta property="og:image:type" content="image/svg+xml" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -19,8 +19,8 @@
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="GROKET LEAGUE — FSD Soccer" />
-  <meta name="twitter:description" content="FSD Soccer. Built with Grok." />
-  <meta name="twitter:image" content="https://groketleague.com/og.svg?v=3" />
+  <meta name="twitter:description" content="FSD Soccer. P1 vs CPU. Built with Grok." />
+  <meta name="twitter:image" content="https://groketleague.com/og.svg?v=4" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Ops+One&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
@@ -29,22 +29,26 @@
   <div id="brand">GROKET LEAGUE</div>
   <div id="hud" class="hidden">
     <div id="topbar">
-      <div class="scorebox" style="border-color:#3b82ff">
-        <div class="lab" style="color:#8ab4ff" id="labB">NPC</div>
+      <div class="scorebox cpu">
+        <div class="who">CPU</div>
+        <div class="lab" id="labB">MODEL 3</div>
         <div class="num" id="scoreB">0</div>
       </div>
       <div id="clockwrap">
         <div id="clock">1:30</div>
         <div id="maptag">DAY PITCH</div>
+        <div id="pauseHint">ESC / P PAUSE</div>
       </div>
-      <div class="scorebox">
-        <div class="lab" id="labA">YOU</div>
+      <div class="scorebox p1">
+        <div class="who">P1</div>
+        <div class="lab" id="labA">CYBERTRUCK</div>
         <div class="num" id="scoreA">0</div>
       </div>
     </div>
   </div>
-  <div id="boostHud" class="hidden"><div class="lab">LUDICROUS JUICE</div><div id="boostBar"><div id="boostFill"></div></div></div>
-  <div id="toast"></div>
+  <div id="boostHud" class="hidden"><div class="lab" id="boostLab">LUDICROUS MODE (DISENGAGED)</div><div id="boostBar"><div id="boostFill"></div></div></div>
+  <div id="toast" class="from-p1"></div>
+  <div id="chatLog"></div>
   <div id="chat">
     <button class="qc" data-chat="0">1 · L + ratio + no FSD</button>
     <button class="qc" data-chat="1">2 · skill issue. try not being poor</button>
@@ -53,7 +57,23 @@
   </div>
   <div id="touch">
     <div class="pad" id="pad"><div class="knob" id="knob"></div></div>
-    <div class="boostbtn" id="boostBtn">JUICE</div>
+    <div class="boostbtn" id="boostBtn">MODE</div>
+  </div>
+  <div id="faceoffLayer" class="hidden">
+    <div class="vs">FACEOFF</div>
+    <h2 id="faceTitle">P1 CYBERTRUCK  vs  CPU MODEL 3</h2>
+    <div class="sides"><span class="p1tag">P1 · YELLOW GOAL</span><span class="cputag">CPU · BLUE GOAL</span></div>
+    <div class="sub" id="faceSub">TAP ANYWHERE TO SKIP</div>
+  </div>
+  <div id="pauseLayer" class="hidden">
+    <h2>PAUSED</h2>
+    <div class="sub" id="pauseScore">P1 0 — 0 CPU</div>
+    <div class="row">
+      <button class="cta" id="resumeBtn">RESUME</button>
+      <button class="cta ghost" id="shareBtn">SHARE ON X</button>
+      <button class="cta fsd" id="newGameBtn">NEW GAME</button>
+    </div>
+    <div class="hint">ESC or P to resume · screenshot + tweet packed for you</div>
   </div>
   <div id="overlay">
     <div class="mast"><div><h1>GROKET LEAGUE</h1><div class="sub">FSD SOCCER</div></div></div>
@@ -68,17 +88,13 @@
       <button class="cta fsd" id="goFsd">FULL SELF-DRIVING</button>
       <button class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
     </div>
-    <div class="hint">Same pitch. Same juice. One of you is optional.<br>WASD · SHIFT/SPACE Ludicrous Juice · 1–4 quick chat · N night map.<br>Satirical fan toy — not Tesla, SpaceX, xAI, or Psyonix.</div>
-    <div id="credit">A FOX & HEN PRODUCT · <a href="https://foxandhenllc.com" target="_blank" rel="noopener">foxandhenllc.com</a> · BUILT WITH GROK</div>
+    <div class="hint">P1 vs CPU. Same pitch. Same juice.<br>WASD · SHIFT/SPACE Ludicrous Mode · 1–4 quick chat · ESC pause · N night map.<br>Satirical fan toy — not Tesla, SpaceX, xAI, or Psyonix.</div>
+    <div id="credit">A FOX &amp; HEN PRODUCT · <a href="https://foxandhenllc.com" target="_blank" rel="noopener">foxandhenllc.com</a> · BUILT WITH GROK</div>
     <div id="resultsPanel">
+      <div class="who" id="resWho">P1</div>
       <h2 id="resTitle">TRUCK WINS</h2>
-      <div class="sub" id="resSub" style="margin:10px 0 18px;letter-spacing:3px">0 — 0</div>
+      <div class="sub" id="resSub" style="margin:10px 0 18px;letter-spacing:3px">P1 0 — 0 CPU</div>
       <button class="cta" id="again">REMATCH</button>
-    </div>
-    <div id="faceoffPanel">
-      <div class="vs">FACEOFF</div>
-      <h2 id="faceTitle">CYBERTRUCK vs MODEL 3</h2>
-      <div class="sub" id="faceSub">TAP ANYWHERE TO SKIP</div>
     </div>
   </div>
   <script type="module" src="/main.js"></script>
