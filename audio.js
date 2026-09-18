@@ -1,9 +1,60 @@
 let actx = null;
 let crowdNode = null;
+const beds = {
+  garage: "/music/garage.mp3",
+  day: "/music/day.mp3",
+  night: "/music/night.mp3"
+};
+const players = {};
+let currentBed = null;
+
 function ensureAudio() {
   if (!actx) actx = new AudioContext();
   if (actx.state === "suspended") void actx.resume();
+  Object.values(players).forEach((p) => {
+    if (p.paused && currentBed && players[currentBed] === p) void p.play().catch(() => {});
+  });
 }
+
+function getBed(name) {
+  if (players[name]) return players[name];
+  const el = new Audio(beds[name]);
+  el.loop = true;
+  el.preload = "auto";
+  el.volume = 0;
+  players[name] = el;
+  return el;
+}
+
+function fadeTo(el, vol, ms = 600) {
+  const start = el.volume;
+  const t0 = performance.now();
+  function step(now) {
+    const k = Math.min(1, (now - t0) / ms);
+    el.volume = Math.max(0, Math.min(1, start + (vol - start) * k));
+    if (k < 1) requestAnimationFrame(step);
+    else if (vol <= 0.001) { el.pause(); el.volume = 0; }
+  }
+  requestAnimationFrame(step);
+}
+
+function playBed(name, vol = 0.38) {
+  ensureAudio();
+  if (currentBed === name && players[name] && !players[name].paused) return;
+  if (currentBed && players[currentBed] && currentBed !== name) {
+    fadeTo(players[currentBed], 0, 500);
+  }
+  const el = getBed(name);
+  currentBed = name;
+  el.volume = 0;
+  void el.play().then(() => fadeTo(el, vol, 700)).catch(() => {});
+}
+
+function stopBed() {
+  if (currentBed && players[currentBed]) fadeTo(players[currentBed], 0, 400);
+  currentBed = null;
+}
+
 function beep(freq, dur, type = "square", gain = 0.08, slide = 0) {
   if (!actx) return;
   const t = actx.currentTime;
@@ -49,7 +100,7 @@ function startCrowd() {
   f.frequency.value = 420;
   f.Q.value = 0.7;
   const g = actx.createGain();
-  g.gain.value = 0.045;
+  g.gain.value = 0.03;
   src.connect(f).connect(g).connect(actx.destination);
   src.start();
   crowdNode = { src, g };
@@ -103,4 +154,4 @@ const SFX = {
   tick: () => beep(880, 0.05, "square", 0.045),
   pause: () => beep(420, 0.08, "square", 0.05)
 };
-export { SFX, ensureAudio, startCrowd, stopCrowd };
+export { SFX, ensureAudio, startCrowd, stopCrowd, playBed, stopBed };
