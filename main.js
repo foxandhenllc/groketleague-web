@@ -1,1 +1,1 @@
-see-file
+import * as THREE from "three";
