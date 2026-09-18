@@ -1,0 +1,4 @@
+.netrow { align-items: center; }
+#roomCodeIn { width: 88px; font-family: "Black Ops One", sans-serif; font-size: 18px; letter-spacing: 3px; text-align: center; text-transform: uppercase; padding: 12px 8px; background: #140c08ee; color: #f0c020; border: 3px solid #f0c02088; }
+#roomCodeOut { font-family: "Black Ops One", sans-serif; font-size: 22px; color: #f0c020; letter-spacing: 6px; min-height: 1em; }
+#netStatus { color: #8ab4ff; }
