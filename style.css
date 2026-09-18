@@ -39,6 +39,7 @@ canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; 
 button.cta { font-family: "Black Ops One", sans-serif; font-size: 20px; padding: 14px 28px; background: var(--yel); color: #111; border: 0; cursor: pointer; box-shadow: 6px 6px 0 #000; }
 button.ghost { background: #1b2430; color: var(--yel); outline: 3px solid #f0c02055; }
 button.cta:hover { filter: brightness(1.08); }
+button.cta.fsd { background: #3a6fff; color: #fff; }
 .hint { text-align: center; font-size: 13px; color: #fff6; letter-spacing: 1px; padding: 0 16px 14px; }
 #resultsPanel { display: none; text-align: center; }
 #overlay.results #garage, #overlay.results .mast, #overlay.results #inspect, #overlay.results .hint, #overlay.results #credit { display: none; }
@@ -53,3 +54,11 @@ button.cta:hover { filter: brightness(1.08); }
 @media (max-width: 720px) { #garage { grid-template-columns: repeat(2, 1fr); } }
 #credit { text-align: center; font-size: 12px; letter-spacing: 2px; color: #fff6; padding: 0 16px 16px; }
 #credit a { color: #f0c020; text-decoration: none; }
+#chat { position: fixed; right: 14px; top: 46%; transform: translateY(-50%); z-index: 7; display: none; flex-direction: column; gap: 6px; pointer-events: none; }
+body.playing #chat { display: flex; }
+.qc { pointer-events: auto; font-family: "Bebas Neue", Impact, sans-serif; font-size: 14px; letter-spacing: 0.5px; text-align: left; padding: 8px 10px; background: #140c08ee; color: #f0c020; border: 3px solid #f0c02088; cursor: pointer; max-width: 240px; }
+.qc:hover { background: #2a1c08ee; border-color: #f0c020; }
+@media (max-width: 720px) {
+  #chat { right: 8px; top: auto; bottom: 190px; transform: none; }
+  .qc { font-size: 12px; max-width: 46vw; padding: 6px 8px; }
+}
