@@ -78,6 +78,7 @@ const maps = {
   night: { label: "GIGA NIGHT", bg: "#0a1028", fogN: 26, fogF: 90, hemi: ["#3a5a9a", "#120818", 0.55], sun: 0.18, fill: 0.18, lamp: 55, turf: "#14522a" }
 };
 let mapMode = "day";
+let mode = "garage";
 function applyMap() {
   const m = maps[mapMode];
   scene.background = new THREE.Color(m.bg);
@@ -90,10 +91,7 @@ function applyMap() {
   nightExtra.visible = mapMode === "night";
   mapTag.textContent = m.label;
   mapBtn.textContent = "MAP: " + m.label;
-  if (typeof mode !== "undefined") {
-    if (mode === "garage" || mode === "results") playBed("garage");
-    else playBed(mapMode === "night" ? "night" : "day");
-  }
+  if (mode === "play" || mode === "faceoff") playBed(mapMode === "night" ? "night" : "day");
 }
 applyMap();
 function cycleMap() { mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
@@ -111,7 +109,6 @@ let P = bodyFrom("cybertruck", 0, 14, 0);
 let B = bodyFrom("model3", 0, -14, Math.PI);
 let ball = { x: 0, y: 0.55, z: 0, vx: 0, vy: 0, vz: 0, flat: 0 };
 let scoreA = 0, scoreB = 0, timeLeft = 90, playing = false, locked = false, paused = false;
-let mode = "garage";
 let faceoffT = 0;
 let last = performance.now();
 let boostSfxCool = 0;
