@@ -6,7 +6,27 @@ const beds = {
   night: "/music/night.mp3"
 };
 const players = {};
+const loading = {};
 let currentBed = null;
+
+async function resolveBedUrl(name) {
+  const mp3 = beds[name];
+  try {
+    const head = await fetch(mp3, { method: "GET" });
+    if (head.ok) {
+      const buf = await head.arrayBuffer();
+      if (buf.byteLength > 1000) return URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+    }
+  } catch {}
+  const parts = await Promise.all([
+    fetch(`/music/${name}.1.b64`).then((r) => r.ok ? r.text() : ""),
+    fetch(`/music/${name}.2.b64`).then((r) => r.ok ? r.text() : "")
+  ]);
+  const b64 = (parts[0] + parts[1]).replace(/\s+/g, "");
+  if (!b64) return mp3;
+  const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return URL.createObjectURL(new Blob([bin], { type: "audio/mpeg" }));
+}
 
 function ensureAudio() {
   if (!actx) actx = new AudioContext();
@@ -18,11 +38,18 @@ function ensureAudio() {
 
 function getBed(name) {
   if (players[name]) return players[name];
-  const el = new Audio(beds[name]);
+  const el = new Audio();
   el.loop = true;
   el.preload = "auto";
   el.volume = 0;
+  el.src = beds[name];
   players[name] = el;
+  if (!loading[name]) {
+    loading[name] = resolveBedUrl(name).then((url) => {
+      if (url && url !== el.src) el.src = url;
+      return el;
+    }).catch(() => el);
+  }
   return el;
 }
 
@@ -47,7 +74,8 @@ function playBed(name, vol = 0.38) {
   const el = getBed(name);
   currentBed = name;
   el.volume = 0;
-  void el.play().then(() => fadeTo(el, vol, 700)).catch(() => {});
+  const start = () => void el.play().then(() => fadeTo(el, vol, 700)).catch(() => {});
+  if (loading[name]) loading[name].then(start); else start();
 }
 
 function stopBed() {
