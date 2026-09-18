@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CATALOG, byId } from "./catalog.js";
-import { ensureAudio, SFX } from "./audio.js";
+import { ensureAudio, SFX, startCrowd, stopCrowd } from "./audio.js";
 import { bindInput, bindTouch, readControls, setQaKeys } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
@@ -18,6 +18,11 @@ const boostHud = document.getElementById("boostHud");
 const labA = document.getElementById("labA");
 const labB = document.getElementById("labB");
 const garageEl = document.getElementById("garage");
+const faceLayer = document.getElementById("faceoffLayer");
+const pauseLayer = document.getElementById("pauseLayer");
+const boostLab = document.getElementById("boostLab");
+const chatLog = document.getElementById("chatLog");
+const resWho = document.getElementById("resWho");
 const PIX = 2.4;
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
 renderer.setPixelRatio(1);
@@ -121,16 +126,26 @@ let chatCool = 0;
 let P = bodyFrom("cybertruck", 0, 14, 0);
 let B = bodyFrom("model3", 0, -14, Math.PI);
 let ball = { x: 0, y: 0.55, z: 0, vx: 0, vy: 0, vz: 0, flat: 0 };
-let scoreA = 0, scoreB = 0, timeLeft = 90, playing = false, locked = false;
+let scoreA = 0, scoreB = 0, timeLeft = 90, playing = false, locked = false, paused = false;
 let mode = "garage";
 let faceoffT = 0;
 let last = performance.now();
 let boostSfxCool = 0;
 window.__controlsTest = { getYaw: () => P.yaw, getSpeed: () => Math.hypot(P.vx, P.vz), setKeys: (codes) => setQaKeys(codes) };
-function toast(msg, ms = 900) {
+function toast(msg, ms = 900, who = "p1") {
   toastEl.textContent = msg;
-  toastEl.classList.add("show");
+  toastEl.classList.remove("from-p1", "from-cpu");
+  toastEl.classList.add("show", who === "cpu" ? "from-cpu" : "from-p1");
   window.setTimeout(() => toastEl.classList.remove("show"), ms);
+}
+function pushChat(who, msg) {
+  if (!chatLog) return;
+  const el = document.createElement("div");
+  el.className = "chatline " + who;
+  el.innerHTML = `<span class="tag">${who === "cpu" ? "CPU" : "P1"}</span>${msg}`;
+  chatLog.prepend(el);
+  while (chatLog.children.length > 4) chatLog.removeChild(chatLog.lastChild);
+  toast((who === "cpu" ? "CPU · " : "P1 · ") + msg, 1200, who);
 }
 function setInspect(id) {
   const v = byId(id);
@@ -166,19 +181,33 @@ function resetKick(toward = 0) {
   B = bodyFrom(botId, 0, -14, Math.PI);
   ball = { x: 0, y: 0.55, z: toward * 4, vx: 0, vy: 6, vz: toward * 3, flat: 0 };
 }
-function swapMesh(old, id) {
-  const n = makeVehicle(id);
+function markTeam(mesh, color) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(1.15, 1.45, 20),
+    new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.06;
+  mesh.add(ring);
+  return mesh;
+}
+function swapMesh(old, id, teamColor) {
+  const n = markTeam(makeVehicle(id), teamColor);
   scene.add(n); scene.remove(old);
   return n;
 }
-function showResults(title, sub) {
-  mode = "results"; playing = false;
+function showResults(title, sub, winner) {
+  mode = "results"; playing = false; paused = false;
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
+  stopCrowd();
+  if (faceLayer) faceLayer.classList.add("hidden");
+  if (pauseLayer) pauseLayer.classList.add("hidden");
   overlay.style.display = "flex";
   overlay.classList.add("results");
   document.getElementById("resTitle").innerHTML = title;
   document.getElementById("resSub").textContent = sub;
+  if (resWho) resWho.textContent = winner || "";
 }
 function syncMesh(mesh, c) {
   mesh.position.set(c.x, 0, c.z);
@@ -188,13 +217,14 @@ async function onGoal(who) {
   if (locked) return;
   locked = true;
   SFX.goal(); SFX.crowd(who === "A"); shake = 0.55;
-  if (who === "A") { scoreA++; toast(byId(selectedId).name + " GOAL"); }
-  else { scoreB++; toast(byId(botId).name + " GOAL"); }
+  if (who === "A") { scoreA++; toast("P1 GOAL · " + byId(selectedId).name, 1100, "p1"); }
+  else { scoreB++; toast("CPU GOAL · " + byId(botId).name, 1100, "cpu"); }
   scoreAEl.textContent = String(scoreA);
   scoreBEl.textContent = String(scoreB);
   if (scoreA >= 3 || scoreB >= 3) {
     setTimeout(() => {
-      showResults(scoreA > scoreB ? byId(selectedId).name + "<br>WINS" : byId(botId).name + "<br>WINS", scoreA + " \u2014 " + scoreB);
+      const winP1 = scoreA > scoreB;
+      showResults((winP1 ? "P1" : "CPU") + "<br>" + (winP1 ? byId(selectedId).name : byId(botId).name) + " WINS", "P1 " + scoreA + " — " + scoreB + " CPU", winP1 ? "P1" : "CPU");
       locked = false;
     }, 1100);
     return;
@@ -207,12 +237,13 @@ function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (playing && !locked) {
+  if (playing && !locked && !paused) {
     timeLeft -= dt;
     if (timeLeft <= 0) {
       timeLeft = 0; SFX.whistle();
-      const title = scoreA === scoreB ? "DRAW" : scoreA > scoreB ? byId(selectedId).name + "<br>WINS" : byId(botId).name + "<br>WINS";
-      showResults(title, scoreA + " \u2014 " + scoreB);
+      const winP1 = scoreA > scoreB;
+      const title = scoreA === scoreB ? "DRAW" : (winP1 ? "P1" : "CPU") + "<br>" + (winP1 ? byId(selectedId).name : byId(botId).name) + " WINS";
+      showResults(title, "P1 " + scoreA + " — " + scoreB + " CPU", scoreA === scoreB ? "DRAW" : winP1 ? "P1" : "CPU");
     }
     const m = Math.floor(timeLeft / 60);
     const s = Math.floor(timeLeft % 60).toString().padStart(2, "0");
@@ -228,7 +259,7 @@ function tick(now) {
     botAI(B, P, ball, dt);
     chatCool -= dt;
     if (fsd && chatCool <= 0 && Math.random() < dt * 0.28) {
-      toast(CHAT[Math.floor(Math.random() * CHAT.length)], 1100);
+      pushChat("cpu", CHAT[Math.floor(Math.random() * CHAT.length)]);
       chatCool = 2.6;
     }
     if (carCar(P, B)) { SFX.hit(); shake = Math.max(shake, 0.2); }
@@ -238,6 +269,7 @@ function tick(now) {
     const g = stepBall(ball, dt); if (g) void onGoal(g);
   }
   boostFill.style.transform = "scaleX(" + P.boost / P.boostMax + ")";
+  if (boostLab) boostLab.textContent = "LUDICROUS MODE (" + (P.boosting ? "ENGAGED" : "DISENGAGED") + ")";
   if (mode === "garage") {
     preview.visible = true; playerMesh.visible = false; botMesh.visible = false; ballMesh.visible = false;
     preview.rotation.y += dt * 0.7;
@@ -252,14 +284,13 @@ function tick(now) {
     camTarget.lerp(faceLook, 1 - Math.pow(0.002, dt));
     faceoffT -= dt;
     const sub = document.getElementById("faceSub");
-    if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " \u00b7 " + Math.max(1, Math.ceil(faceoffT)) + " \u00b7 TAP TO SKIP";
+    if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " · " + Math.max(1, Math.ceil(faceoffT)) + " · TAP TO SKIP";
     if (faceoffT <= 0) kickoffNow();
   } else {
     preview.visible = false; playerMesh.visible = true; botMesh.visible = true; ballMesh.visible = true;
     syncMesh(playerMesh, P); syncMesh(botMesh, B);
-    const squash = ball.flat > 0 ? 0.45 : 1;
-    ballMesh.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
-    ballMesh.position.set(ball.x, ball.y * squash + (squash < 1 ? 0.15 : 0), ball.z);
+    ballMesh.scale.set(1, 1, 1);
+    ballMesh.position.set(ball.x, ball.y, ball.z);
     ballMesh.rotation.x += ball.vz * 0.02; ballMesh.rotation.z -= ball.vx * 0.02;
     const { x: fx, z: fz } = forwardXZ(P.yaw);
     desired.set(P.x - fx * 11.5, 7.4, P.z - fz * 11.5);
@@ -285,53 +316,56 @@ function kickoffNow() {
   mode = "play";
   playing = true;
   locked = false;
+  paused = false;
   document.body.classList.add("playing");
   document.body.classList.toggle("fsd", fsd);
   overlay.style.display = "none";
   overlay.classList.remove("faceoff");
   overlay.classList.remove("results");
+  if (faceLayer) faceLayer.classList.add("hidden");
+  if (pauseLayer) pauseLayer.classList.add("hidden");
   hud.classList.remove("hidden");
   boostHud.classList.remove("hidden");
+  startCrowd();
   SFX.whistle();
-  toast(fsd ? "FSD SUPERVISED" : "KICK OFF", 800);
+  toast(fsd ? "P1 · FSD SUPERVISED" : "P1 · KICK OFF", 800, "p1");
 }
 function startGame(useFsd) {
   ensureAudio();
   fsd = !!useFsd;
   botId = pickBot();
-  playerMesh = swapMesh(playerMesh, selectedId);
-  botMesh = swapMesh(botMesh, botId);
-  labA.textContent = byId(selectedId).name + (fsd ? " \u00b7 FSD" : " \u00b7 YOU");
-  labB.textContent = byId(botId).name + " \u00b7 NPC";
+  playerMesh = swapMesh(playerMesh, selectedId, "#f0c020");
+  botMesh = swapMesh(botMesh, botId, "#3a6fff");
+  labA.textContent = byId(selectedId).name + (fsd ? " · FSD" : "");
+  labB.textContent = byId(botId).name;
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   timeLeft = 90; resetKick(0);
-  playing = false; locked = false; mode = "faceoff"; faceoffT = 2.8;
+  playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
-  overlay.style.display = "flex";
+  overlay.style.display = "none";
   overlay.classList.remove("results");
-  overlay.classList.add("faceoff");
+  overlay.classList.remove("faceoff");
+  if (chatLog) chatLog.innerHTML = "";
   const title = document.getElementById("faceTitle");
-  if (title) title.textContent = byId(selectedId).name + " vs " + byId(botId).name;
+  if (title) title.textContent = "P1 " + byId(selectedId).name + "  vs  CPU " + byId(botId).name;
   const sub = document.getElementById("faceSub");
-  if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " \u00b7 TAP TO SKIP";
+  if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " · TAP ANYWHERE TO SKIP";
+  if (faceLayer) faceLayer.classList.remove("hidden");
+  if (pauseLayer) pauseLayer.classList.add("hidden");
   hud.classList.add("hidden");
   boostHud.classList.add("hidden");
   SFX.tick();
 }
-overlay.addEventListener("pointerdown", (e) => {
-  if (mode !== "faceoff") return;
-  if (e.target.closest("button")) return;
-  kickoffNow();
-});
+if (faceLayer) faceLayer.addEventListener("pointerdown", () => kickoffNow());
 window.addEventListener("keydown", (e) => {
-  if (mode === "faceoff" && (e.code === "Space" || e.code === "Enter")) kickoffNow();
+  if (mode === "faceoff" && (e.code === "Space" || e.code === "Enter" || e.code === "Escape")) kickoffNow();
 });
 document.getElementById("go").addEventListener("click", () => startGame(false));
 const goFsd = document.getElementById("goFsd");
 if (goFsd) goFsd.addEventListener("click", () => startGame(true));
 function sayChat(i) {
-  toast(CHAT[i % CHAT.length], 1200);
+  pushChat("p1", CHAT[i % CHAT.length]);
   SFX.tick();
 }
 const chatEl = document.getElementById("chat");
@@ -341,16 +375,62 @@ if (chatEl) chatEl.addEventListener("click", (e) => {
   sayChat(Number(btn.dataset.chat));
 });
 window.addEventListener("keydown", (e) => {
-  if (!playing) return;
+  if (e.code === "Escape" || e.code === "KeyP") {
+    if (mode === "play") { e.preventDefault(); togglePause(); }
+    return;
+  }
+  if (!playing || paused) return;
   if (e.code === "Digit1") sayChat(0);
   if (e.code === "Digit2") sayChat(1);
   if (e.code === "Digit3") sayChat(2);
   if (e.code === "Digit4") sayChat(3);
 });
+function togglePause(force) {
+  if (mode !== "play") return;
+  paused = force === undefined ? !paused : !!force;
+  if (paused) {
+    playing = false;
+    SFX.pause();
+    if (pauseLayer) {
+      document.getElementById("pauseScore").textContent = "P1 " + scoreA + " — " + scoreB + " CPU";
+      pauseLayer.classList.remove("hidden");
+    }
+  } else {
+    playing = true;
+    if (pauseLayer) pauseLayer.classList.add("hidden");
+  }
+}
+function shareOnX() {
+  const text = encodeURIComponent("P1 " + byId(selectedId).name + " " + scoreA + "–" + scoreB + " CPU " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.");
+  const url = encodeURIComponent("https://groketleague.com/");
+  try {
+    const shot = renderer.domElement.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = shot;
+    a.download = "groket-league.png";
+    a.click();
+  } catch {}
+  window.open("https://twitter.com/intent/tweet?text=" + text + "&url=" + url, "_blank", "noopener");
+}
+document.getElementById("resumeBtn") && document.getElementById("resumeBtn").addEventListener("click", () => togglePause(false));
+document.getElementById("shareBtn") && document.getElementById("shareBtn").addEventListener("click", shareOnX);
+document.getElementById("newGameBtn") && document.getElementById("newGameBtn").addEventListener("click", () => {
+  paused = false; playing = false; mode = "garage";
+  stopCrowd();
+  if (pauseLayer) pauseLayer.classList.add("hidden");
+  if (faceLayer) faceLayer.classList.add("hidden");
+  overlay.style.display = "flex";
+  overlay.classList.remove("results");
+  document.body.classList.remove("playing", "fsd");
+  hud.classList.add("hidden"); boostHud.classList.add("hidden");
+  setInspect(selectedId);
+});
 document.getElementById("again").addEventListener("click", () => {
   overlay.classList.remove("results");
   overlay.classList.remove("faceoff");
   mode = "garage";
+  stopCrowd();
+  if (faceLayer) faceLayer.classList.add("hidden");
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
   hud.classList.add("hidden"); boostHud.classList.add("hidden");
