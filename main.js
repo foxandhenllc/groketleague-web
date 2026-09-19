@@ -1,2 +1,1 @@
-import * as THREE from "three";
-export const RESTORED = true;
+import "https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@9cd43a2/main.js";
