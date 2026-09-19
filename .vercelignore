@@ -1,0 +1,9 @@
+.git
+.vercel
+node_modules
+output
+progress.md
+tests
+*.test.mjs
+
+.env*

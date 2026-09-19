@@ -6,6 +6,7 @@ function setQaKeys(codes) {
 }
 function bindInput(onN) {
   const down = (e) => {
+    if (e.target.closest("input, textarea, [contenteditable]")) return;
     keys[e.code] = true;
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
       e.preventDefault();

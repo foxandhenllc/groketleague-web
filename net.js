@@ -1,184 +1,173 @@
+// PeerJS signaling only; gameplay travels directly between the two browsers.
 const PREFIX = "glr-";
 const QUEUE = "glq-";
 const SLOTS = 12;
 const ABC = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-
-let PeerCtor = null;
-let peer = null;
-let conn = null;
-let role = null;
-let roomCode = "";
-let handlers = {};
-let queueSlot = -1;
-let ready = false;
-
+let PeerCtor;
+let peer = null, conn = null, role = null, roomCode = "", ready = false;
+let handlers = {}, generation = 0;
+const peers = new Set();
+const cancelled = () => new Error("cancelled");
+function check(g) { if (g !== generation) throw cancelled(); }
 function code4() {
-  let s = "";
-  for (let i = 0; i < 4; i++) s += ABC[Math.floor(Math.random() * ABC.length)];
-  return s;
+  return Array.from(crypto.getRandomValues(new Uint32Array(4)), n => ABC[n % ABC.length]).join("");
 }
-
-function loadPeer() {
-  if (PeerCtor) return Promise.resolve(PeerCtor);
-  return import("https://cdn.jsdelivr.net/npm/peerjs@1.5.4/+esm").then((m) => {
+async function makePeer(id, g) {
+  if (!PeerCtor) {
+    const m = await import("https://cdn.jsdelivr.net/npm/peerjs@1.5.4/+esm");
     PeerCtor = m.Peer || m.default;
-    return PeerCtor;
+  }
+  check(g);
+  return new Promise((resolve, reject) => {
+    const p = new PeerCtor(id, { debug: 0 });
+    peers.add(p);
+    let opened = false;
+    const fail = err => { clearTimeout(timer); peers.delete(p); p.destroy(); reject(err); };
+    const timer = setTimeout(() => fail(new Error("Signaling timed out. Try again.")), 10000);
+    p.on("open", () => {
+      clearTimeout(timer);
+      if (g !== generation) return fail(cancelled());
+      opened = true;
+      resolve(p);
+    });
+    p.on("error", err => {
+      if (!opened) fail(err);
+      else if (p === peer && !ready && err.type !== "peer-unavailable") handlers.onError?.(err);
+    });
+    p.on("disconnected", () => {
+      if (g === generation && p === peer && !ready) handlers.onError?.(new Error("Signaling disconnected. Try again."));
+    });
   });
 }
-
 function send(msg) {
-  if (conn && conn.open) {
-    try { conn.send(msg); } catch (_) {}
+  if (conn?.open) {
+    try { conn.send(msg); } catch { handlers.onDrop?.(); }
   }
 }
-
-function wire(c) {
+function wire(c, g) {
   conn = c;
-  c.on("data", (msg) => {
-    if (!msg || typeof msg !== "object") return;
-    if (msg.t === "hello") handlers.onHello && handlers.onHello(msg);
-    else if (msg.t === "start") handlers.onStart && handlers.onStart(msg);
-    else if (msg.t === "in") handlers.onInput && handlers.onInput(msg);
-    else if (msg.t === "st") handlers.onState && handlers.onState(msg);
-    else if (msg.t === "chat") handlers.onChat && handlers.onChat(msg);
-    else if (msg.t === "busy") handlers.onBusy && handlers.onBusy(msg);
+  c.on("data", msg => {
+    if (g !== generation || conn !== c || !msg || typeof msg !== "object") return;
+    const event = { hello: "onHello", start: "onStart", in: "onInput", st: "onState", chat: "onChat", busy: "onBusy" }[msg.t];
+    if (event) handlers[event]?.(msg);
   });
-  c.on("close", () => { handlers.onDrop && handlers.onDrop(); });
-  c.on("error", () => { handlers.onDrop && handlers.onDrop(); });
+  const drop = () => {
+    if (g !== generation || conn !== c) return;
+    ready = false;
+    handlers.onDrop?.();
+  };
+  c.on("close", drop);
+  c.on("error", drop);
 }
-
-function makePeer(id) {
-  return loadPeer().then((P) => new Promise((resolve, reject) => {
-    const p = new P(id, { debug: 0 });
-    const to = setTimeout(() => { try { p.destroy(); } catch (_) {} reject(new Error("timeout")); }, 8000);
-    p.on("open", () => { clearTimeout(to); resolve(p); });
-    p.on("error", (err) => { clearTimeout(to); reject(err); });
-  }));
-}
-
-function listenHost(p) {
-  p.on("connection", (c) => {
-    if (conn && conn.open) {
-      c.on("open", () => { try { c.send({ t: "busy" }); c.close(); } catch (_) {} });
+function listenHost(p, g, queue = false) {
+  p.on("connection", c => {
+    if (g !== generation) return c.close();
+    // Reserve the room before open, so simultaneous guests cannot replace each other.
+    if (conn) {
+      c.on("open", () => { c.send({ t: "busy" }); setTimeout(() => c.close(), 250); });
       return;
     }
-    wire(c);
+    wire(c, g);
+    const timer = setTimeout(() => { if (!c.open && conn === c) { conn = null; c.close(); } }, 10000);
     c.on("open", () => {
+      clearTimeout(timer);
+      if (g !== generation) return c.close();
       ready = true;
-      handlers.onPeer && handlers.onPeer();
+      if (queue) c.send({ t: "wait" });
+      handlers.onPeer?.();
     });
   });
 }
-
 function destroy() {
-  ready = false;
-  role = null;
-  roomCode = "";
-  queueSlot = -1;
-  try { if (conn) conn.close(); } catch (_) {}
-  conn = null;
-  try { if (peer) peer.destroy(); } catch (_) {}
-  peer = null;
+  generation++;
+  ready = false; role = null; roomCode = "";
+  const old = conn; conn = null;
+  old?.close();
+  for (const p of peers) p.destroy();
+  peers.clear(); peer = null;
 }
-
-function createRoom() {
+async function createRoom() {
   destroy();
-  role = "host";
-  roomCode = code4();
-  return makePeer(PREFIX + roomCode).then((p) => {
-    peer = p;
-    listenHost(p);
-    return roomCode;
-  }).catch(() => createRoom());
+  const g = generation;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = code4();
+    try {
+      const p = await makePeer(PREFIX + code, g);
+      check(g); peer = p; role = "host"; roomCode = code;
+      listenHost(p, g);
+      return code;
+    } catch (err) {
+      check(g);
+      if (err.type !== "unavailable-id") throw err;
+    }
+  }
+  throw new Error("Could not reserve a room. Try again.");
 }
-
-function joinRoom(code) {
-  destroy();
-  role = "guest";
-  roomCode = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
-  if (roomCode.length !== 4) return Promise.reject(new Error("bad code"));
-  return makePeer().then((p) => {
-    peer = p;
-    return new Promise((resolve, reject) => {
-      const c = p.connect(PREFIX + roomCode, { reliable: true });
-      const to = setTimeout(() => reject(new Error("no room")), 7000);
-      c.on("open", () => {
-        clearTimeout(to);
-        wire(c);
-        ready = true;
-        resolve(roomCode);
-      });
-      c.on("error", () => { clearTimeout(to); reject(new Error("no room")); });
+function dial(p, id, g, queue) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const c = p.connect(id, { reliable: true });
+    const finish = (err) => {
+      if (settled) return;
+      settled = true; clearTimeout(timer); p.off("error", onError);
+      if (err || g !== generation) { c.close(); reject(err || cancelled()); return; }
+      peer = p; role = "guest"; roomCode = queue ? "QUICK MATCH" : id.slice(PREFIX.length);
+      wire(c, g); ready = true;
+      handlers.onPeer?.();
+      resolve(roomCode);
+    };
+    const onError = err => { if (err.type === "peer-unavailable") finish(new Error("Room not found. Check the code and try again.")); };
+    const timer = setTimeout(() => finish(new Error("Connection timed out. Try another room or network.")), 6500);
+    p.on("error", onError);
+    c.on("error", err => finish(err));
+    c.on("close", () => finish(new Error("Room closed.")));
+    c.on("open", () => { if (!queue) finish(); });
+    if (queue) c.on("data", msg => {
+      if (msg?.t === "wait") finish();
+      else if (msg?.t === "busy") finish(new Error("Room is full."));
     });
   });
 }
-
-function trySlot(i) {
-  return new Promise((resolve) => {
-    makePeer().then((p) => {
-      const c = p.connect(QUEUE + i, { reliable: true });
-      const to = setTimeout(() => { try { p.destroy(); } catch (_) {} resolve(null); }, 900);
-      c.on("open", () => {
-        clearTimeout(to);
-        c.once("data", (msg) => {
-          if (msg && msg.t === "wait") {
-            peer = p;
-            role = "guest";
-            roomCode = "Q" + i;
-            wire(c);
-            ready = true;
-            resolve({ joined: true, slot: i });
-          } else {
-            try { c.close(); p.destroy(); } catch (_) {}
-            resolve(null);
-          }
-        });
-      });
-      c.on("error", () => { clearTimeout(to); try { p.destroy(); } catch (_) {} resolve(null); });
-    }).catch(() => resolve(null));
-  });
+async function joinRoom(code) {
+  const normalized = String(code || "").trim().toUpperCase();
+  if (normalized.length !== 4 || [...normalized].some(c => !ABC.includes(c))) throw new Error("Enter a valid 4-character room code.");
+  destroy();
+  const g = generation;
+  const p = await makePeer(undefined, g);
+  check(g);
+  return dial(p, PREFIX + normalized, g, false);
 }
-
-function claimSlot(i) {
-  return makePeer(QUEUE + i).then((p) => {
-    peer = p;
-    role = "host";
-    queueSlot = i;
-    roomCode = "Q" + i;
-    p.on("connection", (c) => {
-      if (conn && conn.open) {
-        c.on("open", () => { try { c.send({ t: "busy" }); c.close(); } catch (_) {} });
-        return;
-      }
-      wire(c);
-      c.on("open", () => {
-        try { c.send({ t: "wait" }); } catch (_) {}
-        ready = true;
-        handlers.onPeer && handlers.onPeer();
-      });
-    });
-    return { hosted: true, slot: i };
-  });
-}
-
 async function quickMatch() {
   destroy();
+  const g = generation;
+  const seeker = await makePeer(undefined, g);
   for (let i = 0; i < SLOTS; i++) {
-    const hit = await trySlot(i);
-    if (hit) return hit;
+    check(g);
+    try { await dial(seeker, QUEUE + i, g, true); return { joined: true, slot: i }; }
+    catch { check(g); }
   }
   for (let i = 0; i < SLOTS; i++) {
+    check(g);
     try {
-      return await claimSlot(i);
-    } catch (_) {}
+      const p = await makePeer(QUEUE + i, g);
+      check(g); seeker.destroy(); peers.delete(seeker);
+      peer = p; role = "host"; roomCode = "QUICK MATCH";
+      listenHost(p, g, true);
+      return { hosted: true, slot: i };
+    } catch (err) {
+      check(g);
+      if (err.type !== "unavailable-id") throw err;
+      // A simultaneous seeker may just have claimed this slot. Join it before
+      // claiming another, preventing two players from waiting in separate rooms.
+      try { await dial(seeker, QUEUE + i, g, true); return { joined: true, slot: i }; }
+      catch { check(g); }
+    }
   }
-  throw new Error("queue full");
+  throw new Error("Quick match is full. Try again or create a room.");
 }
-
 function isHost() { return role === "host"; }
 function isGuest() { return role === "guest"; }
-function isOnline() { return ready && !!conn; }
+function isOnline() { return ready && !!conn?.open; }
 function getCode() { return roomCode; }
 function setHandlers(h) { handlers = h || {}; }
-
 export { createRoom, destroy, getCode, isGuest, isHost, isOnline, joinRoom, quickMatch, send, setHandlers };

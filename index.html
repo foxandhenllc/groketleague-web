@@ -22,7 +22,7 @@
   <meta name="twitter:description" content="FSD Soccer. P1 vs GROK. Built with Grok." />
   <meta name="twitter:image" content="https://groketleague.com/og.png?v=13" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Ops+One&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@9cd43a2/style.css" />
+  <link rel="stylesheet" href="/style.css" />
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -85,12 +85,20 @@
       <div class="stats" id="inspStats">MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE</div>
     </div>
     <div id="garage"></div>
+    <section id="netPanel" aria-label="Online 1v1">
+      <div class="row">
+        <button class="cta" id="netQuick">QUICK MATCH</button>
+        <button class="cta ghost" id="netCreate">CREATE ROOM</button>
+        <div class="roomJoin"><input id="roomCodeIn" aria-label="4-character room code" placeholder="CODE" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" /><button class="cta ghost" id="netJoin">JOIN</button></div>
+      </div>
+      <div class="netInfo"><span id="netStatus" role="status" aria-live="polite">ONLINE 1v1 · PICK YOUR CAR, THEN PLAY</span> <strong id="roomCodeOut"></strong><button id="netCancel" hidden>CANCEL</button></div>
+    </section>
     <div class="row">
       <button class="cta" id="go">GRAB THE WHEEL</button>
       <button class="cta fsd" id="goFsd">FULL SELF-DRIVING</button>
       <button class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
     </div>
-    <div class="hint">P1 vs GROK. Click once for audio.<br>WASD · SHIFT/SPACE Ludicrous Mode · ESC pause · N night map.</div>
+    <div class="hint">Online 1v1 or offline P1 vs GROK. Click once for audio.<br>WASD · SHIFT/SPACE Ludicrous Mode · ESC pause · N night map.</div>
     <div id="credit"><a href="https://foxandhenllc.com" target="_blank" rel="noopener" id="foxHenLink">A FOX & HEN PRODUCT</a> · BUILT WITH GROK</div>
     <div id="resultsPanel">
       <div class="who" id="resWho">P1</div>
@@ -106,6 +114,6 @@
     try { window.va && window.va("event", { name: "fox_hen_click" }); } catch (_) {}
   });
   </script>
-  <script type="module" src="https://cdn.jsdelivr.net/gh/foxandhenllc/groketleague-web@9cd43a2/main.js"></script>
+  <script type="module" src="/main.js"></script>
 </body>
 </html>
