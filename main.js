@@ -159,13 +159,15 @@ NET.setHandlers({
   onInput(msg) {
     if (!online || !NET.isHost() || msg.id !== matchId) return;
     const clamp = n => Number.isFinite(n) ? Math.max(-1, Math.min(1, n)) : 0;
-    remoteInput = { throttle: clamp(msg.throttle), steer: clamp(msg.steer), boost: msg.boost === true };
+    remoteInput = { throttle: clamp(msg.throttle), steer: clamp(msg.steer), boost: msg.boost === true, fsd: msg.fsd === true };
+    if (peerFsd !== remoteInput.fsd) { peerFsd = remoteInput.fsd; syncFsdUI(); }
     lastInput = lastPacket = performance.now();
   },
   onState(msg) {
     if (!online || !NET.isGuest() || msg.id !== matchId) return;
     if (![msg.P, msg.B, msg.ball].every(c => c && [c.x, c.z, c.vx, c.vz].every(Number.isFinite))) return;
     lastPacket = performance.now();
+    if (peerFsd !== (msg.fsdA === true)) { peerFsd = msg.fsdA === true; syncFsdUI(); }
     Object.assign(P, msg.P); Object.assign(B, msg.B); Object.assign(ball, msg.ball);
     if (msg.scoreA > scoreA || msg.scoreB > scoreB) {
       SFX.goal(); SFX.crowd(msg.scoreB > scoreB); shake = 0.55;
@@ -185,14 +187,14 @@ NET.setHandlers({
   onError: err => disconnected(err.message || "Connection lost. Try again.")
 });
 function sendSnapshot() {
-  NET.send({ t: "st", id: matchId, P, B, ball, scoreA, scoreB, timeLeft, locked, mode, faceoffT });
+  NET.send({ t: "st", id: matchId, P, B, ball, scoreA, scoreB, timeLeft, locked, mode, faceoffT, fsdA: fsd, fsdB: peerFsd });
 }
 setInterval(() => {
   if (!NET.isOnline()) return;
   if (performance.now() - lastPacket > 15000) return disconnected("CONNECTION LOST · PLEASE TRY AGAIN");
   if (!online) return;
   if (NET.isHost()) sendSnapshot();
-  else NET.send({ t: "in", id: matchId, ...(mode === "play" && pauseLayer.classList.contains("hidden") ? readControls() : { throttle: 0, steer: 0, boost: false }) });
+  else NET.send({ t: "in", id: matchId, fsd, ...(mode === "play" && pauseLayer.classList.contains("hidden") ? readControls() : { throttle: 0, steer: 0, boost: false }) });
 }, 50);
 window.addEventListener("pagehide", () => NET.destroy());
 function applyMap() {
@@ -218,7 +220,7 @@ bindTouch(document.getElementById("pad"), document.getElementById("knob"), docum
 let selectedId = "cybertruck";
 let hoverId = "cybertruck";
 let botId = "model3";
-let fsd = false;
+let fsd = false, peerFsd = false;
 const CHAT = ["L + ratio + no FSD","skill issue. have you tried not being poor","this is why FSD is taking so long","imagine steering. couldn't be me","the ball is a psyop","nice demo. next quarter.","you just got wss'd","cope. seethe. Model 3.","posted from the goal line","thanks for the engagement","unemployed behavior","my other car is also juicing","what color is your fridge","I am become Semi, destroyer of nets","touch grass. preferably the pitch","the algorithm fed you to me","this app is the app now","you are not the main character","supervised? brother I am the supervisor","that touch was a software-defined brick"];
 let chatCool = 0;
 let P = bodyFrom("cybertruck", 0, 14, 0);
@@ -298,6 +300,7 @@ function showResults(title, sub, winner) {
   playBed("garage");
   if (faceLayer) faceLayer.classList.add("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
+  syncMenuUI();
   overlay.style.display = "flex";
   overlay.classList.add("results");
   document.getElementById("resTitle").innerHTML = title;
@@ -359,10 +362,13 @@ function tick(now) {
     if (P.boosting) { boostSfxCool -= dt; if (boostSfxCool <= 0) { SFX.boost(); boostSfxCool = 0.16; } }
     if (online) {
       const input = performance.now() - lastInput < 500 ? remoteInput : { throttle: 0, steer: 0, boost: false };
-      drive(B, input.throttle, input.steer, input.boost, dt);
+      if (input.fsd && Math.abs(input.throttle) < 0.2 && Math.abs(input.steer) < 0.2) {
+        botAI(B, P, ball, dt, 1);
+        if (input.boost) drive(B, 0, 0, true, dt);
+      } else drive(B, input.throttle, input.steer, input.boost, dt);
     } else botAI(B, P, ball, dt, 1);
     chatCool -= dt;
-    if (fsd && chatCool <= 0 && Math.random() < dt * 0.28) {
+    if (fsd && !online && chatCool <= 0 && Math.random() < dt * 0.28) {
       pushChat("cpu", CHAT[Math.floor(Math.random() * CHAT.length)]);
       chatCool = 2.6;
     }
@@ -431,6 +437,7 @@ function kickoffNow(fromHost = false) {
   overlay.classList.remove("results");
   if (faceLayer) faceLayer.classList.add("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
+  syncMenuUI();
   hud.classList.remove("hidden");
   boostHud.classList.remove("hidden");
   startCrowd();
@@ -456,12 +463,11 @@ function startGame(useFsd, config = null) {
   document.querySelector("#pauseLayer h2").textContent = online ? "MATCH IS LIVE" : "PAUSED";
   ensureAudio();
   playBed(mapMode === "night" ? "night" : "day");
-  fsd = !!useFsd;
+  fsd = !!useFsd; peerFsd = false;
   if (!config) botId = pickBot();
   playerMesh = swapMesh(playerMesh, selectedId, "#f0c020");
   botMesh = swapMesh(botMesh, botId, "#3a6fff");
-  labA.textContent = byId(selectedId).name + (fsd ? " · FSD" : "");
-  labB.textContent = byId(botId).name;
+  syncFsdUI();
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   timeLeft = 90; resetKick(0);
   playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
@@ -477,6 +483,7 @@ function startGame(useFsd, config = null) {
   if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " · TAP ANYWHERE TO SKIP";
   if (faceLayer) faceLayer.classList.remove("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
+  syncMenuUI();
   hud.classList.add("hidden");
   boostHud.classList.add("hidden");
   SFX.tick();
@@ -510,11 +517,33 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Digit3") sayChat(2);
   if (e.code === "Digit4") sayChat(3);
 });
+function syncFsdUI() {
+  const guest = online && NET.isGuest();
+  labA.textContent = byId(selectedId).name + ((guest ? peerFsd : fsd) ? " · FSD" : "");
+  labB.textContent = byId(botId).name + ((online && (guest ? fsd : peerFsd)) ? " · FSD" : "");
+  const button = document.getElementById("fsdToggle");
+  button.textContent = "FSD: " + (fsd ? "ON" : "OFF");
+  button.setAttribute("aria-pressed", String(fsd));
+  button.classList.toggle("fsd", fsd);
+  button.classList.toggle("ghost", !fsd);
+  document.body.classList.toggle("fsd", mode === "play" && fsd);
+}
+document.getElementById("fsdToggle").addEventListener("click", () => {
+  if (mode !== "play") return;
+  fsd = !fsd;
+  syncFsdUI();
+  SFX.tick();
+});
+document.getElementById("menuBtn").addEventListener("click", () => togglePause());
+function syncMenuUI() {
+  document.getElementById("menuBtn").setAttribute("aria-expanded", String(!pauseLayer.classList.contains("hidden")));
+}
 function togglePause(force) {
   if (mode !== "play") return;
   if (online) {
     pauseLayer.classList.toggle("hidden", force === false ? true : !pauseLayer.classList.contains("hidden"));
     document.getElementById("pauseScore").textContent = "P1 " + scoreA + " — " + scoreB + " P2 · MATCH CONTINUES";
+    syncMenuUI();
     return;
   }
   paused = force === undefined ? !paused : !!force;
@@ -529,6 +558,7 @@ function togglePause(force) {
     playing = true;
     if (pauseLayer) pauseLayer.classList.add("hidden");
   }
+  syncMenuUI();
 }
 function shareOnX() {
   const line = "P1 " + byId(selectedId).name + " " + scoreA + "-" + scoreB + " " + opponentName() + " " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.";
@@ -574,6 +604,7 @@ function returnToGarage() {
   paused = false; playing = false; mode = "garage";
   stopCrowd(); playBed("garage");
   pauseLayer.classList.add("hidden"); faceLayer.classList.add("hidden");
+  syncMenuUI();
   overlay.style.display = "flex"; overlay.classList.remove("results", "faceoff");
   document.body.classList.remove("playing", "fsd");
   hud.classList.add("hidden"); boostHud.classList.add("hidden");
@@ -583,7 +614,7 @@ document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
 document.getElementById("again").addEventListener("click", returnToGarage);
 window.render_game_to_text = () => JSON.stringify({
   mode, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
-  fsd, paused, locked, matchId, cameraFollows: online && NET.isGuest() ? "B" : "P",
+  fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: online && NET.isGuest() ? "B" : "P",
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
   P, B, ball, scoreA, scoreB, timeLeft, netStatus: netStatus.textContent
 });

@@ -5,6 +5,9 @@ quick match, and the original manual / Full Self-Driving CPU modes.
 
 Choose a car before finding a match. The host controls physics and the match clock;
 the guest sends controls and follows the blue car. Online menus keep the match live.
+Use the in-game MENU button (desktop or touch) to switch FSD on or off without restarting.
+Each online player controls FSD for their own car; manual steering/throttle takes over.
+Offline menus pause the match, while online menus leave it running.
 Leaving a match returns the other player to the garage. Rematches start from the garage.
 
 ## Local development and checks
