@@ -336,3 +336,27 @@ body.playing #chatLog { display: none !important; }
   #garage { grid-template-columns: repeat(2, 1fr) !important; }
   #toast { bottom: 30% !important; }
 }
+
+
+/* Caption above quick-chat buttons; keep mid-pitch, not under #chat */
+#toast {
+  top: 40% !important;
+  bottom: auto !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 12 !important;
+  max-width: min(560px, 86vw) !important;
+  pointer-events: none !important;
+}
+#chat {
+  z-index: 8 !important;
+}
+@media (pointer: coarse) {
+  #toast {
+    top: 36% !important;
+    font-size: clamp(16px, 3.6vw, 28px) !important;
+  }
+  #chat {
+    bottom: 168px !important;
+  }
+}

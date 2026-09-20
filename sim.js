@@ -63,29 +63,38 @@ function carBall(c, ball) {
   const rightZ = -Math.sin(c.yaw);
   const localZ = dx * fwdX + dz * fwdZ;
   const localX = dx * rightX + dz * rightZ;
-  const hx = c.w * 0.55 + 0.55;
-  const hz = c.l * 0.5 + 0.55;
+  const hx = (Number.isFinite(c.w) ? c.w : 1.8) * 0.55 + 0.55;
+  const hz = (Number.isFinite(c.l) ? c.l : 4) * 0.5 + 0.55;
   if (Math.abs(localX) < hx && Math.abs(localZ) < hz && ball.y < 1.8) {
-    const nlen = Math.hypot(dx, dz) || 1;
-    const ux = dx / nlen;
-    const uz = dz / nlen;
+    const nlen = Math.hypot(dx, dz);
+    // Degenerate center overlap used to yield ux=uz=0, parking the ball inside
+    // the hitbox so vy stacked every frame and transforms went non-finite.
+    let ux, uz;
+    if (nlen < 0.05) {
+      ux = fwdX;
+      uz = fwdZ;
+    } else {
+      ux = dx / nlen;
+      uz = dz / nlen;
+    }
     const rel = (ball.vx - c.vx) * ux + (ball.vz - c.vz) * uz;
     const speed = Math.hypot(c.vx, c.vz);
     const mass = (Number.isFinite(c.mass) && c.mass > 0.2) ? c.mass : 1.5;
     let impulse = Math.max(9, 11 / mass + Math.abs(rel) * 1.15);
     if (!Number.isFinite(impulse)) impulse = 9;
+    impulse = Math.min(impulse, 42);
     let ev = "hit";
     if ((c.kind === "cybertruck" || c.kind === "semi") && c.boosting) {
       impulse *= 1.35;
-      ball.vy = 1.2;
+      ball.vy = Math.max(ball.vy, 1.2);
       ev = "pancake";
     } else {
-      ball.vy += 2 + Math.min(4.2, speed * 0.12);
+      ball.vy = Math.max(ball.vy, 2 + Math.min(4.2, speed * 0.12));
     }
     ball.vx += ux * impulse;
     ball.vz += uz * impulse;
-    ball.x = c.x + ux * (hx + 0.06);
-    ball.z = c.z + uz * (Math.min(hz, Math.abs(localZ)) + 0.06);
+    ball.x = c.x + ux * (hx + 0.2);
+    ball.z = c.z + uz * (hz + 0.2);
     c.vx -= ux * impulse * (0.12 * mass / 3);
     c.vz -= uz * impulse * (0.12 * mass / 3);
     return ev;
@@ -121,6 +130,12 @@ function stepBall(ball, dt) {
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
   ball.z += ball.vz * dt;
+  // Hard caps so a sticky contact can never send transforms to Infinity
+  const spd = Math.hypot(ball.vx, ball.vz);
+  if (spd > 55) { ball.vx *= 55 / spd; ball.vz *= 55 / spd; }
+  if (ball.vy > 28) ball.vy = 28;
+  if (ball.vy < -40) ball.vy = -40;
+  if (ball.y > 18) { ball.y = 18; ball.vy = Math.min(ball.vy, 0); }
   if (ball.y < 0.55) {
     ball.y = 0.55;
     if (ball.vy < 0) ball.vy *= -0.42;

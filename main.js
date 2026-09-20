@@ -72,6 +72,9 @@ let playerMesh = makeVehicle("cybertruck");
 let botMesh = makeVehicle("model3");
 const ballMesh = makeBall();
 scene.add(playerMesh, botMesh, ballMesh);
+playerMesh.frustumCulled = false;
+botMesh.frustumCulled = false;
+ballMesh.frustumCulled = false;
 const preview = new THREE.Group();
 let previewMesh = makeVehicle("cybertruck");
 preview.add(previewMesh);
@@ -401,9 +404,40 @@ function showResults(title, sub, winner) {
   }
   syncRematchUI();
 }
+function repairCar(c) {
+  if (!Number.isFinite(c.x)) c.x = 0;
+  if (!Number.isFinite(c.z)) c.z = 0;
+  if (!Number.isFinite(c.vx)) c.vx = 0;
+  if (!Number.isFinite(c.vz)) c.vz = 0;
+  if (!Number.isFinite(c.yaw)) c.yaw = 0;
+  if (!Number.isFinite(c.boost)) c.boost = 0;
+  if (!Number.isFinite(c.mass) || c.mass < 0.2) c.mass = 1.5;
+  if (!Number.isFinite(c.w) || c.w < 0.5) c.w = 1.8;
+  if (!Number.isFinite(c.l) || c.l < 0.5) c.l = 4;
+  if (!Number.isFinite(c.accel)) c.accel = 30;
+  if (!Number.isFinite(c.max)) c.max = 22;
+  if (!Number.isFinite(c.turn)) c.turn = 2;
+  if (!Number.isFinite(c.grip)) c.grip = 8;
+  if (!Number.isFinite(c.boostMax) || c.boostMax < 0.1) c.boostMax = 1;
+}
+function repairBall(b) {
+  if (!Number.isFinite(b.x)) b.x = 0;
+  if (!Number.isFinite(b.y) || b.y < 0.55) b.y = 0.55;
+  if (!Number.isFinite(b.z)) b.z = 0;
+  if (!Number.isFinite(b.vx)) b.vx = 0;
+  if (!Number.isFinite(b.vy)) b.vy = 0;
+  if (!Number.isFinite(b.vz)) b.vz = 0;
+  if (b.y > 18) b.y = 18;
+}
 function syncMesh(mesh, c) {
+  repairCar(c);
+  mesh.visible = true;
+  mesh.scale.set(1, 1, 1);
   mesh.position.set(c.x, 0, c.z);
-  mesh.rotation.y = c.yaw + Math.PI;
+  mesh.rotation.set(0, c.yaw + Math.PI, 0);
+  if (![mesh.position.x, mesh.position.y, mesh.position.z].every(Number.isFinite)) {
+    mesh.position.set(0, 0, 0);
+  }
 }
 function finishMatch() {
   const winP1 = scoreA > scoreB;
@@ -592,6 +626,8 @@ function tick(now) {
   } else if (mode === "faceoff") {
     preview.visible = false; playerMesh.visible = true; botMesh.visible = true; ballMesh.visible = true;
     syncMesh(playerMesh, P); syncMesh(botMesh, B);
+    repairBall(ball);
+    ballMesh.visible = true;
     ballMesh.scale.set(1, 1, 1);
     ballMesh.position.set(ball.x, ball.y, ball.z);
     camera.position.lerp(faceCam, 1 - Math.pow(0.002, dt));
@@ -603,7 +639,12 @@ function tick(now) {
   } else {
     preview.visible = false; playerMesh.visible = true; botMesh.visible = true; ballMesh.visible = true;
     syncMesh(playerMesh, P); syncMesh(botMesh, B);
+    repairBall(ball);
+    ballMesh.visible = true;
     ballMesh.scale.set(1, 1, 1);
+    if (![ballMesh.rotation.x, ballMesh.rotation.y, ballMesh.rotation.z].every(Number.isFinite)) {
+      ballMesh.rotation.set(0, 0, 0);
+    }
     ballMesh.position.set(ball.x, ball.y, ball.z);
     ballMesh.rotation.x += ball.vz * 0.02; ballMesh.rotation.z -= ball.vx * 0.02;
     const { x: fx, z: fz } = forwardXZ(me.yaw);
@@ -616,12 +657,6 @@ function tick(now) {
     camera.position.lerp(desired, 1 - Math.pow(0.001, dt));
     playLook.set(me.x * 0.55 + ball.x * 0.45, 0.6, me.z * 0.55 + ball.z * 0.45);
     camTarget.lerp(playLook, 1 - Math.pow(0.0008, dt));
-  }
-  // Keep camera/render alive even if a hit injects NaNs
-  for (const o of [P, B, ball]) {
-    for (const k of Object.keys(o)) {
-      if (typeof o[k] === "number" && !Number.isFinite(o[k])) o[k] = (k === "y" ? 0.55 : 0);
-    }
   }
   if (![camera.position.x, camera.position.y, camera.position.z, camTarget.x, camTarget.y, camTarget.z].every(Number.isFinite)) {
     camera.position.set(0, 14, 28); camTarget.set(0, 0.6, 0);
