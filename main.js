@@ -82,8 +82,8 @@ preview.add(previewMesh);
 preview.position.set(0, 0, 6);
 scene.add(preview);
 const maps = {
-  day: { label: "DAY PITCH", bg: "#14305a", fogN: 38, fogF: 105, hemi: ["#8ec8ff", "#4a2a10", 1.15], sun: 1.35, fill: 0.42, lamp: 22, turf: "#2f9a3a" },
-  night: { label: "GIGA NIGHT", bg: "#0a1028", fogN: 26, fogF: 90, hemi: ["#3a5a9a", "#120818", 0.55], sun: 0.18, fill: 0.18, lamp: 55, turf: "#14522a" }
+  day: { label: "CASTLE DAY", bg: "#3a6aaa", fogN: 42, fogF: 115, hemi: ["#b8d8ff", "#5a3a18", 1.05], sun: 1.25, fill: 0.48, lamp: 18, turf: "#ffffff" },
+  night: { label: "TORCH NIGHT", bg: "#0c1430", fogN: 28, fogF: 95, hemi: ["#4a6aaa", "#1a1020", 0.5], sun: 0.12, fill: 0.22, lamp: 48, turf: "#ffffff" }
 };
 let mapMode = "day";
 let mode = "garage";
@@ -411,7 +411,7 @@ function applyMap() {
   scene.fog = new THREE.Fog(m.bg, m.fogN, m.fogF);
   hemi.color.set(m.hemi[0]); hemi.groundColor.set(m.hemi[1]); hemi.intensity = m.hemi[2];
   sun.intensity = m.sun; fill.intensity = m.fill;
-  lamps.forEach((l) => { l.intensity = m.lamp; l.color.set(mapMode === "night" ? "#cfe7ff" : "#fff2cc"); });
+  lamps.forEach((l) => { l.intensity = m.lamp; l.color.set(mapMode === "night" ? "#ffb060" : "#ffd090"); });
   const turf = fieldRoot.getObjectByName("turf");
   if (turf) turf.material.color.set(m.turf);
   nightExtra.visible = mapMode === "night";
