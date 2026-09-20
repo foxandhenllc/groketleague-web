@@ -159,8 +159,9 @@ function stepBall(ball, dt) {
   }
   return null;
 }
-function botAI(me, foe, ball, dt, attackSign) {
+function botAI(me, foe, ball, dt, attackSign, boostIntent) {
   if (attackSign !== 1 && attackSign !== -1) attackSign = 1;
+  boostIntent = !!boostIntent;
   if (!me._ai) {
     me._ai = {
       t: 0, stuck: 0, lx: me.x, lz: me.z,
@@ -227,6 +228,12 @@ function botAI(me, foe, ball, dt, attackSign) {
   else if (behindBall || dBall > 9.5) want = "flank";
   else want = "strike";
 
+  // Human Ludicrous hold = commit harder (boost-as-intent)
+  if (boostIntent) {
+    if (want === "flank" || want === "strike") want = "commit";
+    else if (want === "kick") want = "strike";
+  }
+
   // Hysteresis / sticky modes — don't flip every frame
   const sticky = {
     unstuck: 0.95,
@@ -239,7 +246,7 @@ function botAI(me, foe, ball, dt, attackSign) {
   };
   if (want !== ai.mode) {
     const canLeave = ai.modeT >= (sticky[ai.mode] || 0.35);
-    const urgent = want === "unstuck" || want === "save" || (want === "commit" && ai.orbit > 1.8);
+    const urgent = want === "unstuck" || want === "save" || (want === "commit" && (ai.orbit > 1.8 || boostIntent));
     if (canLeave || urgent) {
       if (want === "unstuck") {
         ai.escape = Math.min(3, ai.escape + 1);
@@ -338,6 +345,7 @@ function botAI(me, foe, ball, dt, attackSign) {
   if ((ai.mode === "strike" || ai.mode === "commit") && lined && dBall < 5.8 && ballToGoal < 32) boost = true;
   if (ai.mode === "flank" && lined && dist > 9 && dBall < 13 && me.boost > 0.35) boost = ((ai.t * 3.1) % 1) < 0.18;
   if (ai.mode === "unstuck" && ai.escape >= 2 && lined) boost = true;
+  if (boostIntent) boost = true;
 
   drive(me, throttle, steer, boost, dt);
 }

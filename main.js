@@ -23,7 +23,8 @@ const garageEl = document.getElementById("garage");
 const faceLayer = document.getElementById("faceoffLayer");
 const pauseLayer = document.getElementById("pauseLayer");
 const boostLab = document.getElementById("boostLab");
-const chatLog = document.getElementById("chatLog");
+const matchChat = document.getElementById("matchChat");
+let matchChatIdle = 0;
 const resWho = document.getElementById("resWho");
 const PIX = 2.4;
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: false });
@@ -312,12 +313,54 @@ function cycleMap() { if (online || netPending) return; mapMode = mapMode === "d
 mapBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); cycleMap(); });
 bindInput(cycleMap);
 window.addEventListener("pointerdown", () => { ensureAudio(); if (mode === "garage") playBed("garage"); }, { once: true });
-bindTouch(document.getElementById("pad"), document.getElementById("knob"), document.getElementById("boostBtn"));
+bindTouch(null, null, document.getElementById("boostBtn"));
 let selectedId = "cybertruck";
 let hoverId = "cybertruck";
 let botId = "model3";
 let fsd = false, peerFsd = false;
-const CHAT = ["L + ratio + no FSD","skill issue. have you tried not being poor","this is why FSD is taking so long","imagine steering. couldn't be me","the ball is a psyop","nice demo. next quarter.","you just got wss'd","cope. seethe. Model 3.","posted from the goal line","thanks for the engagement","unemployed behavior","my other car is also juicing","what color is your fridge","I am become Semi, destroyer of nets","touch grass. preferably the pitch","the algorithm fed you to me","this app is the app now","you are not the main character","supervised? brother I am the supervisor","that touch was a software-defined brick"];
+const CHAT_CATS = [
+  {
+    id: "insults",
+    label: "INSULTS",
+    lines: [
+      "L + ratio + no FSD",
+      "skill issue. have you tried not being poor",
+      "this is why FSD is taking so long",
+      "imagine steering. couldn't be me"
+    ]
+  },
+  {
+    id: "more",
+    label: "MORE INSULTS",
+    lines: [
+      "the ball is a psyop",
+      "nice demo. next quarter.",
+      "you just got wss'd",
+      "cope. seethe. Model 3."
+    ]
+  },
+  {
+    id: "some",
+    label: "SOME INSULTS",
+    lines: [
+      "posted from the goal line",
+      "thanks for the engagement",
+      "unemployed behavior",
+      "my other car is also juicing"
+    ]
+  },
+  {
+    id: "pot",
+    label: "POTPOURRI",
+    lines: [
+      "what color is your fridge",
+      "I am become Semi, destroyer of nets",
+      "full send. no brakes. no thoughts.",
+      "built with Grok. driven by cope."
+    ]
+  }
+];
+const CHAT = CHAT_CATS.flatMap((c) => c.lines);
 let chatCool = 0;
 let P = bodyFrom("cybertruck", 0, 14, 0);
 let B = bodyFrom("model3", 0, -14, Math.PI);
@@ -335,7 +378,22 @@ function toast(msg, ms = 900, who = "p1") {
 }
 function pushChat(who, msg) {
   const label = who === "cpu" ? opponentName() : playerLabel();
-  toast(label + " - " + msg, 3200, who === "cpu" ? "cpu" : "p1");
+  if (!matchChat) return;
+  const line = document.createElement("div");
+  line.className = "chatline " + (who === "cpu" ? "cpu" : "p1");
+  const name = document.createElement("span");
+  name.className = "who";
+  name.textContent = label;
+  const body = document.createElement("span");
+  body.className = "msg";
+  body.textContent = msg;
+  line.appendChild(name);
+  line.appendChild(document.createTextNode(" "));
+  line.appendChild(body);
+  matchChat.appendChild(line);
+  while (matchChat.children.length > 6) matchChat.removeChild(matchChat.firstChild);
+  matchChat.classList.remove("idle");
+  matchChatIdle = 3.0;
 }
 function setInspect(id) {
   const v = byId(id);
@@ -589,21 +647,20 @@ function tick(now) {
     const s = Math.floor(timeLeft % 60).toString().padStart(2, "0");
     clockEl.textContent = m + ":" + s;
     const ctl = online && pauseLayer && !pauseLayer.classList.contains("hidden") ? { throttle: 0, steer: 0, boost: false } : readControls();
-    if (fsd && Math.abs(ctl.throttle) < 0.2 && Math.abs(ctl.steer) < 0.2) {
-      botAI(P, B, ball, dt, -1);
-      if (ctl.boost) drive(P, 0, 0, true, dt);
-    } else {
-      drive(P, ctl.throttle, ctl.steer, ctl.boost, dt);
-    }
+    // FSD always drives; human only holds Ludicrous (boost-as-intent)
+    botAI(P, B, ball, dt, -1, !!ctl.boost);
     if (P.boosting) { boostSfxCool -= dt; if (boostSfxCool <= 0) { SFX.boost(); boostSfxCool = 0.16; } }
     if (online) {
       const input = performance.now() - lastInput < 500 ? remoteInput : { throttle: 0, steer: 0, boost: false };
-      if (input.fsd && Math.abs(input.throttle) < 0.2 && Math.abs(input.steer) < 0.2) {
-        botAI(B, P, ball, dt, 1);
-        if (input.boost) drive(B, 0, 0, true, dt);
-      } else drive(B, input.throttle, input.steer, input.boost, dt);
+      const peerFsdDrive = input.fsd || (Math.abs(input.throttle) < 0.2 && Math.abs(input.steer) < 0.2);
+      if (peerFsdDrive) botAI(B, P, ball, dt, 1, !!input.boost);
+      else drive(B, input.throttle, input.steer, input.boost, dt);
     } else botAI(B, P, ball, dt, 1);
     chatCool -= dt;
+    if (matchChatIdle > 0) {
+      matchChatIdle -= dt;
+      if (matchChatIdle <= 0 && matchChat) matchChat.classList.add("idle");
+    }
     if (fsd && !online && chatCool <= 0 && Math.random() < dt * 0.28) {
       pushChat("cpu", CHAT[Math.floor(Math.random() * CHAT.length)]);
       chatCool = 2.6;
@@ -715,7 +772,7 @@ function kickoffNow(fromHost = false) {
   locked = false;
   paused = false;
   document.body.classList.add("playing");
-  document.body.classList.toggle("fsd", fsd);
+  document.body.classList.toggle("fsd", mode === "play");
   overlay.style.display = "none";
   overlay.classList.remove("faceoff");
   overlay.classList.remove("results");
@@ -750,7 +807,7 @@ function startGame(useFsd, config = null) {
   document.querySelector("#pauseLayer h2").textContent = online ? "MATCH IS LIVE" : "PAUSED";
   ensureAudio();
   playBed(mapMode === "night" ? "night" : "day");
-  fsd = !!useFsd; peerFsd = false;
+  fsd = true; // boost-only: FSD always on peerFsd = false;
   if (!config) botId = pickBot();
   playerMesh = swapMesh(playerMesh, selectedId, "#f0c020");
   botMesh = swapMesh(botMesh, botId, "#3a6fff");
@@ -764,7 +821,7 @@ function startGame(useFsd, config = null) {
   overlay.style.display = "none";
   overlay.classList.remove("results");
   overlay.classList.remove("faceoff");
-  if (chatLog) chatLog.innerHTML = "";
+  if (matchChat) { matchChat.innerHTML = ""; matchChat.classList.add("idle"); }
   const title = document.getElementById("faceTitle");
   if (title) title.textContent = playerLabel() + " " + byId(selectedId).name + "  vs  " + opponentName() + " " + byId(botId).name;
   const sub = document.getElementById("faceSub");
@@ -780,23 +837,101 @@ if (faceLayer) faceLayer.addEventListener("pointerdown", () => kickoffNow());
 window.addEventListener("keydown", (e) => {
   if (mode === "faceoff" && (e.code === "Space" || e.code === "Enter" || e.code === "Escape")) kickoffNow();
 });
-document.getElementById("go").addEventListener("click", () => startGame(false));
+document.getElementById("go").addEventListener("click", () => startGame(true));
 const goFsd = document.getElementById("goFsd");
 if (goFsd) goFsd.addEventListener("click", () => startGame(true));
 function sayChat(i) {
-  if (online) NET.send({ t: "chat", id: matchId, i });
-  pushChat(online && NET.isGuest() ? "cpu" : "p1", CHAT[i % CHAT.length]);
+  const idx = ((i % CHAT.length) + CHAT.length) % CHAT.length;
+  if (online) NET.send({ t: "chat", id: matchId, i: idx });
+  pushChat(online && NET.isGuest() ? "cpu" : "p1", CHAT[idx]);
   SFX.tick();
+  closeQcMenu();
 }
-const chatEl = document.getElementById("chat");
-if (chatEl) chatEl.addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-chat]");
-  if (!btn) return;
-  sayChat(Number(btn.dataset.chat));
-});
+const qcToggle = document.getElementById("qcToggle");
+const qcMenu = document.getElementById("qcMenu");
+let qcView = "root"; // root | cat:<id>
+function closeQcMenu() {
+  if (!qcMenu || !qcToggle) return;
+  qcMenu.classList.add("hidden");
+  qcToggle.setAttribute("aria-expanded", "false");
+  qcView = "root";
+}
+function openQcMenu() {
+  if (!qcMenu || !qcToggle) return;
+  qcView = "root";
+  renderQcMenu();
+  qcMenu.classList.remove("hidden");
+  qcToggle.setAttribute("aria-expanded", "true");
+}
+function renderQcMenu() {
+  if (!qcMenu) return;
+  qcMenu.innerHTML = "";
+  if (qcView === "root") {
+    for (const cat of CHAT_CATS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "qc cat";
+      b.textContent = cat.label;
+      b.dataset.cat = cat.id;
+      qcMenu.appendChild(b);
+    }
+  } else {
+    const catId = qcView.slice(4);
+    const cat = CHAT_CATS.find((c) => c.id === catId);
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "qc back";
+    back.textContent = "← BACK";
+    back.dataset.back = "1";
+    qcMenu.appendChild(back);
+    if (cat) {
+      const base = CHAT_CATS.slice(0, CHAT_CATS.indexOf(cat)).reduce((n, c) => n + c.lines.length, 0);
+      cat.lines.forEach((line, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "qc line";
+        b.textContent = (i + 1) + " · " + line;
+        b.dataset.chat = String(base + i);
+        qcMenu.appendChild(b);
+      });
+    }
+  }
+}
+if (qcToggle) {
+  qcToggle.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!playing || paused) return;
+    if (qcMenu && !qcMenu.classList.contains("hidden")) closeQcMenu();
+    else openQcMenu();
+    SFX.tick();
+  });
+}
+if (qcMenu) {
+  qcMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest("button.qc");
+    if (!btn) return;
+    if (btn.dataset.back) {
+      qcView = "root";
+      renderQcMenu();
+      SFX.tick();
+      return;
+    }
+    if (btn.dataset.cat) {
+      qcView = "cat:" + btn.dataset.cat;
+      renderQcMenu();
+      SFX.tick();
+      return;
+    }
+    if (btn.dataset.chat != null) sayChat(Number(btn.dataset.chat));
+  });
+}
 window.addEventListener("keydown", (e) => {
   if (e.code === "Escape" || e.code === "KeyP") {
-    if (mode === "play") { e.preventDefault(); togglePause(); }
+    if (mode === "play") {
+      e.preventDefault();
+      if (qcMenu && !qcMenu.classList.contains("hidden")) closeQcMenu();
+      else togglePause();
+    }
     return;
   }
   if (!playing || paused) return;
@@ -810,17 +945,17 @@ function syncFsdUI() {
   labA.textContent = byId(selectedId).name + ((guest ? peerFsd : fsd) ? " · FSD" : "");
   labB.textContent = byId(botId).name + ((online && (guest ? fsd : peerFsd)) ? " · FSD" : "");
   const button = document.getElementById("fsdToggle");
-  button.textContent = "FSD: " + (fsd ? "ON" : "OFF");
-  button.setAttribute("aria-pressed", String(fsd));
+  button.textContent = "FSD: ALWAYS ON";
+  button.setAttribute("aria-pressed", "true");
+  button.disabled = true;
   button.classList.toggle("fsd", fsd);
   button.classList.toggle("ghost", !fsd);
-  document.body.classList.toggle("fsd", mode === "play" && fsd);
+  document.body.classList.toggle("fsd", mode === "play"); // always FSD in play
 }
 document.getElementById("fsdToggle").addEventListener("click", () => {
-  if (mode !== "play") return;
-  fsd = !fsd;
+  /* FSD is always on — boost is the only human lever */
+  fsd = true;
   syncFsdUI();
-  SFX.tick();
 });
 document.getElementById("menuBtn").addEventListener("click", () => togglePause());
 function syncMenuUI() {
