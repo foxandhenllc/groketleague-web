@@ -9,6 +9,26 @@ const beds = {
 const players = {};
 const loading = {};
 let currentBed = null;
+let musicMuted = localStorage.getItem("gl_mute_music") === "1";
+let sfxMuted = localStorage.getItem("gl_mute_sfx") === "1";
+
+function isMusicMuted() { return musicMuted; }
+function isSfxMuted() { return sfxMuted; }
+function setMusicMuted(value) {
+  musicMuted = !!value;
+  localStorage.setItem("gl_mute_music", musicMuted ? "1" : "0");
+  if (musicMuted) {
+    if (currentBed && players[currentBed]) fadeTo(players[currentBed], 0, 120);
+  } else if (currentBed) {
+    const el = getBed(currentBed);
+    void el.play().then(() => fadeTo(el, 0.38, 240)).catch(() => {});
+  }
+}
+function setSfxMuted(value) {
+  sfxMuted = !!value;
+  localStorage.setItem("gl_mute_sfx", sfxMuted ? "1" : "0");
+  if (sfxMuted) stopCrowd();
+}
 
 async function resolveBedUrl(name) {
   const urls = beds[name] || [];
@@ -70,6 +90,7 @@ function fadeTo(el, vol, ms = 600) {
 
 function playBed(name, vol = 0.38) {
   ensureAudio();
+  if (musicMuted) { currentBed = name; return; }
   if (currentBed === name && players[name] && !players[name].paused) return;
   if (currentBed && players[currentBed] && currentBed !== name) {
     fadeTo(players[currentBed], 0, 500);
@@ -92,7 +113,7 @@ function stopBed() {
 }
 
 function beep(freq, dur, type = "square", gain = 0.08, slide = 0) {
-  if (!actx) return;
+  if (sfxMuted || !actx) return;
   const t = actx.currentTime;
   const o = actx.createOscillator();
   const g = actx.createGain();
@@ -106,7 +127,7 @@ function beep(freq, dur, type = "square", gain = 0.08, slide = 0) {
   o.stop(t + dur + 0.02);
 }
 function noise(dur, gain = 0.1, cutoff = 900) {
-  if (!actx) return;
+  if (sfxMuted || !actx) return;
   const n = Math.floor(actx.sampleRate * dur);
   const buf = actx.createBuffer(1, n, actx.sampleRate);
   const d = buf.getChannelData(0);
@@ -123,7 +144,7 @@ function noise(dur, gain = 0.1, cutoff = 900) {
 }
 function startCrowd() {
   ensureAudio();
-  if (!actx || crowdNode) return;
+  if (sfxMuted || !actx || crowdNode) return;
   const n = actx.sampleRate * 2;
   const buf = actx.createBuffer(1, n, actx.sampleRate);
   const d = buf.getChannelData(0);
@@ -166,7 +187,7 @@ const SFX = {
     setTimeout(() => beep(1500, 0.28, "sine", 0.09), 160);
   },
   crowd: (up) => {
-    if (!actx) return;
+    if (sfxMuted || !actx) return;
     const t = actx.currentTime;
     const o = actx.createOscillator();
     const g = actx.createGain();
@@ -190,4 +211,4 @@ const SFX = {
   tick: () => beep(880, 0.05, "square", 0.045),
   pause: () => beep(420, 0.08, "square", 0.05)
 };
-export { SFX, ensureAudio, startCrowd, stopCrowd, playBed, stopBed };
+export { SFX, ensureAudio, startCrowd, stopCrowd, playBed, stopBed, isMusicMuted, isSfxMuted, setMusicMuted, setSfxMuted };

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import * as NET from "./net.js";
 import { CATALOG, byId } from "./catalog.js";
-import { ensureAudio, SFX, startCrowd, stopCrowd, playBed } from "./audio.js";
+import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMuted, setMusicMuted, setSfxMuted } from "./audio.js";
 import { bindInput, bindTouch, readControls, setQaKeys } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
@@ -81,6 +81,7 @@ const maps = {
 let mapMode = "day";
 let mode = "garage";
 let online = false, netPending = false, matchId = "", sessionSerial = 0;
+let wantRematch = false, peerWantRematch = false;
 let localChoice = "cybertruck", remoteInput = { throttle: 0, steer: 0, boost: false };
 let lastPacket = 0, lastInput = 0;
 const opponentName = () => online ? "P2" : "GROK";
@@ -97,9 +98,11 @@ function setNetPending(value) {
 }
 function leaveNetwork(message = "ONLINE 1v1 · PICK YOUR CAR, THEN PLAY") {
   sessionSerial++; online = false; matchId = "";
+  wantRematch = false; peerWantRematch = false;
   NET.destroy(); setNetPending(false); roomCodeOut.textContent = "";
   selectedId = localChoice;
   netMessage(message);
+  syncRematchUI();
 }
 function disconnected(message = "OPPONENT DISCONNECTED · FIND ANOTHER MATCH") {
   const wasOnline = online;
@@ -181,6 +184,17 @@ NET.setHandlers({
   },
   onChat(msg) {
     if (online && msg.id === matchId && Number.isInteger(msg.i) && msg.i >= 0 && msg.i < CHAT.length) pushChat(NET.isHost() ? "cpu" : "p1", CHAT[msg.i]);
+  },
+  onRematch(msg) {
+    if (!online || msg.id !== matchId || mode !== "results") return;
+    peerWantRematch = true;
+    syncRematchUI();
+    maybeStartRematch();
+  },
+  onRematchGo(msg) {
+    if (!online || msg.id !== matchId) return;
+    if (!validCar(msg.a) || !validCar(msg.b)) return;
+    beginRematch(msg);
   },
   onDrop: () => disconnected(),
   onBusy: () => disconnected("ROOM IS FULL · TRY ANOTHER CODE"),
@@ -294,6 +308,7 @@ function swapMesh(old, id, teamColor) {
 }
 function showResults(title, sub, winner) {
   mode = "results"; playing = false; paused = false;
+  wantRematch = false; peerWantRematch = false;
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
   stopCrowd();
@@ -306,6 +321,7 @@ function showResults(title, sub, winner) {
   document.getElementById("resTitle").innerHTML = title;
   document.getElementById("resSub").textContent = sub;
   if (resWho) resWho.textContent = winner || "";
+  syncRematchUI();
 }
 function syncMesh(mesh, c) {
   mesh.position.set(c.x, 0, c.z);
@@ -458,7 +474,8 @@ function startGame(useFsd, config = null) {
   document.querySelector(".scorebox.cpu .who").textContent = opponentName() + (online && NET.isGuest() ? " · YOU" : "");
   document.querySelector(".scorebox.p1 .who").textContent = "P1" + (online && NET.isHost() ? " · YOU" : "");
   document.querySelector(".cputag").textContent = opponentName() + " · BLUE GOAL";
-  document.getElementById("again").textContent = online ? "BACK TO GARAGE" : "REMATCH";
+  document.getElementById("again").textContent = "REMATCH";
+  syncRematchUI();
   document.getElementById("pauseHint").textContent = online ? "ESC / P MENU · MATCH STAYS LIVE" : "ESC / P PAUSE";
   document.querySelector("#pauseLayer h2").textContent = online ? "MATCH IS LIVE" : "PAUSED";
   ensureAudio();
@@ -598,9 +615,90 @@ function shareOnX() {
 }
 document.getElementById("resumeBtn") && document.getElementById("resumeBtn").addEventListener("click", () => togglePause(false));
 document.getElementById("shareBtn") && document.getElementById("shareBtn").addEventListener("click", shareOnX);
+function syncAudioUI() {
+  const musicOn = !isMusicMuted();
+  const sfxOn = !isSfxMuted();
+  for (const id of ["muteMusicBtn", "garageMuteMusicBtn"]) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.textContent = "MUSIC: " + (musicOn ? "ON" : "OFF");
+    btn.setAttribute("aria-pressed", String(!musicOn));
+    btn.classList.toggle("ghost", musicOn);
+    btn.classList.toggle("fsd", !musicOn);
+  }
+  for (const id of ["muteSfxBtn", "garageMuteSfxBtn"]) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    btn.textContent = "SFX: " + (sfxOn ? "ON" : "OFF");
+    btn.setAttribute("aria-pressed", String(!sfxOn));
+    btn.classList.toggle("ghost", sfxOn);
+    btn.classList.toggle("fsd", !sfxOn);
+  }
+}
+function wireMute(id, kind) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    ensureAudio();
+    if (kind === "music") setMusicMuted(!isMusicMuted());
+    else {
+      setSfxMuted(!isSfxMuted());
+      if (!isSfxMuted() && (mode === "play" || mode === "faceoff")) startCrowd();
+    }
+    syncAudioUI();
+    if (!isSfxMuted()) SFX.tick();
+  });
+}
+wireMute("muteMusicBtn", "music");
+wireMute("muteSfxBtn", "sfx");
+wireMute("garageMuteMusicBtn", "music");
+wireMute("garageMuteSfxBtn", "sfx");
+syncAudioUI();
+function syncRematchUI() {
+  const again = document.getElementById("again");
+  const leave = document.getElementById("leaveBtn");
+  const status = document.getElementById("rematchStatus");
+  if (leave) leave.hidden = !online || mode !== "results";
+  if (!again) return;
+  if (!online || mode !== "results") {
+    again.textContent = "REMATCH";
+    if (status) { status.hidden = true; status.textContent = ""; }
+    return;
+  }
+  if (wantRematch && peerWantRematch) again.textContent = "STARTING…";
+  else if (wantRematch) again.textContent = "WAITING…";
+  else again.textContent = peerWantRematch ? "ACCEPT REMATCH" : "REMATCH";
+  if (status) {
+    status.hidden = !(wantRematch || peerWantRematch);
+    status.textContent = wantRematch && peerWantRematch ? "BOTH READY" : wantRematch ? "WAITING ON OPPONENT" : "OPPONENT WANTS REMATCH";
+  }
+}
+function beginRematch(config) {
+  wantRematch = false; peerWantRematch = false;
+  syncRematchUI();
+  startGame(fsd, { a: config.a, b: config.b, map: config.map === "night" ? "night" : "day" });
+}
+function maybeStartRematch() {
+  if (!online || !NET.isHost() || !wantRematch || !peerWantRematch || mode !== "results") return;
+  const payload = { t: "rx", id: matchId, a: selectedId, b: botId, map: mapMode };
+  NET.send(payload);
+  beginRematch(payload);
+}
+function requestRematch() {
+  if (!online) {
+    startGame(fsd);
+    return;
+  }
+  if (mode !== "results") return;
+  wantRematch = true;
+  syncRematchUI();
+  NET.send({ t: "rm", id: matchId });
+  maybeStartRematch();
+}
 function returnToGarage() {
   if (online || netPending) leaveNetwork();
   sessionSerial++;
+  wantRematch = false; peerWantRematch = false;
   paused = false; playing = false; mode = "garage";
   stopCrowd(); playBed("garage");
   pauseLayer.classList.add("hidden"); faceLayer.classList.add("hidden");
@@ -609,9 +707,12 @@ function returnToGarage() {
   document.body.classList.remove("playing", "fsd");
   hud.classList.add("hidden"); boostHud.classList.add("hidden");
   rebuildGarage(); setInspect(selectedId);
+  syncRematchUI();
+  syncAudioUI();
 }
 document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
-document.getElementById("again").addEventListener("click", returnToGarage);
+document.getElementById("again").addEventListener("click", requestRematch);
+document.getElementById("leaveBtn").addEventListener("click", returnToGarage);
 window.render_game_to_text = () => JSON.stringify({
   mode, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
   fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: online && NET.isGuest() ? "B" : "P",

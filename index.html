@@ -74,6 +74,10 @@
     <div class="row"><button class="cta ghost" id="fsdToggle" aria-pressed="false">FSD: OFF</button></div>
     <div class="hint" id="fsdHint">Full Self-Driving steers your car. Manual input takes over.</div>
     <div class="row">
+      <button class="cta ghost" id="muteMusicBtn" aria-pressed="false">MUSIC: ON</button>
+      <button class="cta ghost" id="muteSfxBtn" aria-pressed="false">SFX: ON</button>
+    </div>
+    <div class="row">
       <button class="cta" id="resumeBtn">RESUME</button>
       <button class="cta ghost" id="shareBtn">SHARE ON X</button>
       <button class="cta fsd" id="newGameBtn">NEW GAME</button>
@@ -101,13 +105,21 @@
       <button class="cta fsd" id="goFsd">FULL SELF-DRIVING</button>
       <button class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
     </div>
+    <div class="row garageAudio">
+      <button class="cta ghost" id="garageMuteMusicBtn" aria-pressed="false">MUSIC: ON</button>
+      <button class="cta ghost" id="garageMuteSfxBtn" aria-pressed="false">SFX: ON</button>
+    </div>
     <div class="hint">Online 1v1 or offline P1 vs GROK. Click once for audio.<br>WASD · SHIFT/SPACE Ludicrous Mode · ESC pause · N night map.</div>
     <div id="credit"><a href="https://foxandhenllc.com" target="_blank" rel="noopener" id="foxHenLink">A FOX & HEN PRODUCT</a> · BUILT WITH GROK</div>
     <div id="resultsPanel">
       <div class="who" id="resWho">P1</div>
       <h2 id="resTitle">TRUCK WINS</h2>
       <div class="sub" id="resSub">P1 0 — 0 GROK</div>
-      <button class="cta" id="again">REMATCH</button>
+      <div class="sub" id="rematchStatus" hidden></div>
+      <div class="row">
+        <button class="cta" id="again">REMATCH</button>
+        <button class="cta ghost" id="leaveBtn" hidden>GARAGE</button>
+      </div>
     </div>
   </div>
   <script>

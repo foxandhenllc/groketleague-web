@@ -21,3 +21,9 @@ Original prompt: Restore the full GROKET LEAGUE game from 9cd43a2, add PeerJS au
 - FSD changes preserve score, timer and match state. Offline menus pause; online menus continue play. Each peer controls its own FSD preference, with guest AI executed by the authoritative host and labels synced across peers. Manual throttle/steering still takes over.
 - Extended real two-browser integration checks: host and guest enable/disable independently, AI starts/stops on the host, offline toggles preserve the timer, touch-only menu/toggle/resume/garage flow passes. Existing private/quick-match, scoring, controls, disconnect and mobile checks pass with no console/page errors.
 - Local artifacts: output/fsd-update and output/fsd-update-skill. Inspected gameplay and mobile menu screenshots.
+
+## Follow-up: rematch + audio mute
+- Online rematch keeps the PeerJS session: REMATCH requests `{t:"rm"}`; when both sides want it the host sends `{t:"rx"}` and both restart with the same cars/map. GARAGE / leave still disconnects.
+- Offline REMATCH still restarts locally without tearing anything down.
+- MENU and garage expose MUSIC / SFX mute toggles; prefs persist in localStorage (`gl_mute_music`, `gl_mute_sfx`).
+- Verify: two browsers private room → finish match → both hit REMATCH → new faceoff without reconnect. Mute music/SFX in garage and mid-match MENU; reload and confirm prefs stick.

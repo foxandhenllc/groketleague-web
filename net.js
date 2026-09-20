@@ -48,7 +48,7 @@ function wire(c, g) {
   conn = c;
   c.on("data", msg => {
     if (g !== generation || conn !== c || !msg || typeof msg !== "object") return;
-    const event = { hello: "onHello", start: "onStart", in: "onInput", st: "onState", chat: "onChat", busy: "onBusy" }[msg.t];
+    const event = { hello: "onHello", start: "onStart", in: "onInput", st: "onState", chat: "onChat", busy: "onBusy", rm: "onRematch", rx: "onRematchGo" }[msg.t];
     if (event) handlers[event]?.(msg);
   });
   const drop = () => {

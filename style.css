@@ -127,3 +127,7 @@ body.playing #menuBtn { display: block; }
 #fsdHint { max-width: 360px; padding-bottom: 8px; color: #fffc; }
 #menuBtn:focus-visible, #fsdToggle:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 @media (max-height: 480px) { #pauseLayer { justify-content: flex-start; } }
+
+.garageAudio { margin: 8px 0 4px; gap: 8px; }
+#rematchStatus { margin: 6px 0 10px; letter-spacing: 1px; opacity: 0.9; }
+#resultsPanel .row { justify-content: center; gap: 10px; flex-wrap: wrap; }
