@@ -9,7 +9,7 @@ function wrapPi(a) {
 }
 function bodyFrom(id, x, z, yaw) {
   const c = byId(id);
-  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _ai: { orbit: 0, lastAng: 0, t: 0 } };
+  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _ai: { t: 0, stuck: 0, lx: 0, lz: 0, mode: "hunt", modeT: 0, side: 1, orbit: 0, lastAng: 0, escape: 0, commit: 0 } };
 }
 function clampFieldCar(c) {
   const limX = FW / 2 - 0.55;
@@ -161,62 +161,180 @@ function stepBall(ball, dt) {
 }
 function botAI(me, foe, ball, dt, attackSign) {
   if (attackSign !== 1 && attackSign !== -1) attackSign = 1;
-  if (!me._ai) me._ai = { t: 0, stuck: 0, lx: me.x, lz: me.z, mode: "hunt", modeT: 0, side: Math.random() < 0.5 ? 1 : -1 };
+  if (!me._ai) {
+    me._ai = {
+      t: 0, stuck: 0, lx: me.x, lz: me.z,
+      mode: "hunt", modeT: 0,
+      side: Math.random() < 0.5 ? 1 : -1,
+      orbit: 0, lastAng: 0, escape: 0, commit: 0
+    };
+  }
   const ai = me._ai;
   ai.t += dt;
   ai.modeT += dt;
+  if (ai.commit > 0) ai.commit = Math.max(0, ai.commit - dt);
+
   const goalZ = attackSign * (FL / 2);
   const ownZ = -attackSign * (FL / 2);
+  const padX = FW / 2 - 2.6;
+  const padZ = FL / 2 - 2.2;
+  const clampApproach = (x, z) => ({
+    x: Math.max(-padX, Math.min(padX, x)),
+    z: Math.max(-padZ, Math.min(padZ, z))
+  });
+
   const speed = Math.hypot(me.vx, me.vz);
   const moved = Math.hypot(me.x - ai.lx, me.z - ai.lz);
-  if (moved < 0.28 && speed < 4.5) ai.stuck += dt;
-  else ai.stuck = Math.max(0, ai.stuck - dt * 1.6);
-  ai.lx = me.x; ai.lz = me.z;
-  const predT = 0.16 + Math.min(0.3, Math.hypot(ball.vx, ball.vz) * 0.012);
+  // Stuck on boards / in place
+  const nearWall = Math.abs(me.x) > FW / 2 - 3.2 || Math.abs(me.z) > FL / 2 - 2.4;
+  if ((moved < 0.26 && speed < 4.2) || (nearWall && speed < 3.2 && moved < 0.45)) ai.stuck += dt;
+  else ai.stuck = Math.max(0, ai.stuck - dt * 1.35);
+  ai.lx = me.x;
+  ai.lz = me.z;
+
+  const predT = 0.14 + Math.min(0.28, Math.hypot(ball.vx, ball.vz) * 0.011);
   const pred = { x: ball.x + ball.vx * predT, z: ball.z + ball.vz * predT };
   const dBall = Math.hypot(pred.x - me.x, pred.z - me.z);
   const ballToGoal = Math.hypot(goalZ - pred.z, pred.x);
+  const ballToOwn = Math.hypot(ownZ - pred.z, pred.x);
   const behindBall = (me.z - pred.z) * attackSign < -0.55;
   const betweenOwn = Math.abs(me.z - ownZ) < Math.abs(pred.z - ownZ) + 2.5;
-  const rushingOwn = (ball.vz * attackSign) < -7 && Math.abs(pred.z - ownZ) < 18;
-  const kickoff = Math.abs(ball.x) < 1.6 && Math.abs(ball.z) < 3.2 && Math.hypot(ball.vx, ball.vz) < 5 && ai.t < 2.2;
-  if (ai.stuck > 0.55) { ai.mode = "unstuck"; ai.modeT = 0; ai.side *= -1; }
-  else if (rushingOwn || (betweenOwn && Math.abs(pred.z - ownZ) < 14)) ai.mode = "save";
-  else if (kickoff) ai.mode = "kick";
-  else if (behindBall || dBall > 10) ai.mode = "flank";
-  else ai.mode = "strike";
-  if (ai.mode === "unstuck" && ai.modeT > 0.7) ai.mode = "flank";
+  const rushingOwn = (ball.vz * attackSign) < -6.5 && ballToOwn < 22;
+  const kickoff = Math.abs(ball.x) < 1.8 && Math.abs(ball.z) < 3.4 && Math.hypot(ball.vx, ball.vz) < 5.5 && ai.t < 2.4;
+
+  // Anti-orbit: track bearing to ball; sustained spinning without closing = peel/commit
+  const angToBall = Math.atan2(-(pred.x - me.x), -(pred.z - me.z));
+  let dAng = wrapPi(angToBall - ai.lastAng);
+  ai.lastAng = angToBall;
+  if (dBall < 7.5 && Math.abs(dAng) > 0.45 && speed > 5 && moved > 0.15) ai.orbit += dt;
+  else ai.orbit = Math.max(0, ai.orbit - dt * 0.7);
+
   const toGoalX = -pred.x;
   const toGoalZ = goalZ - pred.z;
   const glen = Math.hypot(toGoalX, toGoalZ) || 1;
   const ux = toGoalX / glen;
   const uz = toGoalZ / glen;
+
+  // Desired mode (with urgency)
+  let want = "strike";
+  if (ai.stuck > 0.5 || ai.escape > 0) want = "unstuck";
+  else if (rushingOwn || (betweenOwn && ballToOwn < 16)) want = "save";
+  else if (kickoff) want = "kick";
+  else if (ai.orbit > 1.35) want = "commit";
+  else if (behindBall || dBall > 9.5) want = "flank";
+  else want = "strike";
+
+  // Hysteresis / sticky modes — don't flip every frame
+  const sticky = {
+    unstuck: 0.95,
+    save: 0.55,
+    kick: 0.4,
+    commit: 0.7,
+    flank: 0.45,
+    strike: 0.35,
+    hunt: 0.3
+  };
+  if (want !== ai.mode) {
+    const canLeave = ai.modeT >= (sticky[ai.mode] || 0.35);
+    const urgent = want === "unstuck" || want === "save" || (want === "commit" && ai.orbit > 1.8);
+    if (canLeave || urgent) {
+      if (want === "unstuck") {
+        ai.escape = Math.min(3, ai.escape + 1);
+        ai.side *= -1;
+      }
+      if (want === "commit") ai.commit = 0.85;
+      ai.mode = want;
+      ai.modeT = 0;
+    }
+  }
+  if (ai.mode === "unstuck" && ai.modeT > 0.55 + ai.escape * 0.25) {
+    ai.mode = "flank";
+    ai.modeT = 0;
+    ai.stuck = 0;
+  }
+  if (ai.mode === "commit" && ai.modeT > 0.9) {
+    ai.mode = "strike";
+    ai.modeT = 0;
+    ai.orbit = 0;
+  }
+  // Occasional side flip while flanking, but not on a short metronome
+  if (ai.mode === "flank" && ai.modeT > 3.6) {
+    ai.side *= -1;
+    ai.modeT = 0;
+  }
+
   let tx, tz;
-  if (ai.mode === "save") { tx = pred.x * 0.92; tz = pred.z - attackSign * 1.15; }
-  else if (ai.mode === "kick") { tx = pred.x * 0.1; tz = pred.z - attackSign * 0.35; }
-  else if (ai.mode === "unstuck") { tx = me.x + ai.side * 7; tz = me.z - attackSign * 5; }
-  else if (ai.mode === "flank") { tx = pred.x - ux * 4.6 + ai.side * 2.4; tz = pred.z - uz * 4.6; }
-  else { tx = pred.x - ux * 1.1; tz = pred.z - uz * 1.1; }
-  tx = Math.max(-FW / 2 + 2.2, Math.min(FW / 2 - 2.2, tx));
-  tz = Math.max(-FL / 2 + 1.8, Math.min(FL / 2 - 1.8, tz));
+  if (ai.mode === "save") {
+    // Shadow the goal mouth, slide with the ball — don't kamikaze-chase
+    const mouthX = Math.max(-GOAL_W * 0.42, Math.min(GOAL_W * 0.42, pred.x * 0.78));
+    tx = mouthX;
+    tz = ownZ + attackSign * (3.2 + Math.min(4, ballToOwn * 0.08));
+  } else if (ai.mode === "kick") {
+    tx = pred.x * 0.08;
+    tz = pred.z - attackSign * 0.45;
+  } else if (ai.mode === "unstuck") {
+    // Escape ladder: reverse-out → wide lateral → deep field peel
+    const tier = ai.escape;
+    if (tier <= 1) {
+      tx = me.x - Math.sin(me.yaw) * -4;
+      tz = me.z - Math.cos(me.yaw) * -4;
+    } else if (tier === 2) {
+      tx = me.x + ai.side * 9;
+      tz = me.z - attackSign * 3;
+    } else {
+      tx = ai.side * (FW * 0.25);
+      tz = me.z - attackSign * 10;
+    }
+  } else if (ai.mode === "commit") {
+    // Stop orbiting — drive through the ball toward goal
+    tx = pred.x + ux * 0.4;
+    tz = pred.z + uz * 0.4;
+  } else if (ai.mode === "flank") {
+    const wide = 3.1 + Math.min(2.2, dBall * 0.08);
+    tx = pred.x - ux * 4.8 + ai.side * wide;
+    tz = pred.z - uz * 4.8;
+  } else {
+    // strike: sit just behind ball on goal line
+    tx = pred.x - ux * 1.15;
+    tz = pred.z - uz * 1.15;
+  }
+
+  ({ x: tx, z: tz } = clampApproach(tx, tz));
+
   const ax = tx - me.x;
   const az = tz - me.z;
   const err = wrapPi(Math.atan2(-ax, -az) - me.yaw);
   const dist = Math.hypot(ax, az);
-  const gain = ai.mode === "save" ? 1.85 : ai.mode === "strike" ? 1.25 : 1.45;
+  const gain =
+    ai.mode === "save" ? 1.75 :
+    ai.mode === "strike" || ai.mode === "commit" ? 1.2 :
+    ai.mode === "unstuck" ? 1.55 : 1.4;
   const steer = Math.max(-1, Math.min(1, err * gain));
+
   let throttle = 1;
-  if (ai.mode === "unstuck") throttle = Math.abs(err) > 1.0 ? -0.55 : 0.7;
-  else if (Math.abs(err) > 1.35) throttle = dist < 7 ? -0.45 : 0.2;
-  else if (Math.abs(err) > 0.7 && dist < 4) throttle = 0.35;
+  if (ai.mode === "unstuck") {
+    if (ai.escape <= 1) throttle = Math.abs(err) > 0.9 ? -0.75 : -0.35;
+    else throttle = Math.abs(err) > 1.05 ? -0.5 : 0.85;
+  } else if (ai.mode === "save") {
+    throttle = dist > 5 ? 1 : (Math.abs(err) > 0.8 ? 0.35 : 0.75);
+  } else if (ai.mode === "commit") {
+    throttle = 1;
+  } else if (Math.abs(err) > 1.35) {
+    throttle = dist < 7 ? -0.4 : 0.2;
+  } else if (Math.abs(err) > 0.7 && dist < 4) {
+    throttle = 0.35;
+  }
   if (ai.mode === "kick") throttle = Math.abs(err) > 0.85 ? 0.5 : 1;
-  const lined = Math.abs(err) < (ai.mode === "strike" ? 0.28 : 0.36);
+
+  const lined = Math.abs(err) < (ai.mode === "strike" || ai.mode === "commit" ? 0.3 : 0.38);
   let boost = false;
-  if (ai.mode === "save" && lined) boost = true;
-  if (ai.mode === "strike" && lined && dBall < 5.5 && ballToGoal < 30) boost = true;
-  if (ai.mode === "flank" && lined && dist > 8 && dBall < 14) boost = ((ai.t * 7) % 1) < 0.28;
-  if (ai.modeT > 2.8 && (ai.mode === "flank" || ai.mode === "strike")) { ai.side *= -1; ai.modeT = 0; }
+  if (ai.mode === "save" && lined && dist < 8 && rushingOwn) boost = true;
+  if ((ai.mode === "strike" || ai.mode === "commit") && lined && dBall < 5.8 && ballToGoal < 32) boost = true;
+  if (ai.mode === "flank" && lined && dist > 9 && dBall < 13 && me.boost > 0.35) boost = ((ai.t * 3.1) % 1) < 0.18;
+  if (ai.mode === "unstuck" && ai.escape >= 2 && lined) boost = true;
+
   drive(me, throttle, steer, boost, dt);
 }
+
 
 export { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
