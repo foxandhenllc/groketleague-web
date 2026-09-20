@@ -40,6 +40,7 @@
         <div id="clock">1:30</div>
         <div id="maptag">DAY PITCH</div>
         <div id="pauseHint">ESC / P PAUSE</div>
+        <div id="signalPip" class="sig-hidden" title="Connection">● NET</div>
       </div>
       <div class="scorebox p1">
         <div class="who">P1</div>
@@ -82,7 +83,20 @@
       <button class="cta ghost" id="shareBtn">SHARE ON X</button>
       <button class="cta fsd" id="newGameBtn">NEW GAME</button>
     </div>
-    <div class="hint">Downloads a PNG. Attach it on X if the composer does not.</div>
+    <div class="hint" id="shareHint">Shares the last goal still when you have one. Otherwise captures now.</div>
+  </div>
+  
+  <div id="howLayer" class="hidden" role="dialog" aria-modal="true" aria-labelledby="howTitle">
+    <div class="howCard">
+      <h2 id="howTitle">HOW TO PLAY</h2>
+      <ul>
+        <li><strong>WASD</strong> drive · <strong>SHIFT / SPACE</strong> Ludicrous Mode</li>
+        <li><strong>FSD</strong> Full Self-Driving (toggle in MENU mid-match)</li>
+        <li><strong>QUICK MATCH</strong> find a 1v1 · <strong>CREATE / JOIN</strong> private room code</li>
+        <li>Share invite link after CREATE · Rematch keeps the same opponent</li>
+      </ul>
+      <button class="cta" id="howGotIt">GOT IT</button>
+    </div>
   </div>
   <div id="overlay">
     <div class="mast"><div><h1>GROKET LEAGUE</h1><div class="sub">FSD SOCCER</div></div></div>

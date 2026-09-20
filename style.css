@@ -136,3 +136,26 @@ body.playing #menuBtn { display: block; }
 #inviteActions[hidden] { display: none !important; }
 #inviteActions .cta { padding: 6px 10px; font-size: 13px; letter-spacing: 1px; }
 #roomCodeOut:not(:empty) { margin-right: 4px; letter-spacing: 3px; }
+
+#signalPip {
+  margin-top: 4px; font-size: 12px; letter-spacing: 2px; font-weight: 700;
+  color: #7dffa0; text-shadow: 0 0 6px rgba(0,0,0,.6);
+}
+#signalPip.sig-mid { color: #f0c020; }
+#signalPip.sig-bad { color: #ff6b5a; }
+#signalPip.sig-wait { color: #7ec8ff; animation: sigPulse 1s ease-in-out infinite; }
+#signalPip.sig-hidden { display: none; }
+@keyframes sigPulse { 50% { opacity: .45; } }
+#howLayer {
+  position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+  background: rgba(6,10,18,.82); padding: 20px;
+}
+#howLayer.hidden { display: none !important; }
+.howCard {
+  max-width: 460px; width: 100%; background: #0f1a2e; border: 2px solid #f0c020aa;
+  padding: 22px 22px 18px; box-shadow: 0 12px 40px rgba(0,0,0,.45);
+}
+.howCard h2 { margin: 0 0 12px; color: #f0c020; letter-spacing: 3px; font-size: 28px; }
+.howCard ul { margin: 0 0 16px; padding-left: 18px; color: #e8eefc; line-height: 1.55; font-size: 15px; }
+.howCard li { margin: 8px 0; }
+.howCard strong { color: #f0c020; }

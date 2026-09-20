@@ -84,6 +84,8 @@ let online = false, netPending = false, matchId = "", sessionSerial = 0;
 let wantRematch = false, peerWantRematch = false;
 let localChoice = "cybertruck", remoteInput = { throttle: 0, steer: 0, boost: false };
 let lastPacket = 0, lastInput = 0;
+let reconnectTimer = 0, reconnecting = false;
+let lastGoalCard = null, bestGoalCard = null, lastGoalBy = null;
 const opponentName = () => online ? "P2" : "GROK";
 const localBody = () => online && NET.isGuest() ? B : P;
 const validCar = id => CATALOG.some(v => v.id === id);
@@ -114,6 +116,7 @@ function setNetPending(value) {
 }
 function leaveNetwork(message = "ONLINE 1v1 · PICK YOUR CAR, THEN PLAY") {
   sessionSerial++; online = false; matchId = "";
+  clearReconnect();
   wantRematch = false; peerWantRematch = false;
   NET.destroy(); setNetPending(false); roomCodeOut.textContent = "";
   setInviteVisible(false);
@@ -207,7 +210,7 @@ document.getElementById("shareInviteBtn")?.addEventListener("click", async () =>
 })();
 NET.setHandlers({
   onPeer() {
-    lastPacket = performance.now();
+    notePacket();
     setInviteVisible(false);
     netMessage("CONNECTED · STARTING MATCH…");
     if (NET.isGuest()) NET.send({ t: "hello", car: localChoice, version: 1 });
@@ -218,7 +221,7 @@ NET.setHandlers({
     NET.send({ t: "start", phase: "setup", id: matchId, a: localChoice, b: msg.car, map: mapMode });
   },
   onStart(msg) {
-    lastPacket = performance.now();
+    notePacket();
     if (NET.isGuest() && msg.phase === "setup" && !online && typeof msg.id === "string" && validCar(msg.a) && validCar(msg.b)) {
       matchId = msg.id;
       startGame(false, msg);
@@ -233,12 +236,12 @@ NET.setHandlers({
     const clamp = n => Number.isFinite(n) ? Math.max(-1, Math.min(1, n)) : 0;
     remoteInput = { throttle: clamp(msg.throttle), steer: clamp(msg.steer), boost: msg.boost === true, fsd: msg.fsd === true };
     if (peerFsd !== remoteInput.fsd) { peerFsd = remoteInput.fsd; syncFsdUI(); }
-    lastInput = lastPacket = performance.now();
+    lastInput = performance.now(); notePacket();
   },
   onState(msg) {
     if (!online || !NET.isGuest() || msg.id !== matchId) return;
     if (![msg.P, msg.B, msg.ball].every(c => c && [c.x, c.z, c.vx, c.vz].every(Number.isFinite))) return;
-    lastPacket = performance.now();
+    notePacket();
     if (peerFsd !== (msg.fsdA === true)) { peerFsd = msg.fsdA === true; syncFsdUI(); }
     Object.assign(P, msg.P); Object.assign(B, msg.B); Object.assign(ball, msg.ball);
     if (msg.scoreA > scoreA || msg.scoreB > scoreB) {
@@ -265,7 +268,7 @@ NET.setHandlers({
     if (!validCar(msg.a) || !validCar(msg.b)) return;
     beginRematch(msg);
   },
-  onDrop: () => disconnected(),
+  onDrop: () => softDisconnect(),
   onBusy: () => disconnected("ROOM IS FULL · TRY ANOTHER CODE"),
   onError: err => disconnected(err.message || "Connection lost. Try again.")
 });
@@ -274,7 +277,11 @@ function sendSnapshot() {
 }
 setInterval(() => {
   if (!NET.isOnline()) return;
-  if (performance.now() - lastPacket > 15000) return disconnected("CONNECTION LOST · PLEASE TRY AGAIN");
+  syncSignalPip();
+  if (performance.now() - lastPacket > 2500 && performance.now() - lastPacket <= 12000 && online) {
+    if (!reconnecting) { reconnecting = true; toast("OPPONENT RECONNECTING…", 2000, "cpu"); netMessage("OPPONENT RECONNECTING…"); syncSignalPip(); }
+  }
+  if (performance.now() - lastPacket > 12000) return softDisconnect("CONNECTION LOST · PLEASE TRY AGAIN");
   if (!online) return;
   if (NET.isHost()) sendSnapshot();
   else NET.send({ t: "in", id: matchId, fsd, ...(mode === "play" && pauseLayer.classList.contains("hidden") ? readControls() : { throttle: 0, steer: 0, boost: false }) });
@@ -402,10 +409,82 @@ function finishMatch() {
   const title = winner === "DRAW" ? "DRAW" : winner + "<br>" + byId(winP1 ? selectedId : botId).name + " WINS";
   showResults(title, "P1 " + scoreA + " — " + scoreB + " " + opponentName(), winner);
 }
+
+function makeShareCard(line) {
+  renderer.render(scene, camera);
+  const src = renderer.domElement;
+  const card = document.createElement("canvas");
+  card.width = 1200; card.height = 630;
+  const ctx = card.getContext("2d");
+  ctx.fillStyle = "#14305a"; ctx.fillRect(0, 0, 1200, 630);
+  const sw = src.width, sh = src.height;
+  const scale = Math.max(1200 / Math.max(sw, 1), 630 / Math.max(sh, 1));
+  const dw = sw * scale, dh = sh * scale;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, (1200 - dw) / 2, (630 - dh) / 2, dw, dh);
+  ctx.fillStyle = "rgba(11,13,16,0.78)"; ctx.fillRect(0, 0, 1200, 118);
+  ctx.fillStyle = "#f0c020"; ctx.font = "bold 54px Impact, sans-serif";
+  ctx.fillText("GROKET LEAGUE", 36, 64);
+  ctx.fillStyle = "#fff"; ctx.font = "28px Impact, sans-serif";
+  ctx.fillText(line, 36, 102);
+  return card;
+}
+function captureGoalStill(who) {
+  try {
+    const scorer = who === "A" ? ("P1 " + byId(selectedId).name) : (opponentName() + " " + byId(botId).name);
+    const line = scorer + " GOAL · " + scoreA + "-" + scoreB + " · GROKET LEAGUE";
+    const card = makeShareCard(line);
+    lastGoalCard = card;
+    lastGoalBy = who;
+    // Prefer a P1 goal as "best"; otherwise keep latest
+    if (who === "A" || !bestGoalCard) bestGoalCard = card;
+  } catch (err) { console.warn(err); }
+}
+function syncSignalPip() {
+  const pip = document.getElementById("signalPip");
+  if (!pip) return;
+  if (!online) { pip.className = "sig-hidden"; return; }
+  const age = performance.now() - lastPacket;
+  if (reconnecting) { pip.className = "sig-wait"; pip.textContent = "● RECONNECTING"; return; }
+  if (age < 250) { pip.className = ""; pip.textContent = "● LIVE"; }
+  else if (age < 1200) { pip.className = "sig-mid"; pip.textContent = "● LAG"; }
+  else { pip.className = "sig-bad"; pip.textContent = "● WEAK"; }
+}
+function clearReconnect() {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = 0; }
+  reconnecting = false;
+}
+function notePacket() {
+  lastPacket = performance.now();
+  if (reconnecting) {
+    reconnecting = false;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = 0; }
+    netMessage("RECONNECTED");
+  }
+  syncSignalPip();
+}
+function softDisconnect(message = "OPPONENT DISCONNECTED · FIND ANOTHER MATCH") {
+  if (!online) { disconnected(message); return; }
+  if (reconnecting) return;
+  reconnecting = true;
+  syncSignalPip();
+  toast("OPPONENT RECONNECTING…", 2800, "cpu");
+  netMessage("OPPONENT RECONNECTING…");
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  const serial = sessionSerial;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = 0;
+    if (serial !== sessionSerial) return;
+    if (!reconnecting) return;
+    reconnecting = false;
+    disconnected(message);
+  }, 3500);
+}
 async function onGoal(who) {
   const serial = sessionSerial;
   if (locked) return;
   locked = true;
+  captureGoalStill(who);
   SFX.goal(); SFX.crowd(who === "A"); shake = 0.55;
   if (who === "A") { scoreA++; toast("P1 GOAL · " + byId(selectedId).name, 1100, "p1"); }
   else { scoreB++; toast(opponentName() + " GOAL · " + byId(botId).name, 1100, "cpu"); }
@@ -531,12 +610,14 @@ function kickoffNow(fromHost = false) {
   toast(online ? (NET.isGuest() ? "P2 · BLUE GOAL" : "P1 · YELLOW GOAL") : fsd ? "P1 · FSD SUPERVISED" : "P1 · KICK OFF", 800, "p1");
 }
 function startGame(useFsd, config = null) {
+  lastGoalCard = null; bestGoalCard = null; lastGoalBy = null;
+  clearReconnect();
   if (config) {
     online = true; setNetPending(false);
     selectedId = config.a; botId = config.b;
     mapMode = config.map === "night" ? "night" : "day"; applyMap();
     remoteInput = { throttle: 0, steer: 0, boost: false };
-    lastInput = lastPacket = performance.now();
+    lastInput = performance.now(); notePacket();
     netMessage("ONLINE 1v1 CONNECTED");
   } else { localChoice = selectedId; leaveNetwork(); }
   sessionSerial++;
@@ -651,31 +732,16 @@ function shareOnX() {
   const text = encodeURIComponent(line);
   const url = encodeURIComponent("https://groketleague.com/");
   try {
-    renderer.render(scene, camera);
-    const src = renderer.domElement;
-    const card = document.createElement("canvas");
-    card.width = 1200; card.height = 630;
-    const ctx = card.getContext("2d");
-    ctx.fillStyle = "#14305a"; ctx.fillRect(0, 0, 1200, 630);
-    const sw = src.width, sh = src.height;
-    const scale = Math.max(1200 / Math.max(sw, 1), 630 / Math.max(sh, 1));
-    const dw = sw * scale, dh = sh * scale;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(src, (1200 - dw) / 2, (630 - dh) / 2, dw, dh);
-    ctx.fillStyle = "rgba(11,13,16,0.78)"; ctx.fillRect(0, 0, 1200, 118);
-    ctx.fillStyle = "#f0c020"; ctx.font = "bold 54px Impact, sans-serif";
-    ctx.fillText("GROKET LEAGUE", 36, 64);
-    ctx.fillStyle = "#fff"; ctx.font = "28px Impact, sans-serif";
-    ctx.fillText(line, 36, 102);
+    const card = bestGoalCard || lastGoalCard || makeShareCard(line);
     card.toBlob((blob) => {
       if (!blob) return;
-      const file = new File([blob], "groket-league.png", { type: "image/png" });
+      const file = new File([blob], "groket-league-goal.png", { type: "image/png" });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({ text: line, url: "https://groketleague.com/", files: [file] }).catch(() => {});
       } else {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "groket-league.png";
+        a.download = "groket-league-goal.png";
         a.click();
       }
     }, "image/png");
@@ -778,6 +844,24 @@ function returnToGarage() {
   rebuildGarage(); setInspect(selectedId);
   syncRematchUI();
   syncAudioUI();
+
+function maybeShowHow() {
+  const layer = document.getElementById("howLayer");
+  if (!layer) return;
+  try {
+    if (localStorage.getItem("gl_seen_how") === "1") return;
+  } catch {}
+  layer.classList.remove("hidden");
+}
+function dismissHow() {
+  const layer = document.getElementById("howLayer");
+  if (layer) layer.classList.add("hidden");
+  try { localStorage.setItem("gl_seen_how", "1"); } catch {}
+}
+document.getElementById("howGotIt")?.addEventListener("click", dismissHow);
+document.getElementById("howLayer")?.addEventListener("click", (e) => { if (e.target.id === "howLayer") dismissHow(); });
+maybeShowHow();
+
 }
 document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
 document.getElementById("again").addEventListener("click", requestRematch);
