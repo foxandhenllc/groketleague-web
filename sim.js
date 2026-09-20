@@ -188,7 +188,10 @@ function botAI(me, foe, ball, dt, attackSign) {
   // Stuck on boards / in place
   const nearWall = Math.abs(me.x) > FW / 2 - 3.2 || Math.abs(me.z) > FL / 2 - 2.4;
   if ((moved < 0.26 && speed < 4.2) || (nearWall && speed < 3.2 && moved < 0.45)) ai.stuck += dt;
-  else ai.stuck = Math.max(0, ai.stuck - dt * 1.35);
+  else {
+    ai.stuck = Math.max(0, ai.stuck - dt * 1.35);
+    if (ai.stuck < 0.15 && speed > 5) ai.escape = 0;
+  }
   ai.lx = me.x;
   ai.lz = me.z;
 
@@ -247,7 +250,8 @@ function botAI(me, foe, ball, dt, attackSign) {
       ai.modeT = 0;
     }
   }
-  if (ai.mode === "unstuck" && ai.modeT > 0.55 + ai.escape * 0.25) {
+  if (ai.escape > 3) ai.escape = 1;
+  if (ai.mode === "unstuck" && ai.modeT > 0.7) {
     ai.mode = "flank";
     ai.modeT = 0;
     ai.stuck = 0;
@@ -273,17 +277,19 @@ function botAI(me, foe, ball, dt, attackSign) {
     tx = pred.x * 0.08;
     tz = pred.z - attackSign * 0.45;
   } else if (ai.mode === "unstuck") {
-    // Escape ladder: reverse-out → wide lateral → deep field peel
+    // Escape ladder: reverse along facing → wide lateral → peel to open field
     const tier = ai.escape;
+    const f = forwardXZ(me.yaw);
     if (tier <= 1) {
-      tx = me.x - Math.sin(me.yaw) * -4;
-      tz = me.z - Math.cos(me.yaw) * -4;
+      tx = me.x - f.x * 5;
+      tz = me.z - f.z * 5;
     } else if (tier === 2) {
-      tx = me.x + ai.side * 9;
-      tz = me.z - attackSign * 3;
+      tx = me.x + ai.side * 8 - f.x * 2;
+      tz = me.z - attackSign * 2 - f.z * 2;
     } else {
-      tx = ai.side * (FW * 0.25);
-      tz = me.z - attackSign * 10;
+      tx = Math.max(-padX, Math.min(padX, ai.side * (FW * 0.28)));
+      tz = Math.max(-padZ, Math.min(padZ, ownZ + attackSign * 12));
+      ai.stuck = 0;
     }
   } else if (ai.mode === "commit") {
     // Stop orbiting — drive through the ball toward goal

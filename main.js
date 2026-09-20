@@ -647,24 +647,59 @@ function tick(now) {
     }
     ballMesh.position.set(ball.x, ball.y, ball.z);
     ballMesh.rotation.x += ball.vz * 0.02; ballMesh.rotation.z -= ball.vx * 0.02;
-    const { x: fx, z: fz } = forwardXZ(me.yaw);
-    desired.set(me.x - fx * 11.5, 7.4, me.z - fz * 11.5);
+    repairCar(me);
+    repairBall(ball);
+    let fx = -Math.sin(me.yaw), fz = -Math.cos(me.yaw);
+    if (![fx, fz].every(Number.isFinite) || (fx * fx + fz * fz) < 0.25) {
+      fx = 0; fz = 1;
+    }
+    // Chase offset must stay behind the car — never collapse onto the look point (top-down grass)
+    desired.set(me.x - fx * 12.5, 8.2, me.z - fz * 12.5);
     if (shake > 0) {
-      desired.x += (Math.random() - 0.5) * shake * 1.4;
-      desired.y += (Math.random() - 0.5) * shake * 0.8;
+      desired.x += (Math.random() - 0.5) * shake * 1.1;
+      desired.y += (Math.random() - 0.5) * shake * 0.45;
       shake = Math.max(0, shake - dt * 1.8);
     }
+    desired.y = Math.max(6.5, Math.min(14, desired.y));
     camera.position.lerp(desired, 1 - Math.pow(0.001, dt));
-    playLook.set(me.x * 0.55 + ball.x * 0.45, 0.6, me.z * 0.55 + ball.z * 0.45);
+    playLook.set(me.x * 0.55 + ball.x * 0.45, 1.0, me.z * 0.55 + ball.z * 0.45);
     camTarget.lerp(playLook, 1 - Math.pow(0.0008, dt));
   }
+  // Always sanitize camera after mode branch — recover from turf-lock / NaNs
   if (![camera.position.x, camera.position.y, camera.position.z, camTarget.x, camTarget.y, camTarget.z].every(Number.isFinite)) {
-    camera.position.set(0, 14, 28); camTarget.set(0, 0.6, 0);
+    camera.position.set(0, 14, 28); camTarget.set(0, 1, 0);
+  }
+  camera.position.y = Math.max(5.5, Math.min(18, camera.position.y));
+  {
+    const dx = camera.position.x - camTarget.x;
+    const dz = camera.position.z - camTarget.z;
+    const sep = Math.hypot(dx, dz);
+    if (sep < 6.5) {
+      const s = sep < 0.05 ? 1 : 6.5 / sep;
+      if (sep < 0.05) {
+        camera.position.x = camTarget.x - 0 * 6.5;
+        camera.position.z = camTarget.z + 6.5;
+      } else {
+        camera.position.x = camTarget.x + dx * s;
+        camera.position.z = camTarget.z + dz * s;
+      }
+      camera.position.y = Math.max(camera.position.y, 7.5);
+    }
   }
   camera.lookAt(camTarget);
   renderer.render(scene, camera);
   } catch (err) {
     console.error("[groket tick]", err);
+    try {
+      repairCar(P); repairCar(B); repairBall(ball);
+      if (playerMesh) { playerMesh.visible = true; syncMesh(playerMesh, P); }
+      if (botMesh) { botMesh.visible = true; syncMesh(botMesh, B); }
+      if (ballMesh) { ballMesh.visible = true; ballMesh.position.set(ball.x, ball.y, ball.z); }
+      camera.position.set(0, 14, 28);
+      camTarget.set(0, 1, 0);
+      camera.lookAt(camTarget);
+      renderer.render(scene, camera);
+    } catch (_) {}
   }
 }
 requestAnimationFrame(tick);

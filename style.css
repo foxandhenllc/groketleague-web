@@ -360,3 +360,18 @@ body.playing #chatLog { display: none !important; }
     bottom: 168px !important;
   }
 }
+
+
+/* Keep quickchat clear of ludicrous / boost bar */
+@media (pointer: coarse) {
+  #chat {
+    bottom: 200px !important;
+    top: auto !important;
+    max-height: 42vh;
+    overflow: hidden;
+  }
+  #boostHud {
+    bottom: 158px !important;
+    z-index: 9 !important;
+  }
+}
