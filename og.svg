@@ -35,5 +35,5 @@
   <circle cx="600" cy="455" r="28" fill="#f4f4ee" stroke="#111" stroke-width="4"/>
   <text x="52" y="118" font-family="Impact, Arial Black, sans-serif" font-size="86" fill="#f0c020" stroke="#000" stroke-width="8" paint-order="stroke">GROKET LEAGUE</text>
   <text x="56" y="176" font-family="Impact, Arial Black, sans-serif" font-size="42" fill="#ffffff" letter-spacing="8">FSD SOCCER</text>
-  <text x="56" y="220" font-family="Arial, sans-serif" font-size="22" fill="#fff6c8">Built with Grok  ·  A Fox & Hen product</text>
+  <text x="56" y="220" font-family="Arial, sans-serif" font-size="22" fill="#fff6c8">Built with Grok  ·  A Fox &amp; Hen product</text>
 </svg>

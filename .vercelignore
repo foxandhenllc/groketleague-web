@@ -7,3 +7,6 @@ tests
 *.test.mjs
 
 .env*
+_ogtool
+_mk_og.js
+_mk_og.py
