@@ -27,3 +27,8 @@ Original prompt: Restore the full GROKET LEAGUE game from 9cd43a2, add PeerJS au
 - Offline REMATCH still restarts locally without tearing anything down.
 - MENU and garage expose MUSIC / SFX mute toggles; prefs persist in localStorage (`gl_mute_music`, `gl_mute_sfx`).
 - Verify: two browsers private room → finish match → both hit REMATCH → new faceoff without reconnect. Mute music/SFX in garage and mid-match MENU; reload and confirm prefs stick.
+
+## Follow-up: room invites
+- CREATE ROOM shows COPY CODE + SHARE INVITE (Web Share API, else clipboard link, else X intent).
+- Invite URL: https://groketleague.com/?room=ABCD — landing fills JOIN and prompts pick car then JOIN.
+- Public, no secrets. Verify: host create → copy/share → guest open link → join.

@@ -98,7 +98,13 @@
         <button class="cta ghost" id="netCreate">CREATE ROOM</button>
         <div class="roomJoin"><input id="roomCodeIn" aria-label="4-character room code" placeholder="CODE" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" /><button class="cta ghost" id="netJoin">JOIN</button></div>
       </div>
-      <div class="netInfo"><span id="netStatus" role="status" aria-live="polite">ONLINE 1v1 · PICK YOUR CAR, THEN PLAY</span> <strong id="roomCodeOut"></strong><button id="netCancel" hidden>CANCEL</button></div>
+      <div class="netInfo"><span id="netStatus" role="status" aria-live="polite">ONLINE 1v1 · PICK YOUR CAR, THEN PLAY</span> <strong id="roomCodeOut"></strong>
+        <span id="inviteActions" hidden>
+          <button type="button" class="cta ghost" id="copyRoomBtn">COPY CODE</button>
+          <button type="button" class="cta ghost" id="shareInviteBtn">SHARE INVITE</button>
+        </span>
+        <button id="netCancel" hidden>CANCEL</button>
+      </div>
     </section>
     <div class="row">
       <button class="cta" id="go">GRAB THE WHEEL</button>

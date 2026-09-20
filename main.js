@@ -89,6 +89,22 @@ const localBody = () => online && NET.isGuest() ? B : P;
 const validCar = id => CATALOG.some(v => v.id === id);
 const netStatus = document.getElementById("netStatus");
 const roomCodeOut = document.getElementById("roomCodeOut");
+const inviteActions = document.getElementById("inviteActions");
+const ROOM_ABC = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+function inviteUrl(code) {
+  const c = String(code || "").trim().toUpperCase();
+  return "https://groketleague.com/?room=" + encodeURIComponent(c);
+}
+function setInviteVisible(show) {
+  if (inviteActions) inviteActions.hidden = !show;
+}
+function normalizeRoomCode(raw) {
+  return String(raw || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+}
+function validRoomCode(code) {
+  const c = normalizeRoomCode(code);
+  return c.length === 4 && [...c].every(ch => ROOM_ABC.includes(ch));
+}
 function netMessage(text) { netStatus.textContent = text; }
 function setNetPending(value) {
   netPending = value;
@@ -100,6 +116,7 @@ function leaveNetwork(message = "ONLINE 1v1 · PICK YOUR CAR, THEN PLAY") {
   sessionSerial++; online = false; matchId = "";
   wantRematch = false; peerWantRematch = false;
   NET.destroy(); setNetPending(false); roomCodeOut.textContent = "";
+  setInviteVisible(false);
   selectedId = localChoice;
   netMessage(message);
   syncRematchUI();
@@ -120,7 +137,8 @@ async function findMatch(kind) {
       const code = await NET.createRoom();
       if (serial !== sessionSerial) return;
       roomCodeOut.textContent = code;
-      netMessage("WAITING · SHARE THIS ROOM CODE");
+      setInviteVisible(true);
+      netMessage("WAITING · COPY CODE OR SHARE INVITE");
     } else if (kind === "join") {
       await NET.joinRoom(document.getElementById("roomCodeIn").value);
     } else {
@@ -137,9 +155,60 @@ for (const [id, kind] of [["netQuick", "quick"], ["netCreate", "create"], ["netJ
 document.getElementById("netCancel").addEventListener("click", () => leaveNetwork("CANCELLED · READY TO PLAY"));
 document.getElementById("roomCodeIn").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4); });
 document.getElementById("roomCodeIn").addEventListener("keydown", e => { if (e.key === "Enter" && !netPending) findMatch("join"); });
+document.getElementById("copyRoomBtn")?.addEventListener("click", async () => {
+  const code = roomCodeOut.textContent.trim();
+  if (!validRoomCode(code)) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    netMessage("CODE COPIED · " + code);
+  } catch {
+    netMessage("COPY FAILED · CODE IS " + code);
+  }
+});
+document.getElementById("shareInviteBtn")?.addEventListener("click", async () => {
+  const code = roomCodeOut.textContent.trim();
+  if (!validRoomCode(code)) return;
+  const url = inviteUrl(code);
+  const text = "1v1 me in GROKET LEAGUE. Room " + code + " — pick a car and hit JOIN.";
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: "GROKET LEAGUE", text, url });
+      netMessage("INVITE SHARED · WAITING");
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    netMessage("INVITE LINK COPIED");
+  } catch {
+    window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(text + " " + url), "_blank", "noopener");
+    netMessage("OPENED SHARE · WAITING");
+  }
+});
+(function applyRoomDeepLink() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const raw = params.get("room") || params.get("code");
+    const code = normalizeRoomCode(raw);
+    if (!validRoomCode(code)) return;
+    const input = document.getElementById("roomCodeIn");
+    if (input) {
+      input.value = code;
+      input.focus();
+    }
+    netMessage("ROOM " + code + " LOADED · PICK A CAR, THEN JOIN");
+    params.delete("room");
+    params.delete("code");
+    const q = params.toString();
+    history.replaceState({}, "", location.pathname + (q ? "?" + q : "") + location.hash);
+  } catch {}
+})();
 NET.setHandlers({
   onPeer() {
     lastPacket = performance.now();
+    setInviteVisible(false);
     netMessage("CONNECTED · STARTING MATCH…");
     if (NET.isGuest()) NET.send({ t: "hello", car: localChoice, version: 1 });
   },

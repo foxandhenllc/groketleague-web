@@ -131,3 +131,8 @@ body.playing #menuBtn { display: block; }
 .garageAudio { margin: 8px 0 4px; gap: 8px; }
 #rematchStatus { margin: 6px 0 10px; letter-spacing: 1px; opacity: 0.9; }
 #resultsPanel .row { justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+#inviteActions { display: inline-flex; gap: 6px; margin-left: 8px; vertical-align: middle; flex-wrap: wrap; }
+#inviteActions[hidden] { display: none !important; }
+#inviteActions .cta { padding: 6px 10px; font-size: 13px; letter-spacing: 1px; }
+#roomCodeOut:not(:empty) { margin-right: 4px; letter-spacing: 3px; }
