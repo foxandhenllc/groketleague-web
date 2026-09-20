@@ -621,3 +621,5 @@ body.garageSearching #stepMatchup,
 body.garageSearching .chromeRow,
 body.garageSearching .hint,
 body.garageSearching #credit { visibility:hidden; pointer-events:none; }
+
+.legalLine { text-align:center; font-size:11px; letter-spacing:1.5px; color:#fff6; padding: 4px 16px 2px; max-width: 720px; margin: 0 auto; }

@@ -447,7 +447,7 @@ const CHAT_CATS = [
       "the ball is a psyop",
       "nice demo. next quarter.",
       "you just got wss'd",
-      "cope. seethe. Model 3."
+      "cope. seethe. Modest 3."
     ]
   },
   {
@@ -465,7 +465,7 @@ const CHAT_CATS = [
     label: "POTPOURRI",
     lines: [
       "what color is your fridge",
-      "I am become Semi, destroyer of nets",
+      "I am become Seemee, destroyer of nets",
       "full send. no brakes. no thoughts.",
       "built with Grok. driven by cope.",
       "Hey @grok - remove the worst player from the match",
