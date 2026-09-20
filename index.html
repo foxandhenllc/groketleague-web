@@ -43,7 +43,7 @@
         <div id="signalPip" class="sig-hidden" title="Connection">● NET</div>
       </div>
       <div class="scorebox p1">
-        <div class="who">P1</div>
+        <div class="who" id="hudP1Who">P1</div>
         <div class="lab" id="labA">CYBERTRUCK</div>
         <div class="num" id="scoreA">0</div>
       </div>
@@ -66,7 +66,7 @@
   <div id="faceoffLayer" class="hidden">
     <div class="vs">FACEOFF</div>
     <h2 id="faceTitle">P1 CYBERTRUCK  vs  GROK MODEL 3</h2>
-    <div class="sides"><span class="p1tag">P1 · YELLOW GOAL</span><span class="cputag">GROK · BLUE GOAL</span></div>
+    <div class="sides"><span class="p1tag" id="faceP1Tag">P1 · YELLOW GOAL</span><span class="cputag">GROK · BLUE GOAL</span></div>
     <div class="sub" id="faceSub">TAP ANYWHERE TO SKIP</div>
   </div>
   <div id="pauseLayer" class="hidden">
@@ -130,14 +130,18 @@
       <button class="cta ghost" id="garageMuteSfxBtn" aria-pressed="false">SFX: ON</button>
     </div>
     <div id="xAuthBar" class="xAuthBar">
+      <div id="xGuestBadge" class="xGuestBadge">PLAYING AS GUEST</div>
       <button type="button" class="cta ghost" id="xSignInBtn">SIGN IN WITH X</button>
       <div id="xSignedIn" class="xSignedIn" hidden>
-        <img id="xAvatar" alt="" width="28" height="28" />
-        <span id="xHandle"></span>
+        <img id="xAvatar" class="xAvatar" alt="" width="32" height="32" />
+        <div class="xIdentity">
+          <div id="xDisplayName" class="xDisplayName"></div>
+          <div id="xHandle" class="xHandle"></div>
+        </div>
         <button type="button" class="cta ghost" id="xSignOutBtn">SIGN OUT</button>
       </div>
     </div>
-    <div class="hint">Online 1v1 or offline P1 vs GROK. Click once for audio.<br>WASD · SHIFT/SPACE Ludicrous Mode · ESC pause · N night map.</div>
+    <div class="hint">Online 1v1 or offline vs GROK. Sign in with X to show your handle — or play as guest. Click once for audio.<br>WASD · SHIFT/SPACE Ludicrous Mode · ESC pause · N night map.</div>
     <div id="credit"><a href="https://foxandhenllc.com" target="_blank" rel="noopener" id="foxHenLink">A FOX & HEN PRODUCT</a> · BUILT WITH GROK</div>
     <div id="resultsPanel">
       <div class="who" id="resWho">P1</div>

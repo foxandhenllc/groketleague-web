@@ -332,10 +332,10 @@ function pushChat(who, msg) {
   if (!chatLog) return;
   const el = document.createElement("div");
   el.className = "chatline " + who;
-  el.innerHTML = `<span class="tag">${who === "cpu" ? opponentName() : "P1"}</span>${msg}`;
+  el.innerHTML = `<span class="tag">${who === "cpu" ? opponentName() : playerLabel()}</span>${msg}`;
   chatLog.prepend(el);
   while (chatLog.children.length > 4) chatLog.removeChild(chatLog.lastChild);
-  toast((who === "cpu" ? opponentName() + " · " : "P1 · ") + msg, 1200, who);
+  toast((who === "cpu" ? opponentName() + " · " : playerLabel() + " · ") + msg, 1200, who);
 }
 function setInspect(id) {
   const v = byId(id);
@@ -397,7 +397,11 @@ function showResults(title, sub, winner) {
   overlay.classList.add("results");
   document.getElementById("resTitle").innerHTML = title;
   document.getElementById("resSub").textContent = sub;
-  if (resWho) resWho.textContent = winner || "";
+  if (resWho) {
+    resWho.textContent = winner || "";
+    const signed = !!(getXUser() && getXUser().username);
+    resWho.classList.toggle("xNamed", signed && winner === playerLabel());
+  }
   syncRematchUI();
 }
 function syncMesh(mesh, c) {
@@ -406,9 +410,10 @@ function syncMesh(mesh, c) {
 }
 function finishMatch() {
   const winP1 = scoreA > scoreB;
-  const winner = scoreA === scoreB ? "DRAW" : winP1 ? "P1" : opponentName();
+  const me = playerLabel();
+  const winner = scoreA === scoreB ? "DRAW" : winP1 ? me : opponentName();
   const title = winner === "DRAW" ? "DRAW" : winner + "<br>" + byId(winP1 ? selectedId : botId).name + " WINS";
-  showResults(title, "P1 " + scoreA + " — " + scoreB + " " + opponentName(), winner);
+  showResults(title, me + " " + scoreA + " - " + scoreB + " " + opponentName(), winner);
 }
 
 function makeShareCard(line) {
@@ -432,7 +437,7 @@ function makeShareCard(line) {
 }
 function captureGoalStill(who) {
   try {
-    const scorer = who === "A" ? ("P1 " + byId(selectedId).name) : (opponentName() + " " + byId(botId).name);
+    const scorer = who === "A" ? (playerLabel() + " " + byId(selectedId).name) : (opponentName() + " " + byId(botId).name);
     const line = scorer + " GOAL · " + scoreA + "-" + scoreB + " · GROKET LEAGUE";
     const card = makeShareCard(line);
     lastGoalCard = card;
@@ -639,6 +644,7 @@ function startGame(useFsd, config = null) {
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   timeLeft = 90; resetKick(0);
   playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
+  applyIdentityUI();
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
   overlay.style.display = "none";
@@ -646,7 +652,7 @@ function startGame(useFsd, config = null) {
   overlay.classList.remove("faceoff");
   if (chatLog) chatLog.innerHTML = "";
   const title = document.getElementById("faceTitle");
-  if (title) title.textContent = "P1 " + byId(selectedId).name + "  vs  " + opponentName() + " " + byId(botId).name;
+  if (title) title.textContent = playerLabel() + " " + byId(selectedId).name + "  vs  " + opponentName() + " " + byId(botId).name;
   const sub = document.getElementById("faceSub");
   if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " · TAP ANYWHERE TO SKIP";
   if (faceLayer) faceLayer.classList.remove("hidden");
@@ -731,7 +737,7 @@ function togglePause(force) {
 function shareOnX() {
   const xu = getXUser();
   const tagged = xu && xu.username ? ("@" + xu.username + " - ") : "";
-  const line = tagged + "P1 " + byId(selectedId).name + " " + scoreA + "-" + scoreB + " " + opponentName() + " " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.";
+  const line = tagged + playerLabel() + " " + byId(selectedId).name + " " + scoreA + "-" + scoreB + " " + opponentName() + " " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.";
   const text = encodeURIComponent(line);
   const url = encodeURIComponent("https://groketleague.com/");
   try {
@@ -834,6 +840,7 @@ function requestRematch() {
   maybeStartRematch();
 }
 function returnToGarage() {
+  applyIdentityUI();
   if (online || netPending) leaveNetwork();
   sessionSerial++;
   wantRematch = false; peerWantRematch = false;
@@ -876,25 +883,63 @@ window.render_game_to_text = () => JSON.stringify({
   P, B, ball, scoreA, scoreB, timeLeft, netStatus: netStatus.textContent
 });
 
+
+function playerLabel(opts = {}) {
+  const u = getXUser();
+  if (u && u.username) {
+    if (opts.withAt === false) return u.username;
+    if (opts.preferName && u.name) return u.name;
+    return "@" + u.username;
+  }
+  return opts.guest || "P1";
+}
+function applyIdentityUI() {
+  const signed = !!(getXUser() && getXUser().username);
+  document.body.classList.toggle("signed-in", signed);
+  const guest = document.getElementById("xGuestBadge");
+  if (guest) guest.hidden = signed;
+  const label = playerLabel();
+  const hud = document.getElementById("hudP1Who");
+  if (hud) {
+    hud.textContent = label;
+    hud.classList.toggle("xNamed", signed);
+    hud.title = signed ? (getXUser().name || label) : "Guest";
+  }
+  const face = document.getElementById("faceP1Tag");
+  if (face) {
+    face.textContent = label + " - YELLOW GOAL";
+    face.classList.toggle("xNamed", signed);
+  }
+  const res = document.getElementById("resWho");
+  if (res && signed && (res.textContent === "P1" || res.dataset.autoIdentity === "1")) {
+    res.textContent = label;
+    res.classList.toggle("xNamed", true);
+  }
+}
+
 function syncXAuthUI() {
   const signIn = document.getElementById("xSignInBtn");
-  const signed = document.getElementById("xSignedIn");
+  const signedEl = document.getElementById("xSignedIn");
   const handle = document.getElementById("xHandle");
   const avatar = document.getElementById("xAvatar");
-  if (!signIn || !signed) return;
+  const display = document.getElementById("xDisplayName");
+  if (!signIn || !signedEl) return;
   const u = getXUser();
   if (u && u.username) {
     signIn.hidden = true;
-    signed.hidden = false;
+    signedEl.hidden = false;
     if (handle) handle.textContent = "@" + u.username;
+    if (display) display.textContent = u.name || ("@" + u.username);
     if (avatar) {
       avatar.src = u.profile_image_url || "";
       avatar.alt = "@" + u.username;
     }
   } else {
     signIn.hidden = false;
-    signed.hidden = true;
+    signedEl.hidden = true;
+    if (display) display.textContent = "";
   }
+  applyIdentityUI();
 }
 document.getElementById("xSignInBtn")?.addEventListener("click", () => {
   try { ensureAudio(); } catch (_) {}
@@ -903,13 +948,13 @@ document.getElementById("xSignInBtn")?.addEventListener("click", () => {
 document.getElementById("xSignOutBtn")?.addEventListener("click", () => {
   logoutX();
   syncXAuthUI();
-  toast("SIGNED OUT", 900, "p1");
+  toast("PLAYING AS GUEST", 1200, "p1");
 });
 onAuthChange(() => syncXAuthUI());
 initXAuth().then((result) => {
   syncXAuthUI();
   if (result && result.justSignedIn && result.user) {
-    toast("SIGNED IN AS @" + result.user.username, 1600, "p1");
+    toast("WELCOME @" + result.user.username, 1800, "p1");
   } else if (result && result.error) {
     toast("SIGN IN FAILED", 2200, "cpu");
   }

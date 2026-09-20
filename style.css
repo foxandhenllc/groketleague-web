@@ -189,3 +189,49 @@ body.playing #menuBtn { display: block; }
   padding: 8px 14px;
   font-size: 14px;
 }
+
+
+/* Identity: guest vs signed-in */
+.xAuthBar { flex-wrap: wrap; }
+.xGuestBadge {
+  font-family: "Black Ops One", sans-serif;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #9aa7b8;
+  border: 2px dashed #4a5565;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+.xSignedIn {
+  background: rgba(12, 18, 28, 0.85);
+  border: 2px solid #f0c020;
+  border-radius: 999px;
+  padding: 4px 8px 4px 4px;
+}
+.xAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #f0c020;
+  background: #111;
+  object-fit: cover;
+}
+.xIdentity { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+.xDisplayName {
+  font-family: "Black Ops One", sans-serif;
+  font-size: 13px;
+  color: #fff;
+  letter-spacing: 1px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xHandle {
+  font-family: "Black Ops One", sans-serif;
+  font-size: 11px;
+  color: #f0c020;
+  letter-spacing: 1px;
+}
+body.signed-in .xGuestBadge { display: none; }
+#hudP1Who.xNamed, #faceP1Tag.xNamed, #resWho.xNamed { color: #f0c020; }
