@@ -136,6 +136,9 @@ function setNetPending(value) {
   bumpPresence(value ? "queue" : (online ? "match" : "garage"));
 }
 function leaveNetwork(message = "ONLINE 1v1 · PICK YOUR CAR, THEN PLAY") {
+  clearTimeout(window.__queueWaitTimer);
+  ensureHostSimPump(false);
+
   sessionSerial++; online = false; matchId = "";
   clearReconnect();
   wantRematch = false; peerWantRematch = false;
@@ -167,7 +170,14 @@ async function findMatch(kind) {
       await NET.joinRoom(document.getElementById("roomCodeIn").value);
     } else {
       const result = await NET.quickMatch();
-      if (serial === sessionSerial && result.hosted && !online) netMessage("WAITING · MATCHING THE NEXT PLAYER");
+      if (serial === sessionSerial && result.hosted && !online) {
+        netMessage("WAITING · MATCHING THE NEXT PLAYER");
+        clearTimeout(window.__queueWaitTimer);
+        window.__queueWaitTimer = setTimeout(() => {
+          if (serial !== sessionSerial || online) return;
+          leaveNetwork("NO OPPONENT YET · TRY QUICK MATCH AGAIN");
+        }, 45000);
+      }
     }
   } catch (err) {
     if (serial === sessionSerial) disconnected(err.message || "Connection failed. Try again.");
@@ -202,6 +212,7 @@ document.getElementById("modeQuick")?.addEventListener("click", () => {
 });
 
 /* --- presence heartbeats --- */
+const clientId = (function(){ try { let id = localStorage.getItem("gl_client_id"); if (!id) { id = "c_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("gl_client_id", id); } return id; } catch { return "c_" + Math.random().toString(36).slice(2); } })();
 const presenceId = (() => {
   try {
     let id = localStorage.getItem("gl_presence_id");
@@ -313,10 +324,17 @@ NET.setHandlers({
     notePacket();
     setInviteVisible(false);
     netMessage("CONNECTED · STARTING MATCH…");
-    if (NET.isGuest()) NET.send({ t: "hello", car: localChoice, version: 1 });
+    if (NET.isGuest()) NET.send({ t: "hello", car: localChoice, version: 1, clientId });
   },
   onHello(msg) {
     if (!NET.isHost() || matchId || !validCar(msg.car) || msg.version !== 1) return;
+    if (msg.clientId && msg.clientId === clientId) {
+      netMessage("CAN'T MATCH YOURSELF · WAITING FOR ANOTHER PLAYER");
+      try { NET.kickPeer?.() || NET.destroy?.(); } catch (_) {}
+      // Stay in queue as host if possible — soft reject
+      leaveNetwork("SELF-MATCH BLOCKED · TRY QUICK MATCH AGAIN");
+      return;
+    }
     matchId = crypto.randomUUID();
     NET.send({ t: "start", phase: "setup", id: matchId, a: localChoice, b: msg.car, map: mapMode });
   },
@@ -760,10 +778,40 @@ async function onGoal(who) {
   resetKick(who === "A" ? 1 : -1);
   SFX.whistle(); locked = false;
 }
+
+/** Online host keeps simulating even when the tab is backgrounded (rAF throttles hard). */
+let hostSimPump = 0;
+function ensureHostSimPump(on) {
+  if (on && !hostSimPump) {
+    hostSimPump = setInterval(() => {
+      if (!document.hidden) return;
+      if (!online || !NET.isHost()) return;
+      if (mode !== "play" && mode !== "faceoff") return;
+      const now = performance.now();
+      const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+      last = now;
+      window.__forceDt = dt;
+      try { stepGame(dt); } finally { window.__forceDt = 0; }
+    }, 50);
+  } else if (!on && hostSimPump) {
+    clearInterval(hostSimPump);
+    hostSimPump = 0;
+  }
+}
 function tick(now) {
   requestAnimationFrame(tick);
-  const dt = Math.min(0.033, (now - last) / 1000);
-  last = now;
+  // Background online host is driven by ensureHostSimPump (rAF is throttled/paused).
+  if (document.hidden && online && NET.isHost() && !window.__forceDt) return;
+  let dt;
+  if (window.__forceDt) {
+    dt = window.__forceDt;
+  } else {
+    dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+  }
+  stepGame(dt);
+}
+function stepGame(dt) {
   try {
   if (playing && !locked && !paused && !(online && NET.isGuest())) {
     timeLeft -= dt;
@@ -820,7 +868,7 @@ function tick(now) {
     if (!(online && NET.isGuest())) faceoffT -= dt;
     const sub = document.getElementById("faceSub");
     if (sub) sub.textContent = (online ? "ONLINE 1v1" : fsd ? "FSD" : "MANUAL") + " · " + Math.max(1, Math.ceil(faceoffT)) + (online ? "" : " · TAP TO SKIP");
-    if (faceoffT <= 0) kickoffNow();
+    if (faceoffT <= 0) kickoffNow(true);
   } else {
     preview.visible = false; playerMesh.visible = true; botMesh.visible = true; ballMesh.visible = true;
     syncMesh(playerMesh, P); syncMesh(botMesh, B);
@@ -904,7 +952,7 @@ function kickoffNow(fromHost = false) {
   document.body.classList.toggle("fsd", mode === "play");
   overlay.style.display = "none";
   overlay.classList.remove("faceoff");
-  overlay.classList.remove("results"); showGarageStep("vehicle"); setMatchMode("local"); bumpPresence("garage");
+  overlay.classList.remove("results");
   if (faceLayer) faceLayer.classList.add("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
   syncMenuUI();
@@ -932,7 +980,11 @@ function startGame(useFsd, config = null) {
   document.querySelector(".cputag").textContent = opponentName() + " · BLUE GOAL";
   document.getElementById("again").textContent = "REMATCH";
   syncRematchUI();
-  document.getElementById("pauseHint").textContent = online ? "ESC / P MENU · MATCH STAYS LIVE" : "ESC / P PAUSE";
+  const pauseHintEl = document.getElementById("pauseHint");
+  if (pauseHintEl) {
+    pauseHintEl.textContent = online ? "" : "ESC / P PAUSE";
+    pauseHintEl.hidden = !!online;
+  }
   document.querySelector("#pauseLayer h2").textContent = online ? "MATCH IS LIVE" : "PAUSED";
   ensureAudio();
   playBed(mapMode === "night" ? "night" : "day");
@@ -944,6 +996,7 @@ function startGame(useFsd, config = null) {
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   timeLeft = 90; resetKick(0);
   playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
+  ensureHostSimPump(!!online);
   applyIdentityUI();
   document.body.classList.remove("playing");
   document.body.classList.remove("fsd");
