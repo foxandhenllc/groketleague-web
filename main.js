@@ -6,6 +6,7 @@ import { bindInput, bindTouch, readControls, setQaKeys } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
 import { bodyFrom, drive, carBall, carCar, stepBall, botAI, forwardXZ } from "./sim.js";
+import { createPixelView } from "./pixel.js";
 import { initXAuth, loginWithX, logoutX, getXUser, onAuthChange } from "./x-auth.js";
 const overlay = document.getElementById("overlay");
 const toastEl = document.getElementById("toast");
@@ -86,6 +87,35 @@ const maps = {
   night: { label: "TORCH NIGHT", bg: "#0c1430", fogN: 28, fogF: 95, hemi: ["#4a6aaa", "#1a1020", 0.5], sun: 0.12, fill: 0.22, lamp: 48, turf: "#ffffff" }
 };
 let mapMode = "day";
+const pixelView = createPixelView();
+let gfxMode = "3d";
+try { const g = localStorage.getItem("gl_gfx"); if (g === "pixel" || g === "3d") gfxMode = g; } catch {}
+function syncGfxUI() {
+  document.getElementById("gfx3d")?.classList.toggle("on", gfxMode === "3d");
+  document.getElementById("gfxPixel")?.classList.toggle("on", gfxMode === "pixel");
+}
+function setGfxMode(g) {
+  gfxMode = g === "pixel" ? "pixel" : "3d";
+  try { localStorage.setItem("gl_gfx", gfxMode); } catch {}
+  syncGfxUI();
+  syncPixelVisibility();
+}
+function syncPixelVisibility() {
+  const want = gfxMode === "pixel" && (mode === "play" || mode === "faceoff" || mode === "results");
+  pixelView.setActive(want);
+  pixelView.setNight(mapMode === "night");
+  if (renderer?.domElement) renderer.domElement.style.visibility = want ? "hidden" : "visible";
+}
+function paintPixelFrame() {
+  if (!pixelView.isActive()) return;
+  pixelView.setNight(mapMode === "night");
+  pixelView.draw({
+    player: P,
+    bot: B,
+    ball,
+    mapLabel: maps[mapMode]?.label
+  });
+}
 let mode = "garage";
 let online = false, netPending = false, matchId = "", sessionSerial = 0;
 let wantRematch = false, peerWantRematch = false;
@@ -415,6 +445,7 @@ function applyMap() {
   const turf = fieldRoot.getObjectByName("turf");
   if (turf) turf.material.color.set(m.turf);
   nightExtra.visible = mapMode === "night";
+  pixelView.setNight(mapMode === "night");
   mapTag.textContent = m.label;
   mapBtn.textContent = "MAP: " + m.label;
   if (mode === "play" || mode === "faceoff") playBed(mapMode === "night" ? "night" : "day");
@@ -422,6 +453,9 @@ function applyMap() {
 applyMap();
 function cycleMap() { if (online || netPending) return; mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
 mapBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); cycleMap(); });
+document.getElementById("gfx3d")?.addEventListener("click", () => setGfxMode("3d"));
+document.getElementById("gfxPixel")?.addEventListener("click", () => setGfxMode("pixel"));
+syncGfxUI();
 bindInput(cycleMap);
 window.addEventListener("pointerdown", () => { ensureAudio(); if (mode === "garage") playBed("garage"); }, { once: true });
 bindTouch(null, null, document.getElementById("boostBtn"));
@@ -671,6 +705,7 @@ function makeShareCard(line) {
     renderer.setRenderTarget(rt);
     renderer.clear();
     renderer.render(scene, camera);
+    paintPixelFrame();
     const pixels = new Uint8Array(tw * th * 4);
     renderer.readRenderTargetPixels(rt, 0, 0, tw, th, pixels);
     renderer.setRenderTarget(prevTarget);
@@ -921,6 +956,7 @@ function stepGame(dt) {
   }
   camera.lookAt(camTarget);
   renderer.render(scene, camera);
+  paintPixelFrame();
   } catch (err) {
     console.error("[groket tick]", err);
     try {
@@ -932,6 +968,7 @@ function stepGame(dt) {
       camTarget.set(0, 1, 0);
       camera.lookAt(camTarget);
       renderer.render(scene, camera);
+      paintPixelFrame();
     } catch (_) {}
   }
 }
@@ -945,6 +982,7 @@ function kickoffNow(fromHost = false) {
   if (mode !== "faceoff") return;
   mode = "play";
   playing = true;
+  syncPixelVisibility();
   locked = false;
   paused = false;
   document.body.classList.add("playing");
@@ -996,6 +1034,7 @@ function startGame(useFsd, config = null) {
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   timeLeft = 90; resetKick(0);
   playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
+  syncPixelVisibility();
   ensureHostSimPump(!!online);
   applyIdentityUI();
   document.body.classList.remove("playing");
@@ -1011,6 +1050,7 @@ function startGame(useFsd, config = null) {
   if (faceLayer) faceLayer.classList.remove("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
   syncMenuUI();
+  syncPixelVisibility();
   hud.classList.add("hidden");
   boostHud.classList.add("hidden");
   SFX.tick();
@@ -1282,6 +1322,7 @@ function returnToGarage() {
   overlay.style.display = "flex"; overlay.classList.remove("results", "faceoff");
   document.body.classList.remove("playing", "fsd");
   hud.classList.add("hidden"); boostHud.classList.add("hidden");
+  syncPixelVisibility();
   rebuildGarage(); setInspect(selectedId);
   syncRematchUI();
   syncAudioUI();

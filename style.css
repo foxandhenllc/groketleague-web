@@ -623,3 +623,14 @@ body.garageSearching .hint,
 body.garageSearching #credit { visibility:hidden; pointer-events:none; }
 
 .legalLine { text-align:center; font-size:11px; letter-spacing:1.5px; color:#fff6; padding: 4px 16px 2px; max-width: 720px; margin: 0 auto; }
+
+
+/* Graphics version picker (3D vs PIXEL) */
+.gfxRow { display:grid; grid-template-columns:1fr 1fr; gap:10px; max-width:520px; margin:0 auto 12px; padding:0 4px; }
+.gfxCard { background:#120e0ae8; border:4px solid #ffffff30; color:#fff; cursor:pointer; padding:12px 10px; text-align:left; box-shadow:4px 4px 0 #0008; }
+.gfxCard:hover { border-color:#f0c02088; }
+.gfxCard.on { border-color:var(--yel); background:#2a1c08f0; }
+.gfxTitle { font-family:"Black Ops One",sans-serif; font-size:clamp(16px,2.6vw,22px); color:var(--yel); letter-spacing:1px; }
+.gfxSub { margin-top:4px; color:#fff9; font-size:11px; letter-spacing:1px; }
+body.pixel-mode canvas:not(#pixelView) { visibility:hidden !important; }
+#pixelView { image-rendering: pixelated; image-rendering: crisp-edges; }
