@@ -26,7 +26,7 @@ const boostLab = document.getElementById("boostLab");
 const chatLog = document.getElementById("chatLog");
 const resWho = document.getElementById("resWho");
 const PIX = 2.4;
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: false });
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.BasicShadowMap;
@@ -414,17 +414,50 @@ function finishMatch() {
 }
 
 function makeShareCard(line) {
-  renderer.render(scene, camera);
-  const src = renderer.domElement;
   const card = document.createElement("canvas");
   card.width = 1200; card.height = 630;
   const ctx = card.getContext("2d");
   ctx.fillStyle = "#14305a"; ctx.fillRect(0, 0, 1200, 630);
-  const sw = src.width, sh = src.height;
-  const scale = Math.max(1200 / Math.max(sw, 1), 630 / Math.max(sh, 1));
-  const dw = sw * scale, dh = sh * scale;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(src, (1200 - dw) / 2, (630 - dh) / 2, dw, dh);
+  try {
+    const tw = 640, th = 336;
+    const rt = new THREE.WebGLRenderTarget(tw, th, {
+      type: THREE.UnsignedByteType,
+      format: THREE.RGBAFormat,
+      depthBuffer: true,
+      stencilBuffer: false
+    });
+    const prevAspect = camera.aspect;
+    const prevTarget = renderer.getRenderTarget();
+    camera.aspect = tw / th;
+    camera.updateProjectionMatrix();
+    renderer.setRenderTarget(rt);
+    renderer.clear();
+    renderer.render(scene, camera);
+    const pixels = new Uint8Array(tw * th * 4);
+    renderer.readRenderTargetPixels(rt, 0, 0, tw, th, pixels);
+    renderer.setRenderTarget(prevTarget);
+    camera.aspect = prevAspect;
+    camera.updateProjectionMatrix();
+    rt.dispose();
+    if (renderer.state && renderer.state.reset) renderer.state.reset();
+    // GL returns bottom-up — flip into an ImageData
+    const img = ctx.createImageData(tw, th);
+    for (let y = 0; y < th; y++) {
+      const src = (th - 1 - y) * tw * 4;
+      const dst = y * tw * 4;
+      img.data.set(pixels.subarray(src, src + tw * 4), dst);
+    }
+    const tmp = document.createElement("canvas");
+    tmp.width = tw; tmp.height = th;
+    tmp.getContext("2d").putImageData(img, 0, 0);
+    const scale = Math.max(1200 / tw, 630 / th);
+    const dw = tw * scale, dh = th * scale;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tmp, (1200 - dw) / 2, (630 - dh) / 2, dw, dh);
+  } catch (err) {
+    console.warn("[share card]", err);
+    try { renderer.setRenderTarget(null); if (renderer.state && renderer.state.reset) renderer.state.reset(); } catch (_) {}
+  }
   ctx.fillStyle = "rgba(11,13,16,0.78)"; ctx.fillRect(0, 0, 1200, 118);
   ctx.fillStyle = "#f0c020"; ctx.font = "bold 54px Impact, sans-serif";
   ctx.fillText("GROKET LEAGUE", 36, 64);
@@ -441,7 +474,8 @@ function captureGoalStill(who) {
     lastGoalBy = who;
     // Prefer a P1 goal as "best"; otherwise keep latest
     if (who === "A" || !bestGoalCard) bestGoalCard = card;
-  } catch (err) { console.warn(err); }
+      if (renderer.state && renderer.state.reset) renderer.state.reset();
+  } catch (err) { console.warn(err); try { renderer.setRenderTarget(null); } catch (_) {} }
 }
 function syncSignalPip() {
   const pip = document.getElementById("signalPip");
