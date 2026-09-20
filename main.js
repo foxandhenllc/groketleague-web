@@ -117,9 +117,23 @@ function validRoomCode(code) {
 function netMessage(text) { netStatus.textContent = text; }
 function setNetPending(value) {
   netPending = value;
-  for (const id of ["netQuick", "netCreate", "netJoin", "roomCodeIn"]) document.getElementById(id).disabled = value;
-  document.getElementById("netCancel").hidden = !value;
-  garageEl.style.pointerEvents = value ? "none" : "";
+  for (const id of ["netQuick", "netCreate", "netJoin", "roomCodeIn", "toMatchup", "backVehicle", "modeLocal", "modeQuick", "modePrivate", "go", "mapBtn"]) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !!value;
+  }
+  const shell = document.getElementById("searchShell");
+  if (shell) shell.hidden = !value;
+  document.body.classList.toggle("garageSearching", !!value);
+  if (garageEl) garageEl.style.pointerEvents = value ? "none" : "";
+  if (value) {
+    const kicker = document.getElementById("searchKicker");
+    const title = document.getElementById("searchTitle");
+    const msg = (netStatus && netStatus.textContent) || "";
+    const isPrivate = /ROOM|CODE|INVITE|CREATING/i.test(msg);
+    if (kicker) kicker.textContent = isPrivate ? "PRIVATE ROOM" : "QUICK MATCH";
+    if (title) title.textContent = isPrivate ? "WAITING" : "SEARCHING";
+  }
+  bumpPresence(value ? "queue" : (online ? "match" : "garage"));
 }
 function leaveNetwork(message = "ONLINE 1v1 · PICK YOUR CAR, THEN PLAY") {
   sessionSerial++; online = false; matchId = "";
@@ -162,7 +176,86 @@ async function findMatch(kind) {
 for (const [id, kind] of [["netQuick", "quick"], ["netCreate", "create"], ["netJoin", "join"]]) {
   document.getElementById(id).addEventListener("click", () => findMatch(kind));
 }
+
 document.getElementById("netCancel").addEventListener("click", () => leaveNetwork("CANCELLED · READY TO PLAY"));
+document.getElementById("toMatchup")?.addEventListener("click", () => {
+  if (netPending || online) return;
+  showGarageStep("matchup");
+  setMatchMode("local");
+});
+document.getElementById("backVehicle")?.addEventListener("click", () => {
+  if (netPending || online) return;
+  showGarageStep("vehicle");
+});
+document.getElementById("modeLocal")?.addEventListener("click", () => {
+  if (netPending) return;
+  setMatchMode("local");
+});
+document.getElementById("modePrivate")?.addEventListener("click", () => {
+  if (netPending) return;
+  setMatchMode("private");
+});
+document.getElementById("modeQuick")?.addEventListener("click", () => {
+  if (netPending) return;
+  setMatchMode("quick");
+  findMatch("quick");
+});
+
+/* --- presence heartbeats --- */
+const presenceId = (() => {
+  try {
+    let id = localStorage.getItem("gl_presence_id");
+    if (!id) {
+      id = "p_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("gl_presence_id", id);
+    }
+    return id;
+  } catch {
+    return "p_" + Math.random().toString(36).slice(2);
+  }
+})();
+let presenceState = "garage";
+let presenceTimer = 0;
+async function bumpPresence(state) {
+  if (state) presenceState = state;
+  const onlineEl = document.getElementById("onlineCount");
+  const playingEl = document.getElementById("playingCount");
+  try {
+    const res = await fetch("/api/presence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: presenceId, state: presenceState }),
+      keepalive: true
+    });
+    if (!res.ok) throw new Error("presence " + res.status);
+    const data = await res.json();
+    if (onlineEl) onlineEl.textContent = String(data.online ?? "–");
+    if (playingEl) playingEl.textContent = String(data.playing ?? "–");
+  } catch {
+    if (onlineEl && onlineEl.textContent === "–") onlineEl.textContent = "?";
+    if (playingEl && playingEl.textContent === "–") playingEl.textContent = "?";
+  }
+}
+function startPresenceLoop() {
+  bumpPresence(online ? "match" : (netPending ? "queue" : "garage"));
+  clearInterval(presenceTimer);
+  presenceTimer = setInterval(() => {
+    const st = online ? "match" : (netPending ? "queue" : "garage");
+    bumpPresence(st);
+  }, 12000);
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) bumpPresence();
+});
+window.addEventListener("pagehide", () => {
+  try {
+    navigator.sendBeacon?.("/api/presence", new Blob([JSON.stringify({ id: presenceId, state: "garage" })], { type: "application/json" }));
+  } catch (_) {}
+});
+startPresenceLoop();
+showGarageStep("vehicle");
+setMatchMode("local");
+
 document.getElementById("roomCodeIn").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4); });
 document.getElementById("roomCodeIn").addEventListener("keydown", e => { if (e.key === "Enter" && !netPending) findMatch("join"); });
 document.getElementById("copyRoomBtn")?.addEventListener("click", async () => {
@@ -419,11 +512,43 @@ function rebuildGarage() {
     const el = document.createElement("div");
     el.className = "card" + (v.id === selectedId ? " on" : "");
     el.dataset.id = v.id;
-    el.innerHTML = `<div class="who">${v.id === selectedId ? "YOU" : "HOVER"}</div><div class="title">${v.name}</div><div class="tag">${v.tag}</div>`;
+    el.innerHTML = `<div class="who">${v.id === selectedId ? "YOU" : "FIGHTER"}</div><div class="title">${v.name}</div><div class="tag">${v.tag}</div>`;
     el.addEventListener("pointerenter", () => setInspect(v.id));
-    el.addEventListener("click", () => { if (netPending || online) return; selectedId = localChoice = v.id; setInspect(v.id); rebuildGarage(); });
+    el.addEventListener("click", () => {
+      if (netPending || online) return;
+      selectedId = localChoice = v.id;
+      setInspect(v.id);
+      rebuildGarage();
+      syncLockedVehicle();
+    });
     garageEl.appendChild(el);
   }
+  syncLockedVehicle();
+}
+function syncLockedVehicle() {
+  const strip = document.getElementById("lockedVehicle");
+  if (!strip) return;
+  const v = byId(selectedId);
+  strip.textContent = v ? ("LOCKED · " + v.name) : "";
+}
+function showGarageStep(step) {
+  const vehicle = document.getElementById("stepVehicle");
+  const matchup = document.getElementById("stepMatchup");
+  if (!vehicle || !matchup) return;
+  const onMatch = step === "matchup";
+  vehicle.hidden = onMatch;
+  matchup.hidden = !onMatch;
+  if (onMatch) syncLockedVehicle();
+}
+function setMatchMode(mode) {
+  const localPane = document.getElementById("localPane");
+  const privatePane = document.getElementById("privatePane");
+  for (const id of ["modeLocal", "modeQuick", "modePrivate"]) {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle("on", btn.dataset.mode === mode);
+  }
+  if (localPane) localPane.hidden = mode !== "local";
+  if (privatePane) privatePane.hidden = mode !== "private";
 }
 rebuildGarage();
 setInspect("cybertruck");
@@ -775,10 +900,11 @@ function kickoffNow(fromHost = false) {
   locked = false;
   paused = false;
   document.body.classList.add("playing");
+  bumpPresence("match");
   document.body.classList.toggle("fsd", mode === "play");
   overlay.style.display = "none";
   overlay.classList.remove("faceoff");
-  overlay.classList.remove("results");
+  overlay.classList.remove("results"); showGarageStep("vehicle"); setMatchMode("local"); bumpPresence("garage");
   if (faceLayer) faceLayer.classList.add("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
   syncMenuUI();

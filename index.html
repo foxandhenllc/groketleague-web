@@ -98,50 +98,111 @@
     </div>
   </div>
   <div id="overlay">
-    <div class="mast"><div><h1>GROKET LEAGUE</h1><div class="sub">FSD SOCCER</div></div></div>
-    <div id="inspect">
-      <div class="name" id="inspName">CYBERTRUCK</div>
-      <div class="meme" id="inspMeme">Bulletproof dumpster that learned Rocket League.</div>
-      <div class="stats" id="inspStats">MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE</div>
-    </div>
-    <div id="garage"></div>
-    <section id="netPanel" aria-label="Online 1v1">
-      <div class="row">
-        <button class="cta" id="netQuick">QUICK MATCH</button>
-        <button class="cta ghost" id="netCreate">CREATE ROOM</button>
-        <div class="roomJoin"><input id="roomCodeIn" aria-label="4-character room code" placeholder="CODE" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" /><button class="cta ghost" id="netJoin">JOIN</button></div>
+
+    <div class="masthead">
+      <div class="brand">
+        <h1>GROKET LEAGUE</h1>
+        <div class="sub">FSD SOCCER · CHOOSE YOUR FIGHTER</div>
       </div>
-      <div class="netInfo"><span id="netStatus" role="status" aria-live="polite">ONLINE 1v1 · PICK YOUR CAR, THEN PLAY</span> <strong id="roomCodeOut"></strong>
-        <span id="inviteActions" hidden>
-          <button type="button" class="cta ghost" id="copyRoomBtn">COPY CODE</button>
-          <button type="button" class="cta ghost" id="shareInviteBtn">SHARE INVITE</button>
-        </span>
-        <button id="netCancel" hidden>CANCEL</button>
+      <div id="presenceBar" class="presenceBar" title="Players in the garage, in queue, or in a match">
+        <span class="presChip"><b id="onlineCount">–</b> ONLINE</span>
+        <span class="presChip"><b id="playingCount">–</b> PLAYING</span>
       </div>
-    </section>
-    <div class="row">
-      <button class="cta" id="go">PLAY</button>
-      <button class="cta fsd" id="goFsd">PLAY</button>
-      <button class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
     </div>
-    <div class="row garageAudio">
-      <button class="cta ghost" id="garageMuteMusicBtn" aria-pressed="false">MUSIC: ON</button>
-      <button class="cta ghost" id="garageMuteSfxBtn" aria-pressed="false">SFX: ON</button>
+
+    <div id="stepVehicle" class="garageStep">
+      <div class="stepLabel">SELECT YOUR VEHICLE</div>
+      <div id="inspect">
+        <div class="name" id="inspName">CYBERTRUCK</div>
+        <div class="meme" id="inspMeme">Bulletproof dumpster that learned Rocket League.</div>
+        <div class="stats" id="inspStats">MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE</div>
+      </div>
+      <div id="garage"></div>
+      <div class="row stepActions">
+        <button type="button" class="cta" id="toMatchup">LOCK IN</button>
+      </div>
     </div>
-    <div id="xAuthBar" class="xAuthBar">
-      <div id="xGuestBadge" class="xGuestBadge">PLAYING AS GUEST</div>
-      <button type="button" class="cta ghost" id="xSignInBtn">SIGN IN WITH X</button>
-      <div id="xSignedIn" class="xSignedIn" hidden>
-        <img id="xAvatar" class="xAvatar" alt="" width="32" height="32" />
-        <div class="xIdentity">
-          <div id="xDisplayName" class="xDisplayName"></div>
-          <div id="xHandle" class="xHandle"></div>
+
+    <div id="stepMatchup" class="garageStep" hidden>
+      <div class="stepLabel">
+        <button type="button" class="backLink" id="backVehicle">&#8592; VEHICLES</button>
+        <span>SELECT MATCHUP</span>
+      </div>
+      <div id="lockedVehicle" class="lockedVehicle"></div>
+      <div id="matchModes" class="matchModes">
+        <button type="button" class="modeCard on" id="modeLocal" data-mode="local">
+          <div class="modeTitle">LOCAL</div>
+          <div class="modeSub">VS GROK · OFFLINE</div>
+        </button>
+        <button type="button" class="modeCard" id="modeQuick" data-mode="quick">
+          <div class="modeTitle">QUICK MATCH</div>
+          <div class="modeSub">ONLINE 1V1 QUEUE</div>
+        </button>
+        <button type="button" class="modeCard" id="modePrivate" data-mode="private">
+          <div class="modeTitle">PRIVATE ROOM</div>
+          <div class="modeSub">CREATE OR JOIN</div>
+        </button>
+      </div>
+
+      <div id="localPane" class="matchPane">
+        <div class="row">
+          <button type="button" class="cta" id="go">PLAY</button>
+          <button type="button" class="cta ghost" id="mapBtn">MAP: DAY PITCH</button>
         </div>
-        <button type="button" class="cta ghost" id="xSignOutBtn">SIGN OUT</button>
+        <button type="button" class="cta fsd" id="goFsd" hidden>PLAY</button>
+      </div>
+
+      <div id="privatePane" class="matchPane" hidden>
+        <div class="row">
+          <button type="button" class="cta" id="netCreate">CREATE ROOM</button>
+          <div class="roomJoin">
+            <input id="roomCodeIn" aria-label="4-character room code" placeholder="CODE" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+            <button type="button" class="cta ghost" id="netJoin">JOIN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- kept for JS findMatch("quick") wiring -->
+      <button type="button" id="netQuick" hidden>QUICK MATCH</button>
+    </div>
+
+    <div id="searchShell" class="searchShell" hidden>
+      <div class="searchCard">
+        <div class="searchPulse" aria-hidden="true"></div>
+        <div class="searchKicker" id="searchKicker">QUICK MATCH</div>
+        <div class="searchTitle" id="searchTitle">SEARCHING</div>
+        <div class="netInfo"><span id="netStatus" role="status" aria-live="polite">MATCHING THE NEXT PLAYER</span>
+          <strong id="roomCodeOut"></strong>
+          <span id="inviteActions" hidden>
+            <button type="button" class="cta ghost" id="copyRoomBtn">COPY CODE</button>
+            <button type="button" class="cta ghost" id="shareInviteBtn">SHARE INVITE</button>
+          </span>
+        </div>
+        <button type="button" class="cta" id="netCancel">CANCEL</button>
       </div>
     </div>
-    <div class="hint">Online 1v1 or offline vs GROK. Sign in with X to show your handle — or play as guest. Click once for audio.<br>FSD drives. HOLD BOOST for Ludicrous. Quick Chat bottom-left.</div>
+
+    <div class="chromeRow">
+      <div class="row garageAudio">
+        <button type="button" class="cta ghost" id="garageMuteMusicBtn" aria-pressed="false">MUSIC: ON</button>
+        <button type="button" class="cta ghost" id="garageMuteSfxBtn" aria-pressed="false">SFX: ON</button>
+      </div>
+      <div id="xAuthBar" class="xAuthBar">
+        <div id="xGuestBadge" class="xGuestBadge">PLAYING AS GUEST</div>
+        <button type="button" class="cta ghost" id="xSignInBtn">SIGN IN WITH X</button>
+        <div id="xSignedIn" class="xSignedIn" hidden>
+          <img id="xAvatar" class="xAvatar" alt="" width="32" height="32" />
+          <div class="xIdentity">
+            <div id="xDisplayName" class="xDisplayName"></div>
+            <div id="xHandle" class="xHandle"></div>
+          </div>
+          <button type="button" class="cta ghost" id="xSignOutBtn">SIGN OUT</button>
+        </div>
+      </div>
+    </div>
+    <div class="hint">FSD drives. You hold BOOST. Sign in with X to show your handle — or play as guest.</div>
     <div id="credit"><a href="https://foxandhenllc.com" target="_blank" rel="noopener" id="foxHenLink">A FOX & HEN PRODUCT</a> · BUILT WITH GROK</div>
+
     <div id="resultsPanel">
       <div class="who" id="resWho">P1</div>
       <h2 id="resTitle">TRUCK WINS</h2>
