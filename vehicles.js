@@ -94,7 +94,7 @@ function makeVehicle(id) {
   return g;
 }
 function makeBall() {
-  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshToonMaterial({ color: "#f4f0e6" }));
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshLambertMaterial({ color: "#f4f0e6" }));
   m.castShadow = true;
   const patch = new THREE.Mesh(new THREE.IcosahedronGeometry(0.56, 0), new THREE.MeshBasicMaterial({ color: "#1a1420", wireframe: true }));
   m.add(patch);

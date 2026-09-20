@@ -42,6 +42,8 @@ function fitRenderer() {
 }
 fitRenderer();
 document.body.prepend(renderer.domElement);
+renderer.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); console.warn("[groket] webgl lost"); }, false);
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 220);
 const camTarget = new THREE.Vector3();
@@ -329,19 +331,8 @@ function toast(msg, ms = 900, who = "p1") {
   window.setTimeout(() => toastEl.classList.remove("show"), ms);
 }
 function pushChat(who, msg) {
-  if (!chatLog) return;
-  const el = document.createElement("div");
-  el.className = "chatline " + who;
-  el.innerHTML = `<span class="tag">${who === "cpu" ? opponentName() : playerLabel()}</span>${msg}`;
-  chatLog.prepend(el);
-  while (chatLog.children.length > 3) chatLog.removeChild(chatLog.lastChild);
-  toast((who === "cpu" ? opponentName() + " - " : playerLabel() + " - ") + msg, 3200, who === "cpu" ? "cpu" : "p1");
-  window.clearTimeout(el._fade);
-  el.classList.add("show");
-  el._fade = window.setTimeout(() => {
-    el.classList.add("fade");
-    window.setTimeout(() => { try { el.remove(); } catch (_) {} }, 480);
-  }, 3400);
+  const label = who === "cpu" ? opponentName() : playerLabel();
+  toast(label + " - " + msg, 3200, who === "cpu" ? "cpu" : "p1");
 }
 function setInspect(id) {
   const v = byId(id);
@@ -519,6 +510,7 @@ function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
+  try {
   if (playing && !locked && !paused && !(online && NET.isGuest())) {
     timeLeft -= dt;
     if (timeLeft <= 0) {
@@ -528,7 +520,7 @@ function tick(now) {
     const m = Math.floor(timeLeft / 60);
     const s = Math.floor(timeLeft % 60).toString().padStart(2, "0");
     clockEl.textContent = m + ":" + s;
-    const ctl = online && !pauseLayer.classList.contains("hidden") ? { throttle: 0, steer: 0, boost: false } : readControls();
+    const ctl = online && pauseLayer && !pauseLayer.classList.contains("hidden") ? { throttle: 0, steer: 0, boost: false } : readControls();
     if (fsd && Math.abs(ctl.throttle) < 0.2 && Math.abs(ctl.steer) < 0.2) {
       botAI(P, B, ball, dt, -1);
       if (ctl.boost) drive(P, 0, 0, true, dt);
@@ -556,7 +548,7 @@ function tick(now) {
   }
   const me = localBody();
   clockEl.textContent = Math.floor(timeLeft / 60) + ":" + Math.floor(timeLeft % 60).toString().padStart(2, "0");
-  boostFill.style.transform = "scaleX(" + me.boost / me.boostMax + ")";
+  if (boostFill && me.boostMax) boostFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, me.boost / me.boostMax)) + ")";
   if (boostLab) boostLab.textContent = "LUDICROUS MODE (" + (me.boosting ? "ENGAGED" : "DISENGAGED") + ")";
   if (mode === "garage") {
     preview.visible = true; playerMesh.visible = false; botMesh.visible = false; ballMesh.visible = false;
@@ -591,8 +583,20 @@ function tick(now) {
     playLook.set(me.x * 0.55 + ball.x * 0.45, 0.6, me.z * 0.55 + ball.z * 0.45);
     camTarget.lerp(playLook, 1 - Math.pow(0.0008, dt));
   }
+  // Keep camera/render alive even if a hit injects NaNs
+  for (const o of [P, B, ball]) {
+    for (const k of Object.keys(o)) {
+      if (typeof o[k] === "number" && !Number.isFinite(o[k])) o[k] = (k === "y" ? 0.55 : 0);
+    }
+  }
+  if (![camera.position.x, camera.position.y, camera.position.z, camTarget.x, camTarget.y, camTarget.z].every(Number.isFinite)) {
+    camera.position.set(0, 14, 28); camTarget.set(0, 0.6, 0);
+  }
   camera.lookAt(camTarget);
   renderer.render(scene, camera);
+  } catch (err) {
+    console.error("[groket tick]", err);
+  }
 }
 requestAnimationFrame(tick);
 function pickBot() {

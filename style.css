@@ -297,3 +297,42 @@ body.signed-in .xGuestBadge { display: none; }
   #chatLog { bottom: 26%; }
   .qc { min-height: 40px; }
 }
+
+
+/* --- hotfix: captions, menu clearance, denser garage --- */
+body.playing #chatLog { display: none !important; }
+#toast {
+  top: auto !important;
+  bottom: 26% !important;
+  transform: translate(-50%, 0) !important;
+  font-size: clamp(18px, 4vw, 34px) !important;
+  max-width: min(640px, 92vw);
+  white-space: normal !important;
+  line-height: 1.15;
+  padding: 8px 14px;
+  background: #140c08dd;
+  border: 3px solid #f0c02099;
+  z-index: 7;
+}
+#menuBtn { top: 88px !important; }
+#garage {
+  gap: 6px !important;
+  padding: 0 12px !important;
+}
+.card {
+  padding: 7px 8px 6px !important;
+  min-height: 70px !important;
+  border-width: 3px !important;
+}
+.card .who { font-size: 11px !important; }
+.card .name { font-size: 15px !important; }
+.card .meme { font-size: 12px !important; line-height: 1.15; max-height: 2.5em; overflow: hidden; }
+.card .stats { font-size: 11px !important; }
+.mast { padding: 0 16px 4px !important; }
+.mast h1 { font-size: clamp(28px, 5.5vw, 56px) !important; }
+#inspect { margin: 0 16px 6px !important; min-height: 52px !important; }
+.cta { font-size: 16px !important; padding: 10px 18px !important; box-shadow: 4px 4px 0 #000 !important; }
+@media (max-width: 720px) {
+  #garage { grid-template-columns: repeat(2, 1fr) !important; }
+  #toast { bottom: 30% !important; }
+}

@@ -167,7 +167,7 @@ function stopCrowd() {
   try { crowdNode.src.stop(); } catch {}
   crowdNode = null;
 }
-const SFX = {
+const _SFX_RAW = {
   boost: () => {
     beep(140, 0.22, "sawtooth", 0.09, 260);
     noise(0.2, 0.09, 1200);
@@ -211,4 +211,15 @@ const SFX = {
   tick: () => beep(880, 0.05, "square", 0.045),
   pause: () => beep(420, 0.08, "square", 0.05)
 };
+
+function armSfx(obj) {
+  const out = {};
+  for (const [k, fn] of Object.entries(obj)) {
+    out[k] = (...args) => {
+      try { return fn(...args); } catch (err) { console.warn("[sfx]", k, err); }
+    };
+  }
+  return out;
+}
+const SFX = armSfx(_SFX_RAW);
 export { SFX, ensureAudio, startCrowd, stopCrowd, playBed, stopBed, isMusicMuted, isSfxMuted, setMusicMuted, setSfxMuted };

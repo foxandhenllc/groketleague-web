@@ -71,7 +71,9 @@ function carBall(c, ball) {
     const uz = dz / nlen;
     const rel = (ball.vx - c.vx) * ux + (ball.vz - c.vz) * uz;
     const speed = Math.hypot(c.vx, c.vz);
-    let impulse = Math.max(9, 11 / c.mass + Math.abs(rel) * 1.15);
+    const mass = (Number.isFinite(c.mass) && c.mass > 0.2) ? c.mass : 1.5;
+    let impulse = Math.max(9, 11 / mass + Math.abs(rel) * 1.15);
+    if (!Number.isFinite(impulse)) impulse = 9;
     let ev = "hit";
     if ((c.kind === "cybertruck" || c.kind === "semi") && c.boosting) {
       impulse *= 1.35;
@@ -84,8 +86,8 @@ function carBall(c, ball) {
     ball.vz += uz * impulse;
     ball.x = c.x + ux * (hx + 0.06);
     ball.z = c.z + uz * (Math.min(hz, Math.abs(localZ)) + 0.06);
-    c.vx -= ux * impulse * (0.12 * c.mass / 3);
-    c.vz -= uz * impulse * (0.12 * c.mass / 3);
+    c.vx -= ux * impulse * (0.12 * mass / 3);
+    c.vz -= uz * impulse * (0.12 * mass / 3);
     return ev;
   }
   return null;
