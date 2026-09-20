@@ -159,3 +159,33 @@ body.playing #menuBtn { display: block; }
 .howCard ul { margin: 0 0 16px; padding-left: 18px; color: #e8eefc; line-height: 1.55; font-size: 15px; }
 .howCard li { margin: 8px 0; }
 .howCard strong { color: #f0c020; }
+
+
+/* Sign in with X */
+.xAuthBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 10px;
+}
+.xSignedIn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Black Ops One", sans-serif;
+  letter-spacing: 1px;
+  color: #f0c020;
+  font-size: 14px;
+}
+.xSignedIn img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #f0c020;
+  background: #111;
+}
+#xSignInBtn, #xSignOutBtn {
+  padding: 8px 14px;
+  font-size: 14px;
+}

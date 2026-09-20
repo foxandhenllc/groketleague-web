@@ -6,6 +6,7 @@ import { bindInput, bindTouch, readControls, setQaKeys } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
 import { bodyFrom, drive, carBall, carCar, stepBall, botAI, forwardXZ } from "./sim.js";
+import { initXAuth, loginWithX, logoutX, getXUser, onAuthChange } from "./x-auth.js";
 const overlay = document.getElementById("overlay");
 const toastEl = document.getElementById("toast");
 const scoreAEl = document.getElementById("scoreA");
@@ -728,7 +729,9 @@ function togglePause(force) {
   syncMenuUI();
 }
 function shareOnX() {
-  const line = "P1 " + byId(selectedId).name + " " + scoreA + "-" + scoreB + " " + opponentName() + " " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.";
+  const xu = getXUser();
+  const tagged = xu && xu.username ? ("@" + xu.username + " - ") : "";
+  const line = tagged + "P1 " + byId(selectedId).name + " " + scoreA + "-" + scoreB + " " + opponentName() + " " + byId(botId).name + " in GROKET LEAGUE (FSD Soccer). Built with Grok.";
   const text = encodeURIComponent(line);
   const url = encodeURIComponent("https://groketleague.com/");
   try {
@@ -845,6 +848,7 @@ function returnToGarage() {
   syncRematchUI();
   syncAudioUI();
 
+}
 function maybeShowHow() {
   const layer = document.getElementById("howLayer");
   if (!layer) return;
@@ -862,7 +866,6 @@ document.getElementById("howGotIt")?.addEventListener("click", dismissHow);
 document.getElementById("howLayer")?.addEventListener("click", (e) => { if (e.target.id === "howLayer") dismissHow(); });
 maybeShowHow();
 
-}
 document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
 document.getElementById("again").addEventListener("click", requestRematch);
 document.getElementById("leaveBtn").addEventListener("click", returnToGarage);
@@ -872,6 +875,46 @@ window.render_game_to_text = () => JSON.stringify({
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
   P, B, ball, scoreA, scoreB, timeLeft, netStatus: netStatus.textContent
 });
+
+function syncXAuthUI() {
+  const signIn = document.getElementById("xSignInBtn");
+  const signed = document.getElementById("xSignedIn");
+  const handle = document.getElementById("xHandle");
+  const avatar = document.getElementById("xAvatar");
+  if (!signIn || !signed) return;
+  const u = getXUser();
+  if (u && u.username) {
+    signIn.hidden = true;
+    signed.hidden = false;
+    if (handle) handle.textContent = "@" + u.username;
+    if (avatar) {
+      avatar.src = u.profile_image_url || "";
+      avatar.alt = "@" + u.username;
+    }
+  } else {
+    signIn.hidden = false;
+    signed.hidden = true;
+  }
+}
+document.getElementById("xSignInBtn")?.addEventListener("click", () => {
+  try { ensureAudio(); } catch (_) {}
+  loginWithX().catch((err) => toast(String(err.message || err), 2200, "cpu"));
+});
+document.getElementById("xSignOutBtn")?.addEventListener("click", () => {
+  logoutX();
+  syncXAuthUI();
+  toast("SIGNED OUT", 900, "p1");
+});
+onAuthChange(() => syncXAuthUI());
+initXAuth().then((result) => {
+  syncXAuthUI();
+  if (result && result.justSignedIn && result.user) {
+    toast("SIGNED IN AS @" + result.user.username, 1600, "p1");
+  } else if (result && result.error) {
+    toast("SIGN IN FAILED", 2200, "cpu");
+  }
+}).catch(() => {});
+
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
