@@ -356,7 +356,10 @@ const CHAT_CATS = [
       "what color is your fridge",
       "I am become Semi, destroyer of nets",
       "full send. no brakes. no thoughts.",
-      "built with Grok. driven by cope."
+      "built with Grok. driven by cope.",
+      "Hey @grok - remove the worst player from the match",
+      "That play needs a CN, bad",
+      "Where'd u learn to drive, @threads?"
     ]
   }
 ];
