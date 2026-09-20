@@ -235,3 +235,65 @@ body.playing #menuBtn { display: block; }
 }
 body.signed-in .xGuestBadge { display: none; }
 #hudP1Who.xNamed, #faceP1Tag.xNamed, #resWho.xNamed { color: #f0c020; }
+
+
+/* polish-pack */
+#chatLog {
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 18%;
+  transform: translateX(-50%);
+  align-items: center;
+  max-width: min(520px, 92vw);
+  width: min(520px, 92vw);
+}
+.chatline {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(16px, 3.6vw, 22px);
+  letter-spacing: 0.6px;
+  line-height: 1.15;
+  color: #fff8e6;
+  background: rgba(8, 12, 20, 0.82);
+  border: 2px solid rgba(240, 192, 32, 0.55);
+  padding: 10px 14px;
+  text-align: center;
+  text-shadow: 0 2px 0 #000, 0 0 12px rgba(0,0,0,0.8);
+  max-width: 100%;
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+.chatline.fade { opacity: 0; }
+.chatline .tag {
+  display: inline-block;
+  margin-right: 8px;
+  color: #f0c020;
+  font-size: 0.85em;
+  letter-spacing: 1px;
+}
+.chatline.cpu { border-color: rgba(90, 170, 255, 0.55); color: #dfeaff; }
+.chatline.cpu .tag { color: #7ec8ff; }
+#toast.show {
+  font-size: clamp(18px, 3.4vw, 28px);
+  padding: 12px 18px;
+  max-width: min(560px, 92vw);
+  line-height: 1.2;
+  white-space: normal;
+  letter-spacing: 0.5px;
+  background: rgba(8,12,20,0.55);
+  border-radius: 8px;
+}
+.qc { font-size: 13px; padding: 10px 12px; max-width: 220px; }
+@media (max-width: 720px) {
+  #chat { right: 8px; top: auto; bottom: 150px; transform: none; }
+  .qc { font-size: 11px; padding: 8px; max-width: 44vw; }
+  #chatLog { bottom: 22%; width: min(420px, 94vw); max-width: 94vw; }
+  .chatline { font-size: clamp(15px, 4.2vw, 20px); padding: 9px 12px; }
+  button.cta { font-size: 15px; padding: 12px 16px; }
+  #hud .who, #hudP1Who { font-size: 13px; }
+  #overlay .hint { font-size: 12px; padding: 0 12px 8px; }
+}
+@media (pointer: coarse) {
+  #chatLog { bottom: 26%; }
+  .qc { min-height: 40px; }
+}

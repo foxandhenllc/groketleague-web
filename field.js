@@ -6,7 +6,7 @@ function lambert(color) {
 }
 function makeField(scene, fieldRoot, nightExtra) {
   lamps.length = 0;
-  const turf = new THREE.Mesh(new THREE.BoxGeometry(FW + 4, 0.4, FL + 6), lambert("#2f9a3a"));
+  const turf = new THREE.Mesh(new THREE.BoxGeometry(FW + 8, 0.4, FL + 10), lambert("#2f9a3a"));
   turf.position.y = -0.2;
   turf.receiveShadow = true;
   turf.name = "turf";
@@ -48,16 +48,47 @@ function makeField(scene, fieldRoot, nightExtra) {
     m.castShadow = true;
     fieldRoot.add(m);
   };
-  board(FW + 6, 1.5, 0.55, 0, 0.75, -FL / 2 - 3.2);
-  board(FW + 6, 1.5, 0.55, 0, 0.75, FL / 2 + 3.2);
-  board(0.55, 1.5, FL + 7, -FW / 2 - 2.4, 0.75, 0);
-  board(0.55, 1.5, FL + 7, FW / 2 + 2.4, 0.75, 0);
-  const ht = new THREE.Mesh(new THREE.BoxGeometry(FW + 6, 0.16, 0.58), yell);
-  ht.position.set(0, 1.52, -FL / 2 - 3.2);
+  board(FW + 8, 2.8, 0.7, 0, 1.4, -FL / 2 - 3.6);
+  board(FW + 8, 2.8, 0.7, 0, 1.4, FL / 2 + 3.6);
+  board(0.7, 2.8, FL + 8, -FW / 2 - 2.8, 1.4, 0);
+  board(0.7, 2.8, FL + 8, FW / 2 + 2.8, 1.4, 0);
+  const ht = new THREE.Mesh(new THREE.BoxGeometry(FW + 8, 0.22, 0.72), yell);
+  ht.position.set(0, 2.85, -FL / 2 - 3.6);
   fieldRoot.add(ht);
   const ht2 = ht.clone();
   ht2.position.z = FL / 2 + 3.2;
   fieldRoot.add(ht2);
+  
+
+  // enclosure extras
+  const apron = new THREE.Mesh(new THREE.BoxGeometry(FW + 14, 0.25, FL + 16), lambert("#1c2838"));
+  apron.position.y = -0.35;
+  apron.receiveShadow = true;
+  fieldRoot.add(apron);
+  const pylonMat = lambert("#f0c020");
+  const pillarMat = lambert("#2a3548");
+  for (const [px, pz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 1.2), pylonMat);
+    base.position.set(px * (FW / 2 + 2.2), 0.2, pz * (FL / 2 + 2.8));
+    base.castShadow = true;
+    fieldRoot.add(base);
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 4.2, 0.55), pillarMat);
+    pillar.position.set(px * (FW / 2 + 2.2), 2.3, pz * (FL / 2 + 2.8));
+    pillar.castShadow = true;
+    fieldRoot.add(pillar);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.25, 0.85), pylonMat);
+    cap.position.set(px * (FW / 2 + 2.2), 4.5, pz * (FL / 2 + 2.8));
+    fieldRoot.add(cap);
+  }
+  const meshMat = new THREE.MeshLambertMaterial({ color: "#cfe0ff", transparent: true, opacity: 0.14, side: THREE.DoubleSide });
+  for (const sx of [-1, 1]) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(FL + 6, 2.4), meshMat);
+    mesh.position.set(sx * (FW / 2 + 2.5), 2.6, 0);
+    mesh.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+    fieldRoot.add(mesh);
+  }
+
+
   function goal(z, color) {
     const grp = new THREE.Group();
     const post = lambert(color);

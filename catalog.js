@@ -39,9 +39,9 @@ const CATALOG = [
 function byId(id) {
   return CATALOG.find((v) => v.id === id);
 }
-const FW = 36;
-const FL = 56;
-const GOAL_W = 10;
+const FW = 44;
+const FL = 68;
+const GOAL_W = 11;
 const GOAL_H = 4.2;
 export {
   CATALOG,

@@ -334,8 +334,14 @@ function pushChat(who, msg) {
   el.className = "chatline " + who;
   el.innerHTML = `<span class="tag">${who === "cpu" ? opponentName() : playerLabel()}</span>${msg}`;
   chatLog.prepend(el);
-  while (chatLog.children.length > 4) chatLog.removeChild(chatLog.lastChild);
-  toast((who === "cpu" ? opponentName() + " · " : playerLabel() + " · ") + msg, 1200, who);
+  while (chatLog.children.length > 3) chatLog.removeChild(chatLog.lastChild);
+  toast((who === "cpu" ? opponentName() + " - " : playerLabel() + " - ") + msg, 3200, who === "cpu" ? "cpu" : "p1");
+  window.clearTimeout(el._fade);
+  el.classList.add("show");
+  el._fade = window.setTimeout(() => {
+    el.classList.add("fade");
+    window.setTimeout(() => { try { el.remove(); } catch (_) {} }, 480);
+  }, 3400);
 }
 function setInspect(id) {
   const v = byId(id);
