@@ -1,4 +1,4 @@
-﻿import * as THREE from "three";
+import * as THREE from "three";
 import * as NET from "./net.js";
 import { CATALOG, byId } from "./catalog.js";
 import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMuted, setMusicMuted, setSfxMuted } from "./audio.js";
@@ -167,7 +167,7 @@ function setNetPending(value) {
   }
   bumpPresence(value ? "queue" : (online ? "match" : "garage"));
 }
-function leaveNetwork(message = "ONLINE 1v1 Â· PICK YOUR CAR, THEN PLAY") {
+function leaveNetwork(message = "ONLINE 1v1 - PICK YOUR CAR, THEN PLAY") {
   clearTimeout(window.__queueWaitTimer);
   ensureHostSimPump(false);
 
@@ -180,7 +180,7 @@ function leaveNetwork(message = "ONLINE 1v1 Â· PICK YOUR CAR, THEN PLAY") {
   netMessage(message);
   syncRematchUI();
 }
-function disconnected(message = "OPPONENT DISCONNECTED Â· FIND ANOTHER MATCH") {
+function disconnected(message = "OPPONENT DISCONNECTED - FIND ANOTHER MATCH") {
   const wasOnline = online;
   leaveNetwork(message);
   if (wasOnline) returnToGarage();
@@ -190,24 +190,24 @@ async function findMatch(kind) {
   leaveNetwork();
   const serial = sessionSerial;
   setNetPending(true);
-  netMessage(kind === "quick" ? "LOOKING FOR A PLAYERâ€¦" : kind === "create" ? "CREATING ROOMâ€¦" : "CONNECTINGâ€¦");
+  netMessage(kind === "quick" ? "LOOKING FOR A PLAYER..." : kind === "create" ? "CREATING ROOM..." : "CONNECTING...");
   try {
     if (kind === "create") {
       const code = await NET.createRoom();
       if (serial !== sessionSerial) return;
       roomCodeOut.textContent = code;
       setInviteVisible(true);
-      netMessage("WAITING Â· COPY CODE OR SHARE INVITE");
+      netMessage("WAITING - COPY CODE OR SHARE INVITE");
     } else if (kind === "join") {
       await NET.joinRoom(document.getElementById("roomCodeIn").value);
     } else {
       const result = await NET.quickMatch();
       if (serial === sessionSerial && result.hosted && !online) {
-        netMessage("WAITING Â· MATCHING THE NEXT PLAYER");
+        netMessage("WAITING - MATCHING THE NEXT PLAYER");
         clearTimeout(window.__queueWaitTimer);
         window.__queueWaitTimer = setTimeout(() => {
           if (serial !== sessionSerial || online) return;
-          leaveNetwork("NO OPPONENT YET Â· TRY QUICK MATCH AGAIN");
+          leaveNetwork("NO OPPONENT YET - TRY QUICK MATCH AGAIN");
         }, 45000);
       }
     }
@@ -219,7 +219,7 @@ for (const [id, kind] of [["netQuick", "quick"], ["netCreate", "create"], ["netJ
   document.getElementById(id).addEventListener("click", () => findMatch(kind));
 }
 
-document.getElementById("netCancel").addEventListener("click", () => leaveNetwork("CANCELLED Â· READY TO PLAY"));
+document.getElementById("netCancel").addEventListener("click", () => leaveNetwork("CANCELLED - READY TO PLAY"));
 document.getElementById("toMatchup")?.addEventListener("click", () => {
   if (netPending || online) return;
   showGarageStep("matchup");
@@ -272,11 +272,11 @@ async function bumpPresence(state) {
     });
     if (!res.ok) throw new Error("presence " + res.status);
     const data = await res.json();
-    if (onlineEl) onlineEl.textContent = String(data.online ?? "â€“");
-    if (playingEl) playingEl.textContent = String(data.playing ?? "â€“");
+    if (onlineEl) onlineEl.textContent = String(data.online ?? "'");
+    if (playingEl) playingEl.textContent = String(data.playing ?? "'");
   } catch {
-    if (onlineEl && onlineEl.textContent === "â€“") onlineEl.textContent = "?";
-    if (playingEl && playingEl.textContent === "â€“") playingEl.textContent = "?";
+    if (onlineEl && onlineEl.textContent === "'") onlineEl.textContent = "?";
+    if (playingEl && playingEl.textContent === "'") playingEl.textContent = "?";
   }
 }
 function startPresenceLoop() {
@@ -306,20 +306,20 @@ document.getElementById("copyRoomBtn")?.addEventListener("click", async () => {
   if (!validRoomCode(code)) return;
   try {
     await navigator.clipboard.writeText(code);
-    netMessage("CODE COPIED Â· " + code);
+    netMessage("CODE COPIED - " + code);
   } catch {
-    netMessage("COPY FAILED Â· CODE IS " + code);
+    netMessage("COPY FAILED - CODE IS " + code);
   }
 });
 document.getElementById("shareInviteBtn")?.addEventListener("click", async () => {
   const code = roomCodeOut.textContent.trim();
   if (!validRoomCode(code)) return;
   const url = inviteUrl(code);
-  const text = "1v1 me in GROKET LEAGUE. Room " + code + " â€” pick a car and hit JOIN.";
+  const text = "1v1 me in GROKET LEAGUE. Room " + code + " ' pick a car and hit JOIN.";
   try {
     if (navigator.share) {
       await navigator.share({ title: "GROKET LEAGUE", text, url });
-      netMessage("INVITE SHARED Â· WAITING");
+      netMessage("INVITE SHARED - WAITING");
       return;
     }
   } catch (err) {
@@ -330,7 +330,7 @@ document.getElementById("shareInviteBtn")?.addEventListener("click", async () =>
     netMessage("INVITE LINK COPIED");
   } catch {
     window.open("https://twitter.com/intent/tweet?text=" + encodeURIComponent(text + " " + url), "_blank", "noopener");
-    netMessage("OPENED SHARE Â· WAITING");
+    netMessage("OPENED SHARE - WAITING");
   }
 });
 (function applyRoomDeepLink() {
@@ -344,7 +344,7 @@ document.getElementById("shareInviteBtn")?.addEventListener("click", async () =>
       input.value = code;
       input.focus();
     }
-    netMessage("ROOM " + code + " LOADED Â· PICK A CAR, THEN JOIN");
+    netMessage("ROOM " + code + " LOADED - PICK A CAR, THEN JOIN");
     params.delete("room");
     params.delete("code");
     const q = params.toString();
@@ -355,16 +355,16 @@ NET.setHandlers({
   onPeer() {
     notePacket();
     setInviteVisible(false);
-    netMessage("CONNECTED Â· STARTING MATCHâ€¦");
+    netMessage("CONNECTED - STARTING MATCH...");
     if (NET.isGuest()) NET.send({ t: "hello", car: localChoice, version: 1, clientId });
   },
   onHello(msg) {
     if (!NET.isHost() || matchId || !validCar(msg.car) || msg.version !== 1) return;
     if (msg.clientId && msg.clientId === clientId) {
-      netMessage("CAN'T MATCH YOURSELF Â· WAITING FOR ANOTHER PLAYER");
+      netMessage("CAN'T MATCH YOURSELF - WAITING FOR ANOTHER PLAYER");
       try { NET.kickPeer?.() || NET.destroy?.(); } catch (_) {}
-      // Stay in queue as host if possible â€” soft reject
-      leaveNetwork("SELF-MATCH BLOCKED Â· TRY QUICK MATCH AGAIN");
+      // Stay in queue as host if possible ' soft reject
+      leaveNetwork("SELF-MATCH BLOCKED - TRY QUICK MATCH AGAIN");
       return;
     }
     matchId = crypto.randomUUID();
@@ -419,7 +419,7 @@ NET.setHandlers({
     beginRematch(msg);
   },
   onDrop: () => softDisconnect(),
-  onBusy: () => disconnected("ROOM IS FULL Â· TRY ANOTHER CODE"),
+  onBusy: () => disconnected("ROOM IS FULL - TRY ANOTHER CODE"),
   onError: err => disconnected(err.message || "Connection lost. Try again.")
 });
 function sendSnapshot() {
@@ -429,9 +429,9 @@ setInterval(() => {
   if (!NET.isOnline()) return;
   syncSignalPip();
   if (performance.now() - lastPacket > 2500 && performance.now() - lastPacket <= 12000 && online) {
-    if (!reconnecting) { reconnecting = true; toast("OPPONENT RECONNECTINGâ€¦", 2000, "cpu"); netMessage("OPPONENT RECONNECTINGâ€¦"); syncSignalPip(); }
+    if (!reconnecting) { reconnecting = true; toast("OPPONENT RECONNECTING...", 2000, "cpu"); netMessage("OPPONENT RECONNECTING..."); syncSignalPip(); }
   }
-  if (performance.now() - lastPacket > 12000) return softDisconnect("CONNECTION LOST Â· PLEASE TRY AGAIN");
+  if (performance.now() - lastPacket > 12000) return softDisconnect("CONNECTION LOST - PLEASE TRY AGAIN");
   if (!online) return;
   if (NET.isHost()) sendSnapshot();
   else NET.send({ t: "in", id: matchId, fsd, ...(mode === "play" && pauseLayer.classList.contains("hidden") ? readControls() : { throttle: 0, steer: 0, boost: false }) });
@@ -583,7 +583,7 @@ function syncLockedVehicle() {
   const strip = document.getElementById("lockedVehicle");
   if (!strip) return;
   const v = byId(selectedId);
-  strip.textContent = v ? ("LOCKED Â· " + v.name) : "";
+  strip.textContent = v ? ("LOCKED - " + v.name) : "";
 }
 function showGarageStep(step) {
   const vehicle = document.getElementById("stepVehicle");
@@ -715,7 +715,7 @@ function makeShareCard(line) {
     camera.updateProjectionMatrix();
     rt.dispose();
     if (renderer.state && renderer.state.reset) renderer.state.reset();
-    // GL returns bottom-up â€” flip into an ImageData
+    // GL returns bottom-up ' flip into an ImageData
     const img = ctx.createImageData(tw, th);
     for (let y = 0; y < th; y++) {
       const src = (th - 1 - y) * tw * 4;
@@ -743,7 +743,7 @@ function makeShareCard(line) {
 function captureGoalStill(who) {
   try {
     const scorer = who === "A" ? (playerLabel() + " " + byId(selectedId).name) : (opponentName() + " " + byId(botId).name);
-    const line = scorer + " GOAL Â· " + scoreA + "-" + scoreB + " Â· GROKET LEAGUE";
+    const line = scorer + " GOAL - " + scoreA + "-" + scoreB + " - GROKET LEAGUE";
     const card = makeShareCard(line);
     lastGoalCard = card;
     lastGoalBy = who;
@@ -757,10 +757,10 @@ function syncSignalPip() {
   if (!pip) return;
   if (!online) { pip.className = "sig-hidden"; return; }
   const age = performance.now() - lastPacket;
-  if (reconnecting) { pip.className = "sig-wait"; pip.textContent = "â— RECONNECTING"; return; }
-  if (age < 250) { pip.className = ""; pip.textContent = "â— LIVE"; }
-  else if (age < 1200) { pip.className = "sig-mid"; pip.textContent = "â— LAG"; }
-  else { pip.className = "sig-bad"; pip.textContent = "â— WEAK"; }
+  if (reconnecting) { pip.className = "sig-wait"; pip.textContent = "â -  RECONNECTING"; return; }
+  if (age < 250) { pip.className = ""; pip.textContent = "â -  LIVE"; }
+  else if (age < 1200) { pip.className = "sig-mid"; pip.textContent = "â -  LAG"; }
+  else { pip.className = "sig-bad"; pip.textContent = "â -  WEAK"; }
 }
 function clearReconnect() {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = 0; }
@@ -775,13 +775,13 @@ function notePacket() {
   }
   syncSignalPip();
 }
-function softDisconnect(message = "OPPONENT DISCONNECTED Â· FIND ANOTHER MATCH") {
+function softDisconnect(message = "OPPONENT DISCONNECTED - FIND ANOTHER MATCH") {
   if (!online) { disconnected(message); return; }
   if (reconnecting) return;
   reconnecting = true;
   syncSignalPip();
-  toast("OPPONENT RECONNECTINGâ€¦", 2800, "cpu");
-  netMessage("OPPONENT RECONNECTINGâ€¦");
+  toast("OPPONENT RECONNECTING...", 2800, "cpu");
+  netMessage("OPPONENT RECONNECTING...");
   if (reconnectTimer) clearTimeout(reconnectTimer);
   const serial = sessionSerial;
   reconnectTimer = setTimeout(() => {
@@ -798,8 +798,8 @@ async function onGoal(who) {
   locked = true;
   captureGoalStill(who);
   SFX.goal(); SFX.crowd(who === "A"); shake = 0.55;
-  if (who === "A") { scoreA++; toast("P1 GOAL Â· " + byId(selectedId).name, 1100, "p1"); }
-  else { scoreB++; toast(opponentName() + " GOAL Â· " + byId(botId).name, 1100, "cpu"); }
+  if (who === "A") { scoreA++; toast("P1 GOAL - " + byId(selectedId).name, 1100, "p1"); }
+  else { scoreB++; toast(opponentName() + " GOAL - " + byId(botId).name, 1100, "cpu"); }
   scoreAEl.textContent = String(scoreA);
   scoreBEl.textContent = String(scoreB);
   if (scoreA >= 3 || scoreB >= 3) {
@@ -904,7 +904,7 @@ function stepGame(dt) {
     camTarget.lerp(faceLook, 1 - Math.pow(0.002, dt));
     if (!(online && NET.isGuest())) faceoffT -= dt;
     const sub = document.getElementById("faceSub");
-    if (sub) sub.textContent = (online ? "ONLINE 1v1" : fsd ? "FSD" : "MANUAL") + " Â· " + Math.max(1, Math.ceil(faceoffT)) + (online ? "" : " Â· TAP TO SKIP");
+    if (sub) sub.textContent = (online ? "ONLINE 1v1" : fsd ? "FSD" : "MANUAL") + " - " + Math.max(1, Math.ceil(faceoffT)) + (online ? "" : " - TAP TO SKIP");
     if (faceoffT <= 0) kickoffNow(true);
   } else {
     preview.visible = false; playerMesh.visible = true; botMesh.visible = true; ballMesh.visible = true;
@@ -923,7 +923,7 @@ function stepGame(dt) {
     if (![fx, fz].every(Number.isFinite) || (fx * fx + fz * fz) < 0.25) {
       fx = 0; fz = 1;
     }
-    // Chase offset must stay behind the car â€” never collapse onto the look point (top-down grass)
+    // Chase offset must stay behind the car ' never collapse onto the look point (top-down grass)
     desired.set(me.x - fx * 12.5, 8.2, me.z - fz * 12.5);
     if (shake > 0) {
       desired.x += (Math.random() - 0.5) * shake * 1.1;
@@ -935,7 +935,7 @@ function stepGame(dt) {
     playLook.set(me.x * 0.55 + ball.x * 0.45, 1.0, me.z * 0.55 + ball.z * 0.45);
     camTarget.lerp(playLook, 1 - Math.pow(0.0008, dt));
   }
-  // Always sanitize camera after mode branch â€” recover from turf-lock / NaNs
+  // Always sanitize camera after mode branch ' recover from turf-lock / NaNs
   if (![camera.position.x, camera.position.y, camera.position.z, camTarget.x, camTarget.y, camTarget.z].every(Number.isFinite)) {
     camera.position.set(0, 14, 28); camTarget.set(0, 1, 0);
   }
@@ -1001,7 +1001,7 @@ function kickoffNow(fromHost = false) {
   startCrowd();
   playBed(mapMode === "night" ? "night" : "day");
   SFX.whistle();
-  toast(online ? (NET.isGuest() ? "P2 Â· BLUE GOAL" : "P1 Â· YELLOW GOAL") : fsd ? "P1 Â· FSD SUPERVISED" : "P1 Â· KICK OFF", 800, "p1");
+  toast(online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : fsd ? "P1 - FSD SUPERVISED" : "P1 - KICK OFF", 800, "p1");
 }
 function startGame(useFsd, config = null) {
   lastGoalCard = null; bestGoalCard = null; lastGoalBy = null;
@@ -1015,9 +1015,9 @@ function startGame(useFsd, config = null) {
     netMessage("ONLINE 1v1 CONNECTED");
   } else { localChoice = selectedId; leaveNetwork(); }
   sessionSerial++;
-  document.querySelector(".scorebox.cpu .who").textContent = opponentName() + (online && NET.isGuest() ? " Â· YOU" : "");
-  document.querySelector(".scorebox.p1 .who").textContent = "P1" + (online && NET.isHost() ? " Â· YOU" : "");
-  document.querySelector(".cputag").textContent = opponentName() + " Â· BLUE GOAL";
+  document.querySelector(".scorebox.cpu .who").textContent = opponentName() + (online && NET.isGuest() ? " - YOU" : "");
+  document.querySelector(".scorebox.p1 .who").textContent = "P1" + (online && NET.isHost() ? " - YOU" : "");
+  document.querySelector(".cputag").textContent = opponentName() + " - BLUE GOAL";
   document.getElementById("again").textContent = "REMATCH";
   syncRematchUI();
   const pauseHintEl = document.getElementById("pauseHint");
@@ -1048,7 +1048,7 @@ function startGame(useFsd, config = null) {
   const title = document.getElementById("faceTitle");
   if (title) title.textContent = playerLabel() + " " + byId(selectedId).name + "  vs  " + opponentName() + " " + byId(botId).name;
   const sub = document.getElementById("faceSub");
-  if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " Â· TAP ANYWHERE TO SKIP";
+  if (sub) sub.textContent = (fsd ? "FSD" : "MANUAL") + " - TAP ANYWHERE TO SKIP";
   if (faceLayer) faceLayer.classList.remove("hidden");
   if (pauseLayer) pauseLayer.classList.add("hidden");
   syncMenuUI();
@@ -1105,7 +1105,7 @@ function renderQcMenu() {
     const back = document.createElement("button");
     back.type = "button";
     back.className = "qc back";
-    back.textContent = "â† BACK";
+    back.textContent = "< BACK";
     back.dataset.back = "1";
     qcMenu.appendChild(back);
     if (cat) {
@@ -1114,7 +1114,7 @@ function renderQcMenu() {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "qc line";
-        b.textContent = (i + 1) + " Â· " + line;
+        b.textContent = (i + 1) + " - " + line;
         b.dataset.chat = String(base + i);
         qcMenu.appendChild(b);
       });
@@ -1166,8 +1166,8 @@ window.addEventListener("keydown", (e) => {
 });
 function syncFsdUI() {
   const guest = online && NET.isGuest();
-  labA.textContent = byId(selectedId).name + ((guest ? peerFsd : fsd) ? " Â· FSD" : "");
-  labB.textContent = byId(botId).name + ((online && (guest ? fsd : peerFsd)) ? " Â· FSD" : "");
+  labA.textContent = byId(selectedId).name + ((guest ? peerFsd : fsd) ? " - FSD" : "");
+  labB.textContent = byId(botId).name + ((online && (guest ? fsd : peerFsd)) ? " - FSD" : "");
   const button = document.getElementById("fsdToggle");
   button.textContent = "FSD: ALWAYS ON";
   button.setAttribute("aria-pressed", "true");
@@ -1177,7 +1177,7 @@ function syncFsdUI() {
   document.body.classList.toggle("fsd", mode === "play"); // always FSD in play
 }
 document.getElementById("fsdToggle").addEventListener("click", () => {
-  /* FSD is always on â€” boost is the only human lever */
+  /* FSD is always on ' boost is the only human lever */
   fsd = true;
   syncFsdUI();
 });
@@ -1189,7 +1189,7 @@ function togglePause(force) {
   if (mode !== "play") return;
   if (online) {
     pauseLayer.classList.toggle("hidden", force === false ? true : !pauseLayer.classList.contains("hidden"));
-    document.getElementById("pauseScore").textContent = "P1 " + scoreA + " â€” " + scoreB + " P2 Â· MATCH CONTINUES";
+    document.getElementById("pauseScore").textContent = "P1 " + scoreA + " ' " + scoreB + " P2 - MATCH CONTINUES";
     syncMenuUI();
     return;
   }
@@ -1198,7 +1198,7 @@ function togglePause(force) {
     playing = false;
     SFX.pause();
     if (pauseLayer) {
-      document.getElementById("pauseScore").textContent = "P1 " + scoreA + " â€” " + scoreB + " GROK";
+      document.getElementById("pauseScore").textContent = "P1 " + scoreA + " ' " + scoreB + " GROK";
       pauseLayer.classList.remove("hidden");
     }
   } else {
@@ -1282,8 +1282,8 @@ function syncRematchUI() {
     if (status) { status.hidden = true; status.textContent = ""; }
     return;
   }
-  if (wantRematch && peerWantRematch) again.textContent = "STARTINGâ€¦";
-  else if (wantRematch) again.textContent = "WAITINGâ€¦";
+  if (wantRematch && peerWantRematch) again.textContent = "STARTING...";
+  else if (wantRematch) again.textContent = "WAITING...";
   else again.textContent = peerWantRematch ? "ACCEPT REMATCH" : "REMATCH";
   if (status) {
     status.hidden = !(wantRematch || peerWantRematch);

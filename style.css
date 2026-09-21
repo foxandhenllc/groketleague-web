@@ -1,4 +1,4 @@
-﻿:root { --yel: #f0c020; --ink: #0b0d10; --blu: #3a6fff; }
+:root { --yel: #f0c020; --ink: #0b0d10; --blu: #3a6fff; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #14305a; font-family: "Bebas Neue", Impact, sans-serif; color: #fff; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
@@ -635,7 +635,7 @@ body.garageSearching #credit { visibility:hidden; pointer-events:none; }
 body.pixel-mode canvas:not(#pixelView) { visibility:hidden !important; }
 #pixelView { image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* PIXEL: letterbox rich castle pitch (384×216) + cream/navy HUD */
+/* PIXEL: letterbox rich castle pitch (384Ã—216) + cream/navy HUD */
 #pixelView {
   inset: auto;
   top: 50%;
@@ -678,4 +678,28 @@ body.pixel-mode .boostFill {
 body.pixel-mode .yellow,
 body.pixel-mode .gold {
   color: #f4efe4 !important;
+}
+
+/* PIXEL: keep Ludicrous bar as a thin chip, not over the south goal */
+body.pixel-mode #boostHud {
+  bottom: 10px;
+  width: min(200px, 48vw);
+  left: 50%;
+  transform: translateX(-50%);
+}
+body.pixel-mode #boostHud .lab {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #f4efe4 !important;
+  text-shadow: 0 1px 0 #0c1430;
+}
+body.pixel-mode #hud,
+body.pixel-mode #scoreWrap,
+body.pixel-mode .scorebox {
+  color: #f4efe4;
+}
+body.pixel-mode #pixelView {
+  outline: none;
+  box-shadow: none;
+  border: 0;
 }

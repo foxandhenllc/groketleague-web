@@ -1,4 +1,4 @@
-﻿import { byId, FW, FL, GOAL_W, GOAL_H } from "./catalog.js";
+import { byId, FW, FL, GOAL_W, GOAL_H } from "./catalog.js";
 function forwardXZ(yaw) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) };
 }
@@ -237,7 +237,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
     else if (want === "kick") want = "strike";
   }
 
-  // Hysteresis / sticky modes â€” don't flip every frame
+  // Hysteresis / sticky modes ' don't flip every frame
   const sticky = {
     unstuck: 0.95,
     save: 0.55,
@@ -279,7 +279,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
 
   let tx, tz;
   if (ai.mode === "save") {
-    // Shadow the goal mouth, slide with the ball â€” don't kamikaze-chase
+    // Shadow the goal mouth, slide with the ball ' don't kamikaze-chase
     const mouthX = Math.max(-GOAL_W * 0.42, Math.min(GOAL_W * 0.42, pred.x * 0.78));
     tx = mouthX;
     tz = ownZ + attackSign * (3.2 + Math.min(4, ballToOwn * 0.08));
@@ -287,7 +287,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
     tx = pred.x * 0.08;
     tz = pred.z - attackSign * 0.45;
   } else if (ai.mode === "unstuck") {
-    // Escape ladder: reverse along facing â†’ wide lateral â†’ peel to open field
+    // Escape ladder: reverse along facing â*’ wide lateral â*’ peel to open field
     const tier = ai.escape;
     const f = forwardXZ(me.yaw);
     if (tier <= 1) {
@@ -302,7 +302,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
       ai.stuck = 0;
     }
   } else if (ai.mode === "commit") {
-    // Stop orbiting â€” drive through the ball toward goal
+    // Stop orbiting ' drive through the ball toward goal
     tx = pred.x + ux * 0.4;
     tz = pred.z + uz * 0.4;
   } else if (ai.mode === "flank") {

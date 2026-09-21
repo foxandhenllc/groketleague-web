@@ -245,7 +245,7 @@ function makeField(scene, fieldRoot, nightExtra) {
   fieldRoot.add(goal(FL / 2 + 0.2, "#f0c020"));
 
   // torch posts (replace stadium floodlights)
-  // Outside playable bounds (cars clamp to FW/FL) — sit on apron / wall line
+  // Outside playable bounds (cars clamp to FW/FL) - sit on apron / wall line
   const torchPositions = [
     [-FW / 2 - 1.6, -FL / 2 - 1.2], [FW / 2 + 1.6, -FL / 2 - 1.2],
     [-FW / 2 - 1.6, FL / 2 + 1.2], [FW / 2 + 1.6, FL / 2 + 1.2],

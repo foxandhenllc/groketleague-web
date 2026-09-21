@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PIXEL mode - Pixel Forge castle pitch + 8-dir vehicle atlases + ball VFX.
  * Rich night-castle pitch (384x216). Playable area = grass clamp.
  */
@@ -49,7 +49,7 @@ function chromaSheet(img) {
   const d = id.data;
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i], g = d[i + 1], b = d[i + 2];
-    if (r > 180 && b > 150 && g < 120 && r > g + 40) d[i + 3] = 0;
+    if (r > 240 && g < 40 && b > 240) d[i + 3] = 0; // pure atlas magenta only
   }
   x.putImageData(id, 0, 0);
   return c;
@@ -133,11 +133,11 @@ function createPixelView() {
     const col = yawToCol(c.yaw);
     const sheet = c.boosting && boostImg ? boostImg : carsImg;
     if (!sheet) return false;
-    const sx0 = col * (CELL + GUT) + 1;
-    const sy0 = row * (CELL + GUT) + 1;
-    const src = CELL - 2;
-    // Hug art ~72% of cell so AABB matches silhouette
-    const dw = Math.max(10, Math.round(src * 0.72));
+    const sx0 = col * (CELL + GUT);
+    const sy0 = row * (CELL + GUT);
+    const src = CELL;
+    // ~78% of cell - solid cars, no neighbor gutter
+    const dw = Math.max(12, Math.round(src * 0.78));
     const dh = dw;
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(sheet, sx0, sy0, src, src, Math.round(sx - dw / 2), Math.round(sy - dh / 2), dw, dh);
@@ -159,9 +159,7 @@ function createPixelView() {
   function drawCar(c) {
     if (!c) return;
     const { sx, sy } = worldTo(c.x, c.z);
-    if (c.boosting) {
-      blitVfx("boost", Math.floor(tAnim / 2), sx - 12, sy - 12, 24, 24);
-    }
+    // boost sheet already has flames; VFX boost row was yellow pillar bleed
     if (!blitCar(c, sx, sy)) {
       // cream fallback, never magenta
       ctx.fillStyle = "#e8dcc8";
@@ -188,7 +186,7 @@ function createPixelView() {
     ctx.fillStyle = "#f4efe4";
     ctx.font = "8px monospace";
     ctx.textAlign = "left";
-    ctx.fillText("PIXEL · " + (label || "CASTLE"), 8, 14);
+    ctx.fillText("PIXEL - " + (label || "CASTLE"), 8, 14);
     ctx.textAlign = "right";
     ctx.fillStyle = "#a8c4e8";
     ctx.fillText("BOOST HOLD", VW - 8, 14);

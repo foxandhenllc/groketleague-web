@@ -25,7 +25,7 @@ function bindInput(onN) {
     window.removeEventListener("blur", clear);
   };
 }
-/** Boost-only touch control — no stick. Steering is always FSD. */
+/** Boost-only touch control - no stick. Steering is always FSD. */
 function bindBoost(boostBtn) {
   if (!boostBtn) return () => {};
   const bd = (e) => { e.preventDefault(); stick.boost = true; boostBtn.classList.add("hot"); };
@@ -41,7 +41,7 @@ function bindBoost(boostBtn) {
     boostBtn.removeEventListener("pointerleave", bu);
   };
 }
-/** @deprecated stick removed — kept as alias so old calls don't explode */
+/** @deprecated stick removed - kept as alias so old calls don't explode */
 function bindTouch(_pad, _knob, boostBtn) {
   return bindBoost(boostBtn);
 }

@@ -1,4 +1,4 @@
-/** Sign in with X — OAuth 2.0 Authorization Code + PKCE (public client). */
+/** Sign in with X - OAuth 2.0 Authorization Code + PKCE (public client). */
 import { X_CLIENT_ID, X_SCOPES } from "./x-config.js";
 
 const STORAGE_KEY = "gl_x_auth";

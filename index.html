@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>GROKET LEAGUE — FSD Soccer</title>
+  <title>GROKET LEAGUE - FSD Soccer</title>
   <meta name="description" content="SNES pixel castle pitch + 3D arena. FSD soccer - you hold boost, FSD drives. Built with Grok." />
   <link rel="canonical" href="https://groketleague.com/" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/og.png?v=16" />
   <meta property="og:site_name" content="GROKET LEAGUE" />
-  <meta property="og:title" content="GROKET LEAGUE — FSD Soccer" />
+  <meta property="og:title" content="GROKET LEAGUE - FSD Soccer" />
   <meta property="og:description" content="Pixel castle pitch &amp; 3D arena. Boost is yours. The wheel is FSD. Built with Grok." />
   <meta property="og:image" content="https://groketleague.com/og.png?v=16" />
   <meta property="og:image:type" content="image/png" />
@@ -18,7 +18,7 @@
   <meta property="og:url" content="https://groketleague.com/" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="GROKET LEAGUE — FSD Soccer" />
+  <meta name="twitter:title" content="GROKET LEAGUE - FSD Soccer" />
   <meta name="twitter:description" content="Pixel castle pitch &amp; 3D arena. Boost is yours. The wheel is FSD. Built with Grok." />
   <meta name="twitter:image" content="https://groketleague.com/og.png?v=16" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Ops+One&display=swap" rel="stylesheet" />
@@ -64,12 +64,12 @@
   <div id="faceoffLayer" class="hidden">
     <div class="vs">FACEOFF</div>
     <h2 id="faceTitle">P1 CYBERT RUCKER  vs  GROK MODEST 3</h2>
-    <div class="sides"><span class="p1tag" id="faceP1Tag">P1 · YELLOW GOAL</span><span class="cputag">GROK · BLUE GOAL</span></div>
+    <div class="sides"><span class="p1tag" id="faceP1Tag">P1 - YELLOW GOAL</span><span class="cputag">GROK - BLUE GOAL</span></div>
     <div class="sub" id="faceSub">TAP ANYWHERE TO SKIP</div>
   </div>
   <div id="pauseLayer" class="hidden">
     <h2>PAUSED</h2>
-    <div class="sub" id="pauseScore">P1 0 — 0 GROK</div>
+    <div class="sub" id="pauseScore">P1 0 - 0 GROK</div>
     <div class="row"><button class="cta fsd" id="fsdToggle" aria-pressed="true" disabled title="FSD is always on">FSD: ALWAYS ON</button></div>
     <div class="hint" id="fsdHint">FSD always drives. You only hold BOOST / Ludicrous Mode.</div>
     <div class="row">
@@ -88,11 +88,11 @@
     <div class="howCard">
       <h2 id="howTitle">HOW TO PLAY</h2>
       <ul>
-        <li><strong>FSD</strong> always drives your car — no stick, no FSD drives. HOLD BOOST for Ludicrous. Quick Chat bottom-left.</li>
+        <li><strong>FSD</strong> always drives your car - no stick, no FSD drives. HOLD BOOST for Ludicrous. Quick Chat bottom-left.</li>
         <li><strong>HOLD BOOST</strong> (SHIFT / SPACE / big button) = Ludicrous Mode / commit</li>
-        <li><strong>QUICK CHAT</strong> bottom-left — categories → lines</li>
-        <li><strong>QUICK MATCH</strong> find a 1v1 · <strong>CREATE / JOIN</strong> private room code</li>
-        <li>Share invite link after CREATE · Rematch keeps the same opponent</li>
+        <li><strong>QUICK CHAT</strong> bottom-left - categories -> lines</li>
+        <li><strong>QUICK MATCH</strong> find a 1v1 - <strong>CREATE / JOIN</strong> private room code</li>
+        <li>Share invite link after CREATE - Rematch keeps the same opponent</li>
       </ul>
       <button class="cta" id="howGotIt">GOT IT</button>
     </div>
@@ -102,11 +102,11 @@
     <div class="masthead">
       <div class="brand">
         <h1>GROKET LEAGUE</h1>
-        <div class="sub">FSD SOCCER · CHOOSE YOUR FIGHTER</div>
+        <div class="sub">FSD SOCCER - CHOOSE YOUR FIGHTER</div>
       </div>
       <div id="presenceBar" class="presenceBar" title="Players in the garage, in queue, or in a match">
-        <span class="presChip"><b id="onlineCount">–</b> ONLINE</span>
-        <span class="presChip"><b id="playingCount">–</b> PLAYING</span>
+        <span class="presChip"><b id="onlineCount">-</b> ONLINE</span>
+        <span class="presChip"><b id="playingCount">-</b> PLAYING</span>
       </div>
     </div>
 
@@ -115,7 +115,7 @@
       <div id="inspect">
         <div class="name" id="inspName">CYBERT RUCKER</div>
         <div class="meme" id="inspMeme">Bulletproof dumpster that learned Rocket League.</div>
-        <div class="stats" id="inspStats">MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE</div>
+        <div class="stats" id="inspStats">MASS 10 - SPEED 4 - TURN 3 - SPECIAL: PANCAKE</div>
       </div>
       <div id="garage"></div>
       <div class="row stepActions">
@@ -132,7 +132,7 @@
       <div id="matchModes" class="matchModes">
         <button type="button" class="modeCard on" id="modeLocal" data-mode="local">
           <div class="modeTitle">LOCAL</div>
-          <div class="modeSub">VS GROK · OFFLINE</div>
+          <div class="modeSub">VS GROK - OFFLINE</div>
         </button>
         <button type="button" class="modeCard" id="modeQuick" data-mode="quick">
           <div class="modeTitle">QUICK MATCH</div>
@@ -210,14 +210,14 @@
         </div>
       </div>
     </div>
-    <div class="hint">FSD drives. You hold BOOST. Sign in with X to show your handle — or play as guest.</div>
-    <div id="legalLine" class="legalLine">PARODY GAME · NOT AFFILIATED WITH TESLA, X CORP., OR xAI.</div>
-    <div id="credit"><a href="https://foxandhenllc.com" target="_blank" rel="noopener" id="foxHenLink">A FOX & HEN PRODUCT</a> · BUILT WITH GROK</div>
+    <div class="hint">FSD drives. You hold BOOST. Sign in with X to show your handle - or play as guest.</div>
+    <div id="legalLine" class="legalLine">PARODY GAME - NOT AFFILIATED WITH TESLA, X CORP., OR xAI.</div>
+    <div id="credit"><a href="https://foxandhenllc.com" target="_blank" rel="noopener" id="foxHenLink">A FOX & HEN PRODUCT</a> - BUILT WITH GROK</div>
 
     <div id="resultsPanel">
       <div class="who" id="resWho">P1</div>
       <h2 id="resTitle">TRUCK WINS</h2>
-      <div class="sub" id="resSub">P1 0 — 0 GROK</div>
+      <div class="sub" id="resSub">P1 0 - 0 GROK</div>
       <div class="sub" id="rematchStatus" hidden></div>
       <div class="row">
         <button class="cta" id="again">REMATCH</button>
