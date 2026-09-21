@@ -1,6 +1,6 @@
 ﻿/**
- * PIXEL mode — Pixel Forge castle pitch + 8-dir vehicle atlases + ball VFX.
- * Restored rich night-castle pitch (384×216). Playable area = grass clamp.
+ * PIXEL mode - Pixel Forge castle pitch + 8-dir vehicle atlases + ball VFX.
+ * Rich night-castle pitch (384x216). Playable area = grass clamp.
  */
 import { FW, FL } from "./catalog.js";
 
@@ -8,8 +8,8 @@ const CELL = 32;
 const GUT = 1;
 const ROW_OF = { cybertruck: 0, model3: 1, cybercab: 2, semi: 3 };
 
-// Rich pitch_384x216.png grass inset (detected)
-const CLAMP = { x0: 38, y0: 19, x1: 335, y1: 211 };
+// Grass inset after magenta gutter crop (pitch_play.png)
+const CLAMP = { x0: 39, y0: 20, x1: 334, y1: 210 };
 
 const BALL = {
   ball16: { y: 0, size: 16, frames: 4 },
@@ -31,12 +31,28 @@ function loadImage(src) {
 }
 
 function yawToCol(yaw) {
-  // Atlas: N col = screen-DOWN (headlights toward bottom of sprite sheet cell)
   const fwdX = -Math.sin(yaw);
   const fwdZ = -Math.cos(yaw);
   let ang = Math.atan2(fwdX, fwdZ);
   if (ang < 0) ang += Math.PI * 2;
   return Math.round((ang / (Math.PI * 2)) * 8) % 8;
+}
+
+/** Strip atlas magenta (#FFx00FF-ish) to transparent. */
+function chromaSheet(img) {
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const x = c.getContext("2d");
+  x.drawImage(img, 0, 0);
+  const id = x.getImageData(0, 0, c.width, c.height);
+  const d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    if (r > 180 && b > 150 && g < 120 && r > g + 40) d[i + 3] = 0;
+  }
+  x.putImageData(id, 0, 0);
+  return c;
 }
 
 function createPixelView() {
@@ -74,9 +90,9 @@ function createPixelView() {
     loadImage("./assets/pixel/ball_vfx.png")
   ]).then(([pitch, cars, boost, vfx]) => {
     pitchImg = pitch;
-    carsImg = cars;
-    boostImg = boost;
-    vfxImg = vfx;
+    carsImg = chromaSheet(cars);
+    boostImg = chromaSheet(boost);
+    vfxImg = chromaSheet(vfx);
     ready = true;
   }).catch((err) => console.warn("[pixel]", err));
 
@@ -112,84 +128,84 @@ function createPixelView() {
     ctx.fillRect(0, 0, VW, VH);
   }
 
-  function blitCar(c, sx, sy, scale) {
+  function blitCar(c, sx, sy) {
     const row = ROW_OF[c.kind] ?? 1;
     const col = yawToCol(c.yaw);
     const sheet = c.boosting && boostImg ? boostImg : carsImg;
     if (!sheet) return false;
-    const sx0 = col * (CELL + GUT);
-    const sy0 = row * (CELL + GUT);
-    const worldLen = Number.isFinite(c.l) ? c.l : 4.2;
-    // Readable on the rich pitch — ~full car length in world units
-    const draw = Math.max(18, Math.min(48, worldLen * scale * 0.95));
-    ctx.drawImage(sheet, sx0 + 1, sy0 + 1, CELL - 2, CELL - 2, sx - draw / 2, sy - draw / 2, draw, draw);
+    const sx0 = col * (CELL + GUT) + 1;
+    const sy0 = row * (CELL + GUT) + 1;
+    const src = CELL - 2;
+    // Hug art ~72% of cell so AABB matches silhouette
+    const dw = Math.max(10, Math.round(src * 0.72));
+    const dh = dw;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sheet, sx0, sy0, src, src, Math.round(sx - dw / 2), Math.round(sy - dh / 2), dw, dh);
+    return true;
+  }
+
+  function blitVfx(rowKey, frame, dx, dy, dw, dh) {
+    if (!vfxImg) return false;
+    const meta = BALL[rowKey];
+    if (!meta) return false;
+    const f = ((frame % meta.frames) + meta.frames) % meta.frames;
+    const size = meta.size;
+    const sx0 = f * (size + GUT) + (GUT ? 0 : 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(vfxImg, sx0, meta.y, size, size, Math.round(dx), Math.round(dy), dw, dh);
     return true;
   }
 
   function drawCar(c) {
     if (!c) return;
-    const { sx, sy, scale } = worldTo(c.x, c.z);
-    if (!blitCar(c, sx, sy, scale)) {
-      ctx.fillStyle = "#3a6fff";
-      ctx.fillRect(sx - 4, sy - 3, 8, 6);
+    const { sx, sy } = worldTo(c.x, c.z);
+    if (c.boosting) {
+      blitVfx("boost", Math.floor(tAnim / 2), sx - 12, sy - 12, 24, 24);
     }
-  }
-
-  function blitVfx(rowKey, frame, dx, dy, dw, dh) {
-    if (!vfxImg) return false;
-    const row = BALL[rowKey];
-    if (!row) return false;
-    const f = ((frame % row.frames) + row.frames) % row.frames;
-    const sx0 = f * (row.size + GUT);
-    ctx.drawImage(vfxImg, sx0, row.y, row.size, row.size, dx, dy, dw, dh);
-    return true;
+    if (!blitCar(c, sx, sy)) {
+      // cream fallback, never magenta
+      ctx.fillStyle = "#e8dcc8";
+      ctx.fillRect(Math.round(sx - 6), Math.round(sy - 6), 12, 12);
+    }
   }
 
   function drawBall(ball) {
     if (!ball) return;
-    const { sx, sy, scale } = worldTo(ball.x, ball.z);
-    const r = Math.max(4, 0.55 * scale);
-    const spin = Math.abs(ball.vx || 0) + Math.abs(ball.vz || 0);
-    const frame = Math.floor((tAnim * 10 + spin * 0.15) % 4);
-    blitVfx("shadow", 0, sx - r, sy + r * 0.35, r * 2, r);
-    if (!blitVfx("ball24", frame, sx - r, sy - r, r * 2, r * 2)) {
-      ctx.fillStyle = "#f4f0e6";
+    const { sx, sy } = worldTo(ball.x, ball.z);
+    blitVfx("shadow", 0, sx - 10, sy + 2, 20, 10);
+    const spin = Math.floor(tAnim / 3);
+    if (!blitVfx("ball16", spin, sx - 6, sy - 6, 12, 12)) {
+      ctx.fillStyle = "#f4efe4";
       ctx.beginPath();
-      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
   function drawHud(label) {
-    ctx.fillStyle = "rgba(10,16,32,0.72)";
-    ctx.fillRect(6, 4, 118, 14);
-    ctx.fillStyle = "#f7f1d0";
-    ctx.font = "bold 8px monospace";
-    ctx.fillText("GROKET  PIXEL", 10, 14);
-    ctx.fillStyle = "#c8d4ff";
-    ctx.font = "7px monospace";
-    ctx.fillText(label || (night ? "TORCH NIGHT" : "CASTLE NIGHT"), VW - 78, 14);
+    ctx.fillStyle = "rgba(12,20,48,0.55)";
+    ctx.fillRect(4, 4, VW - 8, 14);
+    ctx.fillStyle = "#f4efe4";
+    ctx.font = "8px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("PIXEL · " + (label || "CASTLE"), 8, 14);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#a8c4e8";
+    ctx.fillText("BOOST HOLD", VW - 8, 14);
   }
 
   function draw(state) {
     if (!active) return;
-    tAnim = (tAnim + 0.016) % 1000;
+    tAnim++;
     ctx.imageSmoothingEnabled = false;
     drawPitch();
     drawCar(state.bot);
     drawCar(state.player);
     drawBall(state.ball);
     drawHud(state.mapLabel);
-    if (!ready) {
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
-      ctx.fillRect(VW / 2 - 42, VH / 2 - 8, 84, 16);
-      ctx.fillStyle = "#fff";
-      ctx.font = "8px monospace";
-      ctx.fillText("LOADING SPRITES...", VW / 2 - 38, VH / 2 + 3);
-    }
   }
 
-  return { canvas, setActive, setNight, isActive, draw };
+  return { setActive, setNight, isActive, draw, canvas };
 }
 
 export { createPixelView };

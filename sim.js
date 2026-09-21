@@ -1,4 +1,4 @@
-import { byId, FW, FL, GOAL_W, GOAL_H } from "./catalog.js";
+﻿import { byId, FW, FL, GOAL_W, GOAL_H } from "./catalog.js";
 function forwardXZ(yaw) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) };
 }
@@ -11,9 +11,12 @@ function bodyFrom(id, x, z, yaw) {
   const c = byId(id);
   return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _ai: { t: 0, stuck: 0, lx: 0, lz: 0, mode: "hunt", modeT: 0, side: 1, orbit: 0, lastAng: 0, escape: 0, commit: 0 } };
 }
+let pixelTight = false;
+export function setPixelTight(on) { pixelTight = !!on; }
+
 function clampFieldCar(c) {
-  const limX = FW / 2 - 0.55;
-  const limZ = FL / 2 + 0.35;
+  const limX = FW / 2 - (pixelTight ? 0.85 : 0.55);
+  const limZ = FL / 2 + (pixelTight ? -0.55 : 0.35);
   if (c.x > limX) { c.x = limX; c.vx *= -0.18; }
   if (c.x < -limX) { c.x = -limX; c.vx *= -0.18; }
   if (c.z > limZ) { c.z = limZ; c.vz *= -0.18; }
@@ -144,8 +147,8 @@ function stepBall(ball, dt) {
     ball.vz *= 0.986;
   }
   const halfZ = FL / 2;
-  const wallX = FW / 2 + 0.9;
-  const backZ = halfZ + 1.4;
+  const wallX = FW / 2 + (pixelTight ? -0.35 : 0.9);
+  const backZ = halfZ + (pixelTight ? 0.25 : 1.4);
   if (ball.x > wallX) { ball.x = wallX; ball.vx *= -0.62; }
   if (ball.x < -wallX) { ball.x = -wallX; ball.vx *= -0.62; }
   const inMouth = Math.abs(ball.x) < GOAL_W / 2 - 0.05 && ball.y < GOAL_H - 0.08;
@@ -234,7 +237,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
     else if (want === "kick") want = "strike";
   }
 
-  // Hysteresis / sticky modes — don't flip every frame
+  // Hysteresis / sticky modes â€” don't flip every frame
   const sticky = {
     unstuck: 0.95,
     save: 0.55,
@@ -276,7 +279,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
 
   let tx, tz;
   if (ai.mode === "save") {
-    // Shadow the goal mouth, slide with the ball — don't kamikaze-chase
+    // Shadow the goal mouth, slide with the ball â€” don't kamikaze-chase
     const mouthX = Math.max(-GOAL_W * 0.42, Math.min(GOAL_W * 0.42, pred.x * 0.78));
     tx = mouthX;
     tz = ownZ + attackSign * (3.2 + Math.min(4, ballToOwn * 0.08));
@@ -284,7 +287,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
     tx = pred.x * 0.08;
     tz = pred.z - attackSign * 0.45;
   } else if (ai.mode === "unstuck") {
-    // Escape ladder: reverse along facing → wide lateral → peel to open field
+    // Escape ladder: reverse along facing â†’ wide lateral â†’ peel to open field
     const tier = ai.escape;
     const f = forwardXZ(me.yaw);
     if (tier <= 1) {
@@ -299,7 +302,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
       ai.stuck = 0;
     }
   } else if (ai.mode === "commit") {
-    // Stop orbiting — drive through the ball toward goal
+    // Stop orbiting â€” drive through the ball toward goal
     tx = pred.x + ux * 0.4;
     tz = pred.z + uz * 0.4;
   } else if (ai.mode === "flank") {
@@ -351,4 +354,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
 }
 
 
-export { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
+export { setPixelTight, bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
+
+
+

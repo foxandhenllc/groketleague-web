@@ -657,3 +657,25 @@ body.pixel-mode .scorebox.p1 .lab { color: #f7f1d0; }
 body.pixel-mode #clock { color: #f7f1d0; }
 body.pixel-mode #hudP1Who.xNamed { color: #f7f1d0; }
 
+
+/* PIXEL mode HUD: cream/navy over bronze+blue goals, never chrome yellow */
+body.pixel-mode #score,
+body.pixel-mode #clock,
+body.pixel-mode #matchLog,
+body.pixel-mode .chip,
+body.pixel-mode .handle {
+  color: #f4efe4 !important;
+}
+body.pixel-mode .chip,
+body.pixel-mode #matchLog .line {
+  background: rgba(12, 20, 48, 0.72) !important;
+  border-color: #2a3a5c !important;
+}
+body.pixel-mode #boostBar,
+body.pixel-mode .boostFill {
+  background: #a8c4e8 !important;
+}
+body.pixel-mode .yellow,
+body.pixel-mode .gold {
+  color: #f4efe4 !important;
+}
