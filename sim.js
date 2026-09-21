@@ -354,7 +354,8 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
 }
 
 
-export { setPixelTight, bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
+export { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
+
 
 
 
