@@ -1,6 +1,6 @@
 ﻿/**
  * PIXEL mode — Pixel Forge castle pitch + 8-dir vehicle atlases + ball VFX.
- * Same sim bodies (x/z/yaw). Playable area maps to grass inset (not walls/sky).
+ * Restored rich night-castle pitch (384×216). Playable area = grass clamp.
  */
 import { FW, FL } from "./catalog.js";
 
@@ -8,8 +8,8 @@ const CELL = 32;
 const GUT = 1;
 const ROW_OF = { cybertruck: 0, model3: 1, cybercab: 2, semi: 3 };
 
-// pitch_216x384.png — Pixel Forge physics_clamp (inclusive xyxy)
-const CLAMP = { x0: 24, y0: 44, x1: 191, y1: 339 };
+// Rich pitch_384x216.png grass inset (detected)
+const CLAMP = { x0: 38, y0: 19, x1: 335, y1: 211 };
 
 const BALL = {
   ball16: { y: 0, size: 16, frames: 4 },
@@ -31,6 +31,7 @@ function loadImage(src) {
 }
 
 function yawToCol(yaw) {
+  // Atlas: N col = screen-DOWN (headlights toward bottom of sprite sheet cell)
   const fwdX = -Math.sin(yaw);
   const fwdZ = -Math.cos(yaw);
   let ang = Math.atan2(fwdX, fwdZ);
@@ -52,8 +53,8 @@ function createPixelView() {
   });
   document.body.prepend(canvas);
   const ctx = canvas.getContext("2d");
-  const VW = 216;
-  const VH = 384;
+  const VW = 384;
+  const VH = 216;
   canvas.width = VW;
   canvas.height = VH;
 
@@ -102,7 +103,7 @@ function createPixelView() {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(pitchImg, 0, 0, VW, VH);
       if (night) {
-        ctx.fillStyle = "rgba(8,16,48,0.22)";
+        ctx.fillStyle = "rgba(8,16,48,0.18)";
         ctx.fillRect(0, 0, VW, VH);
       }
       return;
@@ -118,9 +119,9 @@ function createPixelView() {
     if (!sheet) return false;
     const sx0 = col * (CELL + GUT);
     const sy0 = row * (CELL + GUT);
-    // Hug the art (~75% of the 32px cell); skip 1px in case magenta gutter bleeds
-    const worldLen = Number.isFinite(c.l) ? c.l : 4;
-    const draw = Math.max(10, Math.min(26, worldLen * scale * 0.72));
+    const worldLen = Number.isFinite(c.l) ? c.l : 4.2;
+    // Readable on the rich pitch — ~full car length in world units
+    const draw = Math.max(18, Math.min(48, worldLen * scale * 0.95));
     ctx.drawImage(sheet, sx0 + 1, sy0 + 1, CELL - 2, CELL - 2, sx - draw / 2, sy - draw / 2, draw, draw);
     return true;
   }
@@ -130,7 +131,7 @@ function createPixelView() {
     const { sx, sy, scale } = worldTo(c.x, c.z);
     if (!blitCar(c, sx, sy, scale)) {
       ctx.fillStyle = "#3a6fff";
-      ctx.fillRect(sx - 3, sy - 2, 6, 4);
+      ctx.fillRect(sx - 4, sy - 3, 8, 6);
     }
   }
 
@@ -147,7 +148,7 @@ function createPixelView() {
   function drawBall(ball) {
     if (!ball) return;
     const { sx, sy, scale } = worldTo(ball.x, ball.z);
-    const r = Math.max(3, 0.45 * scale);
+    const r = Math.max(4, 0.55 * scale);
     const spin = Math.abs(ball.vx || 0) + Math.abs(ball.vz || 0);
     const frame = Math.floor((tAnim * 10 + spin * 0.15) % 4);
     blitVfx("shadow", 0, sx - r, sy + r * 0.35, r * 2, r);
@@ -161,13 +162,13 @@ function createPixelView() {
 
   function drawHud(label) {
     ctx.fillStyle = "rgba(10,16,32,0.72)";
-    ctx.fillRect(4, 3, 102, 13);
+    ctx.fillRect(6, 4, 118, 14);
     ctx.fillStyle = "#f7f1d0";
     ctx.font = "bold 8px monospace";
-    ctx.fillText("GROKET  PIXEL", 8, 12);
+    ctx.fillText("GROKET  PIXEL", 10, 14);
     ctx.fillStyle = "#c8d4ff";
     ctx.font = "7px monospace";
-    ctx.fillText(label || (night ? "TORCH NIGHT" : "CASTLE DAY"), VW - 70, 12);
+    ctx.fillText(label || (night ? "TORCH NIGHT" : "CASTLE NIGHT"), VW - 78, 14);
   }
 
   function draw(state) {

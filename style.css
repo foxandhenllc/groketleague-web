@@ -635,14 +635,14 @@ body.garageSearching #credit { visibility:hidden; pointer-events:none; }
 body.pixel-mode canvas:not(#pixelView) { visibility:hidden !important; }
 #pixelView { image-rendering: pixelated; image-rendering: crisp-edges; }
 
-/* PIXEL: portrait letterbox + cream/navy HUD (no chrome-yellow over bronze south) */
+/* PIXEL: letterbox rich castle pitch (384×216) + cream/navy HUD */
 #pixelView {
   inset: auto;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(100vw, calc(100vh * 216 / 384));
-  height: min(100vh, calc(100vw * 384 / 216));
+  width: min(100vw, calc(100vh * 384 / 216));
+  height: min(100vh, calc(100vw * 216 / 384));
   background: #0c1430;
 }
 body.pixel-mode { background: #0c1430; }
@@ -656,3 +656,4 @@ body.pixel-mode .scorebox.p1 .who,
 body.pixel-mode .scorebox.p1 .lab { color: #f7f1d0; }
 body.pixel-mode #clock { color: #f7f1d0; }
 body.pixel-mode #hudP1Who.xNamed { color: #f7f1d0; }
+
