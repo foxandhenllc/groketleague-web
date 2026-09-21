@@ -9,7 +9,7 @@ const GUT = 1;
 const ROW_OF = { cybertruck: 0, model3: 1, cybercab: 2, semi: 3 };
 
 // Grass inset after magenta gutter crop (pitch_play.png)
-const CLAMP = { x0: 39, y0: 20, x1: 334, y1: 210 };
+const CLAMP = { x0: 52, y0: 28, x1: 321, y1: 202 };
 
 const BALL = {
   ball16: { y: 0, size: 16, frames: 4 },
@@ -209,3 +209,4 @@ function createPixelView() {
 }
 
 export { createPixelView };
+

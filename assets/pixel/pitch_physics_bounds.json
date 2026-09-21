@@ -1,30 +1,9 @@
-{
-  "pitch_file": "pitch_216x384.png",
-  "pitch_size": [
-    216,
-    384
-  ],
-  "grass_inclusive_xyxy": [
-    22,
-    42,
-    193,
-    341
-  ],
-  "physics_clamp_xyxy": [
-    24,
-    44,
-    191,
-    339
-  ],
-  "notes": "Clamp car+ball centers (or hulls) to physics_clamp. Walls/towers/sky are visual only \u2014 not playable. Sprite AABB should tightly fit art (~70-80% of cell), not full 32x32. Disable magenta debug hitbox stroke in PIXEL prod.",
-  "goal_north_blue": {
-    "cx": 107,
-    "y": 43
-  },
-  "goal_south_bronze": {
-    "cx": 107,
-    "y": 340,
-    "hex": "#8C4E24"
-  },
-  "ui": "Avoid chrome-yellow text/bars over south goal; south net is now bronze. Prefer cream/white or navy UI chrome."
+﻿{
+  "pitch_file": "pitch.png",
+  "pitch_size": [384, 216],
+  "grass_inclusive_xyxy": [49, 25, 324, 205],
+  "physics_clamp_xyxy": [52, 28, 321, 202],
+  "goal_north": "blue top with N penalty box under it",
+  "goal_south": "bronze #8C4E24 bottom with S penalty box under it",
+  "markings": "N/S only"
 }
