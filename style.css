@@ -1,4 +1,4 @@
-:root { --yel: #f0c020; --ink: #0b0d10; --blu: #3a6fff; }
+﻿:root { --yel: #f0c020; --ink: #0b0d10; --blu: #3a6fff; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #14305a; font-family: "Bebas Neue", Impact, sans-serif; color: #fff; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
@@ -634,3 +634,25 @@ body.garageSearching #credit { visibility:hidden; pointer-events:none; }
 .gfxSub { margin-top:4px; color:#fff9; font-size:11px; letter-spacing:1px; }
 body.pixel-mode canvas:not(#pixelView) { visibility:hidden !important; }
 #pixelView { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* PIXEL: portrait letterbox + cream/navy HUD (no chrome-yellow over bronze south) */
+#pixelView {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(100vw, calc(100vh * 216 / 384));
+  height: min(100vh, calc(100vw * 384 / 216));
+  background: #0c1430;
+}
+body.pixel-mode { background: #0c1430; }
+body.pixel-mode #boostHud .lab { color: #f7f1d0; }
+body.pixel-mode #boostBar { border-color: #f7f1d066; background: #0b1020aa; }
+body.pixel-mode #boostFill { background: #f7f1d0; }
+body.pixel-mode .chatline.p1 { border-color: #f7f1d088; }
+body.pixel-mode .chatline.p1 .who { color: #f7f1d0; }
+body.pixel-mode .scorebox.p1 { border-color: #f7f1d0; }
+body.pixel-mode .scorebox.p1 .who,
+body.pixel-mode .scorebox.p1 .lab { color: #f7f1d0; }
+body.pixel-mode #clock { color: #f7f1d0; }
+body.pixel-mode #hudP1Who.xNamed { color: #f7f1d0; }
