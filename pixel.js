@@ -55,8 +55,8 @@ function createPixelView() {
   });
   document.body.prepend(canvas);
   const ctx = canvas.getContext("2d");
-  const VW = 384;
-  const VH = 216;
+  const VW = 216;
+  const VH = 384;
   canvas.width = VW;
   canvas.height = VH;
 
@@ -91,9 +91,9 @@ function createPixelView() {
   function isActive() { return active; }
 
   function worldTo(x, z) {
-    const padX = 28;
-    const padTop = 22;
-    const padBot = 20;
+    const padX = 18;
+    const padTop = 28;
+    const padBot = 28;
     const fieldW = VW - padX * 2;
     const fieldH = VH - padTop - padBot;
     return {
@@ -199,4 +199,5 @@ function createPixelView() {
 }
 
 export { createPixelView };
+
 
