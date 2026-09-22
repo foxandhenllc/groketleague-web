@@ -55,7 +55,7 @@ function chromaSheet(img) {
   const d = id.data;
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i], g = d[i + 1], b = d[i + 2];
-    if (r > 240 && g < 40 && b > 240) d[i + 3] = 0; // pure atlas magenta only
+    if (r > 160 && g < 90 && b > 130 && r > g + 60) d[i + 3] = 0; // atlas magenta / hot pink gutters
   }
   x.putImageData(id, 0, 0);
   return c;
@@ -70,7 +70,7 @@ function chromaSheet(img) {
     const id = x.getImageData(0, 0, c.width, c.height);
     const d = id.data;
     for (let i = 0; i < d.length; i += 4) {
-      if (d[i] > 220 && d[i + 1] < 60 && d[i + 2] > 220) {
+      if (d[i] > 160 && d[i + 1] < 90 && d[i + 2] > 130 && d[i] > d[i + 1] + 60) {
         d[i] = 12; d[i + 1] = 20; d[i + 2] = 48; d[i + 3] = 255;
       }
     }
@@ -97,6 +97,15 @@ function createPixelView() {
   canvas.width = VW;
   canvas.height = VH;
 
+  function layoutPixelCanvas() {
+    // Integer scale only — fractional CSS size makes SNES art look warped/shimmered
+    const s = Math.max(1, Math.floor(Math.min(window.innerWidth / VW, window.innerHeight / VH)));
+    canvas.style.width = (VW * s) + 'px';
+    canvas.style.height = (VH * s) + 'px';
+  }
+  layoutPixelCanvas();
+  window.addEventListener('resize', layoutPixelCanvas);
+
   let active = false;
   let night = false;
   let ready = false;
@@ -122,6 +131,7 @@ function createPixelView() {
   function setActive(on) {
     active = !!on;
     canvas.style.display = on ? "block" : "none";
+    if (on) layoutPixelCanvas();
     document.body.classList.toggle("pixel-mode", on);
   }
   function setNight(on) { night = !!on; }
