@@ -1,7 +1,8 @@
 :root { --yel: #f0c020; --ink: #0b0d10; --blu: #3a6fff; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #14305a; font-family: "Bebas Neue", Impact, sans-serif; color: #fff; }
-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+canvas:not(#pixelView) { display: block; width: 100%; height: 100%; }
+#pixelView { display: none; image-rendering: pixelated; image-rendering: crisp-edges; }
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #hud.hidden { display: none; }
 #topbar { display: flex; justify-content: space-between; align-items: flex-start; padding: 32px 22px 0; }
@@ -702,4 +703,22 @@ body.pixel-mode #pixelView {
   outline: none;
   box-shadow: none;
   border: 0;
+}
+
+/* PIXEL canvas: integer-ish letterbox, never stretch away from 384:216 */
+body.pixel-mode #pixelView {
+  display: block !important;
+  position: fixed !important;
+  inset: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(100vw, calc(100vh * 384 / 216)) !important;
+  height: min(100vh, calc(100vw * 216 / 384)) !important;
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain !important;
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+  background: #0c1430 !important;
 }

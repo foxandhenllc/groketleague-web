@@ -160,14 +160,13 @@ function createPixelView() {
     const sx0 = col * (CELL + GUT);
     const sy0 = row * (CELL + GUT);
     const src = CELL;
-    // Match on-screen size to physics footprint (was ~2x too big = mushy hits)
+    // Square cells must stay square — stretching bw!=bh warped every car.
+    // Size from physics length, uniform scale.
     const spec = byId(c.kind)?.spec;
     const physL = (spec?.l || c.l || 4.2) * PX_PER;
-    const physW = (spec?.w || c.w || 1.8) * PX_PER;
-    const bh = Math.max(12, Math.min(28, Math.round(physL * 1.18)));
-    const bw = Math.max(9, Math.min(22, Math.round(physW * 1.25)));
+    const size = Math.max(14, Math.min(26, Math.round(physL * 1.12)));
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(sheet, sx0, sy0, src, src, Math.round(sx - bw / 2), Math.round(sy - bh / 2), bw, bh);
+    ctx.drawImage(sheet, sx0, sy0, src, src, Math.round(sx - size / 2), Math.round(sy - size / 2), size, size);
     return true;
   }
 
