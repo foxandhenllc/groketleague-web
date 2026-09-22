@@ -1,5 +1,8 @@
 # GROKET LEAGUE
 
+> **Maintainers / agents:** start at [docs/00-START-HERE.md](./docs/00-START-HERE.md) - architecture, editing, PeerJS, PIXEL rules, and Vercel CLI deploy (push to `main` OK; no Vercel Git integration).
+
+
 Static Three.js car soccer with PeerJS online 1v1, private four-character rooms,
 quick match, and the original manual / Full Self-Driving CPU modes.
 
