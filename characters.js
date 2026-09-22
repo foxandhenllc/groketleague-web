@@ -25,7 +25,7 @@ export default {
     "wall_restitution": -0.62,
     "ground_friction": 0.986,
     "gravity_3d": 22,
-    "no_rehit_s": 0.12,
+    "no_rehit_s": 0.08,
     "pancake_mult": 1.35
   },
   "drive": {

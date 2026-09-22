@@ -14,7 +14,7 @@ function bodyFrom(id, x, z, yaw) {
 let pixelTight = false;
 let fieldW = FW;
 let fieldL = FL;
-const NO_REHIT = (CHARACTERS.ball && CHARACTERS.ball.no_rehit_s) || 0.12;
+const NO_REHIT = (CHARACTERS.ball && CHARACTERS.ball.no_rehit_s) || 0.08;
 export function setPixelTight(on) {
   pixelTight = !!on;
   if (on) {
