@@ -1,0 +1,72 @@
+/** Shared character contract - source of truth for 3D + PIXEL. From Game Art Director. */
+export default {
+  "version": 1,
+  "updated": "2026-09-22",
+  "reference": {
+    "model3_length_bu": 1.0,
+    "catalog_model3_l": 4.2,
+    "sprite_cell_px": 32,
+    "atlas": {
+      "file": "vehicles_8dir_atlas.png",
+      "boost_file": "vehicles_boost_atlas.png",
+      "size": [263, 131],
+      "cell": 32,
+      "gutter": 1,
+      "gutter_color": "#FF00FF",
+      "rows": ["cybertruck", "model3", "cybercab", "semi"],
+      "cols": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+      "n_faces": "screen-down"
+    }
+  },
+  "ball": {
+    "radius_bu": 0.131,
+    "pixel": { "diameter_px": 16, "radius_px": 8 },
+    "floor_restitution": -0.55,
+    "wall_restitution": -0.62,
+    "ground_friction": 0.986,
+    "gravity_3d": 22,
+    "no_rehit_s": 0.12,
+    "pancake_mult": 1.35
+  },
+  "drive": {
+    "boost_punch_heavy": 40,
+    "boost_punch_light": 30,
+    "boost_drain_heavy": 0.8,
+    "boost_drain_light": 1.05,
+    "boost_regen": 0.28,
+    "boost_cap_heavy": 1.42,
+    "boost_cap_light": 1.28,
+    "drag_heavy": 1.85,
+    "drag_light": 1.45,
+    "grip_lat_factor": 1.12,
+    "heavy_mass_threshold": 3,
+    "heavy_turn_slow_speed": 11,
+    "heavy_turn_slow": 0.7,
+    "car_car_sep": 0.38,
+    "hitbox": { "w_factor": 0.55, "l_factor": 0.5, "pad_bu": 0.131, "pad_px": 2 }
+  },
+  "modes": {
+    "arena3d": { "FW": 44, "FL": 68, "GOAL_W": 11, "GOAL_H": 4.2, "meters_per_bu": 4.2 },
+    "pixel": {
+      "pitch": [384, 216],
+      "grass_inclusive_xyxy": [49, 25, 324, 205],
+      "physics_clamp_xyxy": [52, 28, 321, 202],
+      "playable_px": [270, 175],
+      "px_per_bu": 22,
+      "goal_mouth_frac": 0.25,
+      "goal_mouth_px": 68,
+      "goal_depth_px": 10,
+      "team_north": "#3a6fff",
+      "team_south_bronze": "#8C4E24",
+      "team_red": "#e24a3a",
+      "max_px_s": { "cybertruck": 140, "model3": 200, "cybercab": 185, "semi": 110 },
+      "accel_px_s2": { "cybertruck": 170, "model3": 270, "cybercab": 240, "semi": 115 }
+    }
+  },
+  "characters": [
+    { "id": "cybertruck", "name": "CYBERT RUCKER", "tag": "THE FRIDGE", "accent": "#c5ccd1", "special": "pancake", "mass": 3.1, "accel": 24, "max": 19.5, "turn": 1.55, "grip": 6.2, "boostMax": 1.0, "w_bu": 0.524, "l_bu": 1.155, "w": 2.2, "l": 4.85, "draw_length_px": 25.4, "draw_width_px": 11.5, "meme": "Angular dumpster that learned car-soccer on a dare. Dump Ludicrous Juice into the ball and pancake it like a bad earnings call.", "stats": "MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE" },
+    { "id": "model3", "name": "MODEST 3", "tag": "THE DART", "accent": "#3b82ff", "special": "snap_turn", "mass": 1.3, "accel": 38, "max": 28, "turn": 2.7, "grip": 10, "boostMax": 0.75, "w_bu": 0.429, "l_bu": 1.0, "w": 1.8, "l": 4.2, "draw_length_px": 22.0, "draw_width_px": 9.4, "meme": "Quiet until it isn't. Instant torque, zero personality, still posting about range anxiety fanfic. Do not give it a clean run.", "stats": "MASS 3 · SPEED 9 · TURN 9 · SPECIAL: SNAP TURN" },
+    { "id": "cybercab", "name": "ROB TACKSY", "tag": "NO STEERING WHEEL", "accent": "#e8edf2", "special": "soap_shoes", "mass": 1.05, "accel": 34, "max": 26, "turn": 3.15, "grip": 12, "boostMax": 0.7, "w_bu": 0.393, "l_bu": 0.833, "w": 1.65, "l": 3.5, "draw_length_px": 18.3, "draw_width_px": 8.6, "meme": "Self-driving cab energy. You are the liability. It already filed a vibes-based incident report on your last touch.", "stats": "MASS 2 · SPEED 8 · TURN 10 · SPECIAL: SOAP SHOES" },
+    { "id": "semi", "name": "SEEMEE", "tag": "THE GOALIE THAT IS THE GOAL", "accent": "#ef4444", "special": "wall", "mass": 4.6, "accel": 16, "max": 15, "turn": 1.15, "grip": 5.2, "boostMax": 1.15, "w_bu": 0.619, "l_bu": 1.714, "w": 2.6, "l": 7.2, "draw_length_px": 37.7, "draw_width_px": 13.6, "meme": "If the pitch is a hallway, you are the hallway. Scoring is a war crime. Parking across the net is the whole product roadmap.", "stats": "MASS 12 · SPEED 2 · TURN 2 · SPECIAL: WALL" }
+  ]
+};

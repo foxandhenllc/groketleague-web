@@ -2,14 +2,18 @@
  * PIXEL mode - Pixel Forge castle pitch + 8-dir vehicle atlases + ball VFX.
  * Rich night-castle pitch (384x216). Playable area = grass clamp.
  */
-import { FW, FL } from "./catalog.js";
+import { FL, pixelFieldSize, byId } from "./catalog.js";
 
 const CELL = 32;
 const GUT = 1;
 const ROW_OF = { cybertruck: 0, model3: 1, cybercab: 2, semi: 3 };
 
-// Grass inset after magenta gutter crop (pitch_play.png)
-const CLAMP = { x0: 52, y0: 28, x1: 321, y1: 202 };
+const _pf = pixelFieldSize();
+// Grass clamp from shared characters contract
+const CLAMP = { x0: _pf.clamp.x0, y0: _pf.clamp.y0, x1: _pf.clamp.x1, y1: _pf.clamp.y1 };
+// Uniform field matching sim setPixelTight (no anisotropic stretch)
+const FIELD_W = _pf.fieldW;
+const FIELD_L = _pf.fieldL;
 
 const BALL = {
   ball16: { y: 0, size: 16, frames: 4 },
@@ -107,10 +111,11 @@ function createPixelView() {
   function worldTo(x, z) {
     const gw = CLAMP.x1 - CLAMP.x0;
     const gh = CLAMP.y1 - CLAMP.y0;
+    // Uniform scale: FIELD_W/FIELD_L matches clamp aspect (from characters.js)
     return {
-      sx: CLAMP.x0 + (x / FW + 0.5) * gw,
-      sy: CLAMP.y0 + (z / FL + 0.5) * gh,
-      scale: gw / FW
+      sx: CLAMP.x0 + (x / FIELD_W + 0.5) * gw,
+      sy: CLAMP.y0 + (z / FIELD_L + 0.5) * gh,
+      scale: gw / FIELD_W
     };
   }
 
@@ -136,11 +141,21 @@ function createPixelView() {
     const sx0 = col * (CELL + GUT);
     const sy0 = row * (CELL + GUT);
     const src = CELL;
-    // ~78% of cell - solid cars, no neighbor gutter
-    const dw = Math.max(12, Math.round(src * 0.78));
-    const dh = dw;
+    // Draw size from shared BU sheet (Semi longer than Cybercab)
+    const spec = byId(c.kind)?.spec;
+    const targetL = spec?.draw_length_px || 22;
+    const targetW = spec?.draw_width_px || 12;
+    // Keep aspect of target footprint; scale from Model3=22 baseline into ~cell budget
+    const base = 22;
+    const scale = Math.min(1.35, Math.max(0.7, targetL / base));
+    const dw = Math.max(10, Math.round(18 * scale * (targetW / Math.max(targetL * 0.45, 1)) ));
+    const dh = Math.max(12, Math.round(20 * scale));
+    // Prefer length along facing via uniform box from draw_length
+    const box = Math.max(12, Math.round(targetL * 0.85));
+    const bw = Math.max(10, Math.round(targetW * 1.6));
+    const bh = box;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(sheet, sx0, sy0, src, src, Math.round(sx - dw / 2), Math.round(sy - dh / 2), dw, dh);
+    ctx.drawImage(sheet, sx0, sy0, src, src, Math.round(sx - bw / 2), Math.round(sy - bh / 2), bw, bh);
     return true;
   }
 
@@ -172,10 +187,11 @@ function createPixelView() {
     const { sx, sy } = worldTo(ball.x, ball.z);
     blitVfx("shadow", 0, sx - 10, sy + 2, 20, 10);
     const spin = Math.floor(tAnim / 3);
-    if (!blitVfx("ball16", spin, sx - 6, sy - 6, 12, 12)) {
+    // Bible BALL 16 — draw at 16px
+    if (!blitVfx("ball16", spin, sx - 8, sy - 8, 16, 16)) {
       ctx.fillStyle = "#f4efe4";
       ctx.beginPath();
-      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 8, 0, Math.PI * 2);
       ctx.fill();
     }
   }

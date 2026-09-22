@@ -1,4 +1,4 @@
-import { byId, FW, FL, GOAL_W, GOAL_H } from "./catalog.js";
+import { byId, FW, FL, GOAL_W, GOAL_H, pixelFieldSize, CHARACTERS } from "./catalog.js";
 function forwardXZ(yaw) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) };
 }
@@ -9,14 +9,33 @@ function wrapPi(a) {
 }
 function bodyFrom(id, x, z, yaw) {
   const c = byId(id);
-  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _ai: { t: 0, stuck: 0, lx: 0, lz: 0, mode: "hunt", modeT: 0, side: 1, orbit: 0, lastAng: 0, escape: 0, commit: 0 } };
+  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _noRehit: 0, _ai: { t: 0, stuck: 0, lx: 0, lz: 0, mode: "hunt", modeT: 0, side: 1, orbit: 0, lastAng: 0, escape: 0, commit: 0 } };
 }
 let pixelTight = false;
-export function setPixelTight(on) { pixelTight = !!on; }
+let fieldW = FW;
+let fieldL = FL;
+const NO_REHIT = (CHARACTERS.ball && CHARACTERS.ball.no_rehit_s) || 0.12;
+export function setPixelTight(on) {
+  pixelTight = !!on;
+  if (on) {
+    const p = pixelFieldSize();
+    fieldW = p.fieldW;
+    fieldL = p.fieldL;
+  } else {
+    fieldW = FW;
+    fieldL = FL;
+  }
+}
+export function getField() {
+  return { FW: fieldW, FL: fieldL, pixelTight, GOAL_W: GOAL_W * (fieldW / FW) };
+}
+function goalW() {
+  return GOAL_W * (fieldW / FW);
+}
 
 function clampFieldCar(c) {
-  const limX = FW / 2 - (pixelTight ? 0.85 : 0.55);
-  const limZ = FL / 2 + (pixelTight ? -0.55 : 0.35);
+  const limX = fieldW / 2 - (pixelTight ? 0.85 : 0.55);
+  const limZ = fieldL / 2 + (pixelTight ? -0.55 : 0.35);
   if (c.x > limX) { c.x = limX; c.vx *= -0.18; }
   if (c.x < -limX) { c.x = -limX; c.vx *= -0.18; }
   if (c.z > limZ) { c.z = limZ; c.vz *= -0.18; }
@@ -56,9 +75,11 @@ function drive(c, throttle, steer, wantBoost, dt) {
   }
   c.x += c.vx * dt;
   c.z += c.vz * dt;
+  if (c._noRehit > 0) c._noRehit = Math.max(0, c._noRehit - dt);
   clampFieldCar(c);
 }
 function carBall(c, ball) {
+  if (c._noRehit > 0) return null;
   const dx = ball.x - c.x;
   const dz = ball.z - c.z;
   const { x: fwdX, z: fwdZ } = forwardXZ(c.yaw);
@@ -100,6 +121,7 @@ function carBall(c, ball) {
     ball.z = c.z + uz * (hz + 0.2);
     c.vx -= ux * impulse * (0.12 * mass / 3);
     c.vz -= uz * impulse * (0.12 * mass / 3);
+    c._noRehit = NO_REHIT;
     return ev;
   }
   return null;
@@ -141,17 +163,17 @@ function stepBall(ball, dt) {
   if (ball.y > 18) { ball.y = 18; ball.vy = Math.min(ball.vy, 0); }
   if (ball.y < 0.55) {
     ball.y = 0.55;
-    if (ball.vy < 0) ball.vy *= -0.42;
+    if (ball.vy < 0) ball.vy *= (pixelTight ? -0.55 : -0.42);
     if (Math.abs(ball.vy) < 1.1) ball.vy = 0;
     ball.vx *= 0.986;
     ball.vz *= 0.986;
   }
-  const halfZ = FL / 2;
-  const wallX = FW / 2 + (pixelTight ? -0.35 : 0.9);
+  const halfZ = fieldL / 2;
+  const wallX = fieldW / 2 + (pixelTight ? -0.35 : 0.9);
   const backZ = halfZ + (pixelTight ? 0.25 : 1.4);
   if (ball.x > wallX) { ball.x = wallX; ball.vx *= -0.62; }
   if (ball.x < -wallX) { ball.x = -wallX; ball.vx *= -0.62; }
-  const inMouth = Math.abs(ball.x) < GOAL_W / 2 - 0.05 && ball.y < GOAL_H - 0.08;
+  const inMouth = Math.abs(ball.x) < goalW() / 2 - 0.05 && ball.y < GOAL_H - 0.08;
   if (inMouth && ball.z <= -halfZ) return "A";
   if (inMouth && ball.z >= halfZ) return "B";
   if (ball.z > backZ) { ball.z = backZ; ball.vz *= -0.55; }
@@ -178,10 +200,10 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
   ai.modeT += dt;
   if (ai.commit > 0) ai.commit = Math.max(0, ai.commit - dt);
 
-  const goalZ = attackSign * (FL / 2);
-  const ownZ = -attackSign * (FL / 2);
-  const padX = FW / 2 - 2.6;
-  const padZ = FL / 2 - 2.2;
+  const goalZ = attackSign * (fieldL / 2);
+  const ownZ = -attackSign * (fieldL / 2);
+  const padX = fieldW / 2 - 2.6;
+  const padZ = fieldL / 2 - 2.2;
   const clampApproach = (x, z) => ({
     x: Math.max(-padX, Math.min(padX, x)),
     z: Math.max(-padZ, Math.min(padZ, z))
@@ -190,7 +212,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
   const speed = Math.hypot(me.vx, me.vz);
   const moved = Math.hypot(me.x - ai.lx, me.z - ai.lz);
   // Stuck on boards / in place
-  const nearWall = Math.abs(me.x) > FW / 2 - 3.2 || Math.abs(me.z) > FL / 2 - 2.4;
+  const nearWall = Math.abs(me.x) > fieldW / 2 - 3.2 || Math.abs(me.z) > fieldL / 2 - 2.4;
   if ((moved < 0.26 && speed < 4.2) || (nearWall && speed < 3.2 && moved < 0.45)) ai.stuck += dt;
   else {
     ai.stuck = Math.max(0, ai.stuck - dt * 1.35);
@@ -280,7 +302,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
   let tx, tz;
   if (ai.mode === "save") {
     // Shadow the goal mouth, slide with the ball ' don't kamikaze-chase
-    const mouthX = Math.max(-GOAL_W * 0.42, Math.min(GOAL_W * 0.42, pred.x * 0.78));
+    const gw = goalW(); const mouthX = Math.max(-gw * 0.42, Math.min(gw * 0.42, pred.x * 0.78));
     tx = mouthX;
     tz = ownZ + attackSign * (3.2 + Math.min(4, ballToOwn * 0.08));
   } else if (ai.mode === "kick") {
@@ -297,7 +319,7 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
       tx = me.x + ai.side * 8 - f.x * 2;
       tz = me.z - attackSign * 2 - f.z * 2;
     } else {
-      tx = Math.max(-padX, Math.min(padX, ai.side * (FW * 0.28)));
+      tx = Math.max(-padX, Math.min(padX, ai.side * (fieldW * 0.28)));
       tz = Math.max(-padZ, Math.min(padZ, ownZ + attackSign * 12));
       ai.stuck = 0;
     }
