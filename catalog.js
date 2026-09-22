@@ -38,8 +38,16 @@ function pixelFieldSize() {
   const playW = x1 - x0 + 1;
   const playH = y1 - y0 + 1;
   const fieldL = FL;
-  const fieldW = fieldL * (playW / playH);
-  return { fieldW, fieldL, playW, playH, clamp: { x0, y0, x1, y1 } };
+  // Coordinates describe boundary lines; use their spans for both axes.
+  const pixelsPerUnit = (y1 - y0) / fieldL;
+  const fieldW = (x1 - x0) / pixelsPerUnit;
+  return { fieldW, fieldL, playW, playH, pixelsPerUnit, clamp: { x0, y0, x1, y1 } };
+}
+
+function ballRadius(pixel = false) {
+  return pixel
+    ? CHARACTERS.ball.pixel.radius_px / pixelFieldSize().pixelsPerUnit
+    : CHARACTERS.ball.radius_bu * CHARACTERS.reference.catalog_model3_l;
 }
 
 export {
@@ -50,5 +58,6 @@ export {
   GOAL_H,
   GOAL_W,
   byId,
+  ballRadius,
   pixelFieldSize
 };

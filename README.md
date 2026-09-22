@@ -3,22 +3,27 @@
 > **Maintainers / agents:** start at [docs/00-START-HERE.md](./docs/00-START-HERE.md) - architecture, editing, PeerJS, PIXEL rules, and Vercel CLI deploy (push to `main` OK; no Vercel Git integration).
 
 
-Static Three.js car soccer with PeerJS online 1v1, private four-character rooms,
-quick match, and the original manual / Full Self-Driving CPU modes.
+Static car soccer with Three.js and PIXEL graphics, PeerJS online 1v1,
+private four-character rooms, quick match, and offline CPU matches.
 
 Choose a car before finding a match. The host controls physics and the match clock;
 the guest sends controls and follows the blue car. Online menus keep the match live.
-Use the in-game MENU button (desktop or touch) to switch FSD on or off without restarting.
-Each online player controls FSD for their own car; manual steering/throttle takes over.
+FSD always drives; hold Space, Shift, or the touch BOOST button for Ludicrous Mode.
+The host selects the field/graphics mode for both peers so ball and field geometry agree.
+Gameplay advances at 120 Hz independently of rendering. PIXEL uses a flat rolling
+ball with the same 9-pixel diameter for drawing and collisions; 3D retains vertical bounce.
 Offline menus pause the match, while online menus leave it running.
-Leaving a match returns the other player to the garage. Rematches start from the garage.
+Leaving a match returns the other player to the garage. Online rematches reuse the connection.
 
 ## Local development and checks
 
 Serve the repository with `python3 -m http.server 5173`.
-Install Playwright locally with `npm install --no-save playwright` and, if needed,
+Run the dependency-free physics checks with `node --experimental-default-type=module --test tests/physics.test.mjs`.
+Install Playwright locally with `npm install --prefix . --no-save --package-lock=false playwright` and, if needed,
 `npx playwright install chromium`. Run `node tests/netplay.mjs`.
 The suite opens separate browser contexts and uses real PeerJS signaling / WebRTC.
+It covers both graphics modes, boost, pause, scoring, rematches, shared online geometry,
+quick match, disconnect, and mobile layout. `tests/netplay.mjs` runs `tests/gameplay.mjs`.
 For repeatable scoring checks only, localhost tests inject controlled ball trajectories;
 no scenario controls are included in the deployed game.
 

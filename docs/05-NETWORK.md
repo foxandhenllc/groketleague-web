@@ -17,7 +17,8 @@
 - Invite URL `https://groketleague.com/?room=ABCD`
 - Rematch without tearing PeerJS (`rm` / `rx` style messages)
 - Online menu does **not** pause physics
-- Each peer's own FSD toggle; guest AI executed on host
+- FSD always drives; each peer sends its own boost intent; guest AI executes on host
+- Host `gfx` mode is included in setup/ready and rematch packets; both peers use the same field and ball geometry
 - Disconnect returns the other player to garage
 
 ## Testing

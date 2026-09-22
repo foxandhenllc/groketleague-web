@@ -1,4 +1,24 @@
 # Groket League — Character & Physics Contract
+
+## Runtime amendment: ball repair, 2026-09-22
+
+The older design proposal below is historical where it conflicts with this amendment.
+`characters.js`, `catalog.js`, `sim.js`, and `physics-clock.js` define the live behavior:
+
+- Car mass, dimensions, acceleration, turning and boost remain shared and unchanged.
+- PIXEL deliberately uses a 9px ball with a 4.5px physical radius, converted by the same uniform scale as its drawing. The earlier 16px proposal is superseded.
+- Ball mass is 0.45; contact restitution is 0.72, with the existing 1.35 heavy-boost multiplier capped at 1. Only approaching contacts exchange momentum.
+- Sphere/rectangle closest-point contact replaces the padded-AABB kick. Separation uses the rotated contact normal and also runs during cooldown.
+- The 80ms no-rehit value gates impact sound/lift only, not collision resolution. Resting/separating contacts add no energy.
+- PIXEL is flat and rolling. 3D retains gravity 22 and floor restitution 0.42. Ground friction uses `exp(log(0.986) * 60 * dt)` and exact rolling displacement.
+- Fixed simulation rate is 120 Hz, with up to 250ms catch-up after a stalled frame. Both foreground and background host paths use the same clock.
+- Walls include ball radius; the whole ball must fit the goal mouth and cross the goal line to score.
+- Host graphics/field mode is shared with the guest at setup and rematch.
+
+Run `node --experimental-default-type=module --test tests/physics.test.mjs` and `node tests/netplay.mjs` after changes.
+
+## Original design proposal
+
 Source of truth for every mode that reuses these four cars. 3D Arena and PIXEL both map into this; neither invents its own mass/turn/hit ratios.
 
 Dated: 2026-09-22. Numbers from live `catalog.js`, `sim.js`, Pixel Forge atlases, `pitch_physics_bounds.json`.

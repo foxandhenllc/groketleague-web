@@ -7,8 +7,9 @@
 | `index.html` | Shell markup, meta/OG, import map for three |
 | `style.css` / `net.css` | Game + net UI styles; PIXEL letterbox / HUD |
 | `main.js` | App orchestration, render loop, garage, match |
-| `game.js` | Match helpers / game-state utilities used by main |
+| `game.js` | Historical incomplete stub; not imported by the live app |
 | `sim.js` | Physics + bot AI + `setPixelTight` |
+| `physics-clock.js` | Fixed 120 Hz simulation clock, independent of rendering |
 | `catalog.js` | `CATALOG`, `byId`, `FW`/`FL`, `pixelFieldSize` |
 | `characters.js` | Shared character / ball / mode contract |
 | `pixel.js` | PIXEL canvas view |
@@ -48,7 +49,9 @@
 
 ## tests/
 
-`netplay.mjs` - Playwright PeerJS integration
+`physics.test.mjs` - dependency-free collision, bounce, friction, scaling and timing regressions.
+
+`netplay.mjs` - compatibility entry point for `gameplay.mjs`, the Playwright offline/PeerJS/mobile suite.
 
 ## Docs / notes
 

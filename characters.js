@@ -20,7 +20,9 @@ export default {
   },
   "ball": {
     "radius_bu": 0.131,
-    "pixel": { "diameter_px": 16, "radius_px": 8 },
+    "pixel": { "diameter_px": 9, "radius_px": 4.5 },
+    "mass": 0.45,
+    "contact_restitution": 0.72,
     "floor_restitution": -0.55,
     "wall_restitution": -0.62,
     "ground_friction": 0.986,

@@ -2,30 +2,51 @@
   "version": 1,
   "updated": "2026-09-22",
   "reference": {
-    "model3_length_bu": 1.0,
+    "model3_length_bu": 1,
     "catalog_model3_l": 4.2,
     "sprite_cell_px": 32,
     "atlas": {
       "file": "vehicles_8dir_atlas.png",
       "boost_file": "vehicles_boost_atlas.png",
-      "size": [263, 131],
+      "size": [
+        263,
+        131
+      ],
       "cell": 32,
       "gutter": 1,
       "gutter_color": "#FF00FF",
-      "rows": ["cybertruck", "model3", "cybercab", "semi"],
-      "cols": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+      "rows": [
+        "cybertruck",
+        "model3",
+        "cybercab",
+        "semi"
+      ],
+      "cols": [
+        "N",
+        "NE",
+        "E",
+        "SE",
+        "S",
+        "SW",
+        "W",
+        "NW"
+      ],
       "n_faces": "screen-down"
     }
   },
   "ball": {
     "radius_bu": 0.131,
-    "pixel": { "diameter_px": 16, "radius_px": 8 },
+    "pixel": {
+      "diameter_px": 9,
+      "radius_px": 4.5
+    },
+    "mass": 0.45,
+    "contact_restitution": 0.72,
     "floor_restitution": -0.55,
     "wall_restitution": -0.62,
     "ground_friction": 0.986,
     "gravity_3d": 22,
     "no_rehit_s": 0.08,
-    "hit_impulse": "max(9, 11/mass + abs(rel)*1.15)",
     "pancake_mult": 1.35
   },
   "drive": {
@@ -43,7 +64,12 @@
     "heavy_turn_slow_speed": 11,
     "heavy_turn_slow": 0.7,
     "car_car_sep": 0.38,
-    "hitbox": { "w_factor": 0.55, "l_factor": 0.5, "pad_bu": 0.131, "pad_px": 2 }
+    "hitbox": {
+      "w_factor": 0.55,
+      "l_factor": 0.5,
+      "pad_bu": 0.131,
+      "pad_px": 2
+    }
   },
   "modes": {
     "arena3d": {
@@ -54,10 +80,26 @@
       "meters_per_bu": 4.2
     },
     "pixel": {
-      "pitch": [384, 216],
-      "grass_inclusive_xyxy": [49, 25, 324, 205],
-      "physics_clamp_xyxy": [52, 28, 321, 202],
-      "playable_px": [270, 175],
+      "pitch": [
+        384,
+        216
+      ],
+      "grass_inclusive_xyxy": [
+        49,
+        25,
+        324,
+        205
+      ],
+      "physics_clamp_xyxy": [
+        52,
+        28,
+        321,
+        202
+      ],
+      "playable_px": [
+        270,
+        175
+      ],
       "px_per_bu": 22,
       "goal_mouth_frac": 0.25,
       "goal_mouth_px": 68,
@@ -65,14 +107,24 @@
       "team_north": "#3a6fff",
       "team_south_bronze": "#8C4E24",
       "team_red": "#e24a3a",
-      "max_px_s": { "cybertruck": 140, "model3": 200, "cybercab": 185, "semi": 110 },
-      "accel_px_s2": { "cybertruck": 170, "model3": 270, "cybercab": 240, "semi": 115 }
+      "max_px_s": {
+        "cybertruck": 140,
+        "model3": 200,
+        "cybercab": 185,
+        "semi": 110
+      },
+      "accel_px_s2": {
+        "cybertruck": 170,
+        "model3": 270,
+        "cybercab": 240,
+        "semi": 115
+      }
     }
   },
   "characters": [
     {
       "id": "cybertruck",
-      "name": "CYBERTRUCK",
+      "name": "CYBERT RUCKER",
       "tag": "THE FRIDGE",
       "accent": "#c5ccd1",
       "special": "pancake",
@@ -81,17 +133,19 @@
       "max": 19.5,
       "turn": 1.55,
       "grip": 6.2,
-      "boostMax": 1.0,
+      "boostMax": 1,
       "w_bu": 0.524,
       "l_bu": 1.155,
       "w": 2.2,
       "l": 4.85,
       "draw_length_px": 25.4,
-      "draw_width_px": 11.5
+      "draw_width_px": 11.5,
+      "meme": "Angular dumpster that learned car-soccer on a dare. Dump Ludicrous Juice into the ball and pancake it like a bad earnings call.",
+      "stats": "MASS 10 · SPEED 4 · TURN 3 · SPECIAL: PANCAKE"
     },
     {
       "id": "model3",
-      "name": "MODEL 3",
+      "name": "MODEST 3",
       "tag": "THE DART",
       "accent": "#3b82ff",
       "special": "snap_turn",
@@ -102,15 +156,17 @@
       "grip": 10,
       "boostMax": 0.75,
       "w_bu": 0.429,
-      "l_bu": 1.0,
+      "l_bu": 1,
       "w": 1.8,
       "l": 4.2,
-      "draw_length_px": 22.0,
-      "draw_width_px": 9.4
+      "draw_length_px": 22,
+      "draw_width_px": 9.4,
+      "meme": "Quiet until it isn't. Instant torque, zero personality, still posting about range anxiety fanfic. Do not give it a clean run.",
+      "stats": "MASS 3 · SPEED 9 · TURN 9 · SPECIAL: SNAP TURN"
     },
     {
       "id": "cybercab",
-      "name": "CYBERCAB",
+      "name": "ROB TACKSY",
       "tag": "NO STEERING WHEEL",
       "accent": "#e8edf2",
       "special": "soap_shoes",
@@ -125,11 +181,13 @@
       "w": 1.65,
       "l": 3.5,
       "draw_length_px": 18.3,
-      "draw_width_px": 8.6
+      "draw_width_px": 8.6,
+      "meme": "Self-driving cab energy. You are the liability. It already filed a vibes-based incident report on your last touch.",
+      "stats": "MASS 2 · SPEED 8 · TURN 10 · SPECIAL: SOAP SHOES"
     },
     {
       "id": "semi",
-      "name": "SEMI",
+      "name": "SEEMEE",
       "tag": "THE GOALIE THAT IS THE GOAL",
       "accent": "#ef4444",
       "special": "wall",
@@ -144,7 +202,9 @@
       "w": 2.6,
       "l": 7.2,
       "draw_length_px": 37.7,
-      "draw_width_px": 13.6
+      "draw_width_px": 13.6,
+      "meme": "If the pitch is a hallway, you are the hallway. Scoring is a war crime. Parking across the net is the whole product roadmap.",
+      "stats": "MASS 12 · SPEED 2 · TURN 2 · SPECIAL: WALL"
     }
   ]
 }

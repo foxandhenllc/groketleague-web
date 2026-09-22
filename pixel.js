@@ -2,7 +2,7 @@
  * PIXEL mode - Pixel Forge castle pitch + 8-dir vehicle atlases + ball VFX.
  * Rich night-castle pitch (384x216). Playable area = grass clamp.
  */
-import { FL, pixelFieldSize, byId, CHARACTERS } from "./catalog.js";
+import { pixelFieldSize, byId, ballRadius } from "./catalog.js";
 
 const CELL = 32;
 const GUT = 1;
@@ -14,7 +14,7 @@ const CLAMP = { x0: _pf.clamp.x0, y0: _pf.clamp.y0, x1: _pf.clamp.x1, y1: _pf.cl
 // Uniform field matching sim setPixelTight (no anisotropic stretch)
 const FIELD_W = _pf.fieldW;
 const PX_PER = (CLAMP.x1 - CLAMP.x0) / FIELD_W;
-const BALL_R_WORLD = (CHARACTERS.ball?.radius_bu || 0.131) * (CHARACTERS.reference?.catalog_model3_l || 4.2);
+const BALL_R_WORLD = ballRadius(true);
 const FIELD_L = _pf.fieldL;
 
 const BALL = {
@@ -206,7 +206,7 @@ function createPixelView() {
   function drawBall(ball) {
     if (!ball) return;
     const { sx, sy } = worldTo(ball.x, ball.z);
-    const diam = Math.max(9, Math.min(14, Math.round(BALL_R_WORLD * 2 * PX_PER * 1.35)));
+    const diam = BALL_R_WORLD * 2 * PX_PER;
     const r = diam / 2;
     blitVfx("shadow", 0, sx - r, sy + r * 0.35, diam, Math.max(4, r));
     const spin = Math.floor(tAnim / 3);
@@ -245,4 +245,3 @@ function createPixelView() {
 }
 
 export { createPixelView };
-

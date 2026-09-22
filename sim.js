@@ -1,4 +1,4 @@
-import { byId, FW, FL, GOAL_W, GOAL_H, pixelFieldSize, CHARACTERS } from "./catalog.js";
+import { byId, FW, FL, GOAL_W, GOAL_H, pixelFieldSize, ballRadius, CHARACTERS } from "./catalog.js";
 function forwardXZ(yaw) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) };
 }
@@ -27,8 +27,9 @@ export function setPixelTight(on) {
   }
 }
 export function getField() {
-  return { FW: fieldW, FL: fieldL, pixelTight, GOAL_W: GOAL_W * (fieldW / FW) };
+  return { FW: fieldW, FL: fieldL, pixelTight, GOAL_W: goalW(), ballRadius: getBallRadius() };
 }
+export function getBallRadius() { return ballRadius(pixelTight); }
 function goalW() {
   return GOAL_W * (fieldW / FW);
 }
@@ -79,7 +80,8 @@ function drive(c, throttle, steer, wantBoost, dt) {
   clampFieldCar(c);
 }
 function carBall(c, ball) {
-  if (c._noRehit > 0) return null;
+  const radius = getBallRadius();
+  if (!pixelTight && ball.y - radius >= 1.25) return null;
   const dx = ball.x - c.x;
   const dz = ball.z - c.z;
   const { x: fwdX, z: fwdZ } = forwardXZ(c.yaw);
@@ -87,44 +89,46 @@ function carBall(c, ball) {
   const rightZ = -Math.sin(c.yaw);
   const localZ = dx * fwdX + dz * fwdZ;
   const localX = dx * rightX + dz * rightZ;
-  const hx = (Number.isFinite(c.w) ? c.w : 1.8) * 0.55 + 0.55;
-  const hz = (Number.isFinite(c.l) ? c.l : 4) * 0.5 + 0.55;
-  if (Math.abs(localX) < hx && Math.abs(localZ) < hz && ball.y < 1.8) {
-    const nlen = Math.hypot(dx, dz);
-    // Degenerate center overlap used to yield ux=uz=0, parking the ball inside
-    // the hitbox so vy stacked every frame and transforms went non-finite.
-    let ux, uz;
-    if (nlen < 0.05) {
-      ux = fwdX;
-      uz = fwdZ;
-    } else {
-      ux = dx / nlen;
-      uz = dz / nlen;
-    }
-    const rel = (ball.vx - c.vx) * ux + (ball.vz - c.vz) * uz;
-    const speed = Math.hypot(c.vx, c.vz);
-    const mass = (Number.isFinite(c.mass) && c.mass > 0.2) ? c.mass : 1.5;
-    let impulse = Math.max(9, 11 / mass + Math.abs(rel) * 1.15);
-    if (!Number.isFinite(impulse)) impulse = 9;
-    impulse = Math.min(impulse, 42);
-    let ev = "hit";
-    if ((c.kind === "cybertruck" || c.kind === "semi") && c.boosting) {
-      impulse *= 1.35;
-      ball.vy = Math.max(ball.vy, 1.2);
-      ev = "pancake";
-    } else {
-      ball.vy = Math.max(ball.vy, 2 + Math.min(4.2, speed * 0.12));
-    }
-    ball.vx += ux * impulse;
-    ball.vz += uz * impulse;
-    ball.x = c.x + ux * (hx + 0.2);
-    ball.z = c.z + uz * (hz + 0.2);
-    c.vx -= ux * impulse * (0.12 * mass / 3);
-    c.vz -= uz * impulse * (0.12 * mass / 3);
-    c._noRehit = NO_REHIT;
-    return ev;
+  const hx = c.w * 0.55;
+  const hz = c.l * 0.5;
+  const closestX = Math.max(-hx, Math.min(hx, localX));
+  const closestZ = Math.max(-hz, Math.min(hz, localZ));
+  const edgeX = localX - closestX, edgeZ = localZ - closestZ;
+  const distance = Math.hypot(edgeX, edgeZ);
+  if (distance >= radius) return null;
+
+  let nx, nz, penetration;
+  if (distance > 1e-8) {
+    nx = edgeX / distance; nz = edgeZ / distance;
+    penetration = radius - distance;
+  } else if (hx - Math.abs(localX) < hz - Math.abs(localZ)) {
+    nx = localX < 0 ? -1 : 1; nz = 0;
+    penetration = hx - Math.abs(localX) + radius;
+  } else {
+    nx = 0; nz = localZ < 0 ? -1 : 1;
+    penetration = hz - Math.abs(localZ) + radius;
   }
-  return null;
+  const ux = nx * rightX + nz * fwdX;
+  const uz = nx * rightZ + nz * fwdZ;
+  // Resolve in the rotated contact direction, even during the sound cooldown.
+  ball.x += ux * (penetration + 1e-5);
+  ball.z += uz * (penetration + 1e-5);
+  const rel = (ball.vx - c.vx) * ux + (ball.vz - c.vz) * uz;
+  if (rel >= 0) return null; // Separating/resting contacts must never add a kick.
+
+  const pancake = (c.kind === "cybertruck" || c.kind === "semi") && c.boosting;
+  const restitution = -rel < 1 ? 0 : Math.min(1,
+    CHARACTERS.ball.contact_restitution * (pancake ? CHARACTERS.ball.pancake_mult : 1));
+  const invBall = 1 / CHARACTERS.ball.mass, invCar = 1 / c.mass;
+  const impulse = -(1 + restitution) * rel / (invBall + invCar);
+  ball.vx += ux * impulse * invBall;
+  ball.vz += uz * impulse * invBall;
+  c.vx -= ux * impulse * invCar;
+  c.vz -= uz * impulse * invCar;
+  if (c._noRehit > 0 || -rel < 1) return null;
+  c._noRehit = NO_REHIT;
+  if (!pixelTight) ball.vy = Math.max(ball.vy, Math.min(pancake ? 1.2 : 5.5, -rel * 0.2));
+  return pancake ? "pancake" : "hit";
 }
 function carCar(P, B) {
   const dx = P.x - B.x;
@@ -151,36 +155,43 @@ function carCar(P, B) {
   return false;
 }
 function stepBall(ball, dt) {
-  ball.vy -= 22 * dt;
-  ball.x += ball.vx * dt;
-  ball.y += ball.vy * dt;
-  ball.z += ball.vz * dt;
+  const radius = getBallRadius();
   // Hard caps so a sticky contact can never send transforms to Infinity
   const spd = Math.hypot(ball.vx, ball.vz);
   if (spd > 55) { ball.vx *= 55 / spd; ball.vz *= 55 / spd; }
   if (ball.vy > 28) ball.vy = 28;
   if (ball.vy < -40) ball.vy = -40;
   if (ball.y > 18) { ball.y = 18; ball.vy = Math.min(ball.vy, 0); }
-  if (ball.y < 0.55) {
-    ball.y = 0.55;
-    if (ball.vy < 0) ball.vy *= (pixelTight ? -0.55 : -0.42);
-    if (Math.abs(ball.vy) < 1.1) ball.vy = 0;
-    ball.vx *= 0.986;
-    ball.vz *= 0.986;
+  if (pixelTight) { ball.y = radius; ball.vy = 0; }
+  const rolling = pixelTight || (ball.y <= radius + 1e-6 && ball.vy <= 0);
+  if (rolling) {
+    // The old 0.986-per-frame drag is calibrated at 60 Hz. Integrate it in seconds.
+    const drag = -Math.log(CHARACTERS.ball.ground_friction) * 60;
+    const decay = Math.exp(-drag * dt);
+    const travel = (1 - decay) / drag;
+    ball.x += ball.vx * travel; ball.z += ball.vz * travel;
+    ball.vx *= decay; ball.vz *= decay;
+    ball.y = radius; ball.vy = 0;
+  } else {
+    ball.x += ball.vx * dt; ball.z += ball.vz * dt;
+    ball.y += ball.vy * dt - 0.5 * CHARACTERS.ball.gravity_3d * dt * dt;
+    ball.vy -= CHARACTERS.ball.gravity_3d * dt;
+    if (ball.y < radius) {
+      ball.y = radius; ball.vy *= -0.42;
+      if (Math.abs(ball.vy) < 1.1) ball.vy = 0;
+    }
   }
   const halfZ = fieldL / 2;
-  const wallX = fieldW / 2 + (pixelTight ? -0.35 : 0.9);
-  const backZ = halfZ + (pixelTight ? 0.25 : 1.4);
-  if (ball.x > wallX) { ball.x = wallX; ball.vx *= -0.62; }
-  if (ball.x < -wallX) { ball.x = -wallX; ball.vx *= -0.62; }
-  const inMouth = Math.abs(ball.x) < goalW() / 2 - 0.05 && ball.y < GOAL_H - 0.08;
-  if (inMouth && ball.z <= -halfZ) return "A";
-  if (inMouth && ball.z >= halfZ) return "B";
-  if (ball.z > backZ) { ball.z = backZ; ball.vz *= -0.55; }
-  if (ball.z < -backZ) { ball.z = -backZ; ball.vz *= -0.55; }
+  const wallX = fieldW / 2 + (pixelTight ? 0 : 0.9) - radius;
+  if (ball.x > wallX) { ball.x = wallX; if (ball.vx > 0) ball.vx *= -0.62; }
+  if (ball.x < -wallX) { ball.x = -wallX; if (ball.vx < 0) ball.vx *= -0.62; }
+  const inMouth = Math.abs(ball.x) + radius < goalW() / 2 && (pixelTight || ball.y + radius < GOAL_H);
+  if (inMouth && ball.z + radius <= -halfZ) return "A";
+  if (inMouth && ball.z - radius >= halfZ) return "B";
   if (!inMouth) {
-    if (ball.z > halfZ) { ball.z = halfZ; ball.vz *= -0.62; }
-    if (ball.z < -halfZ) { ball.z = -halfZ; ball.vz *= -0.62; }
+    const endWall = halfZ - radius;
+    if (ball.z > endWall) { ball.z = endWall; if (ball.vz > 0) ball.vz *= -0.62; }
+    if (ball.z < -endWall) { ball.z = -endWall; if (ball.vz < 0) ball.vz *= -0.62; }
   }
   return null;
 }
@@ -377,7 +388,6 @@ function botAI(me, foe, ball, dt, attackSign, boostIntent) {
 
 
 export { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
-
 
 
 

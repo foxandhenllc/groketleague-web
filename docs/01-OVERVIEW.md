@@ -4,7 +4,7 @@
 
 **GROKET LEAGUE** is parody FSD car-soccer:
 
-- You mostly hold **boost / Ludicrous**; **FSD drives** the car (offline bot + online each peer's own FSD toggle).
+- You hold **boost / Ludicrous**; **FSD always drives** each car. There is no manual steering or FSD toggle.
 - Two presentation modes:
   - **3D Arena** - Three.js field + extruded cars (`field.js`, `vehicles.js`).
   - **PIXEL** - SNES/LTTP-style castle pitch blit (`pixel.js` + `assets/pixel/*`).
@@ -39,3 +39,6 @@ Parody Tesla/xAI vibes, meme car names (CYBERT RUCKER, MODEST 3, ROB TACKSY, SEE
 Garage (pick car, gfx 3D/PIXEL, day/night map) -> Faceoff -> Match -> Results -> Rematch or Garage.
 
 Online: host simulates; guest sends inputs; both render. Menus offline pause; online menus leave the match running.
+
+Host graphics mode also selects the shared field and ball geometry. PIXEL has a flat rolling ball;
+3D has vertical bounce. The simulation runs at 120 Hz independently of display refresh rate.

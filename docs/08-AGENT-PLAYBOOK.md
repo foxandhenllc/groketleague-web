@@ -28,7 +28,7 @@ Windows repo **`groketleague-web`** on Fox's machine, shipped to **Vercel projec
 | Garage white-screen | Duplicate `export` of same binding in `sim.js` |
 | Warped skinny cars | Non-square `drawImage` dest on 32x32 cells |
 | Pink side bars | Hot-pink gutters != `#FF00FF`; loosen scrub / repaint pitch |
-| Mushy ball hits | Sprite much larger than hitbox; or long `no_rehit_s` |
+| Mushy ball hits | Sprite/collider scale mismatch or incorrect contact normals; cooldown must not disable collision response |
 | Oval field / shimmer | Non-integer canvas CSS scale |
 | Tiny `main.js` in prod | CDN stub redeployed - restore full file + CLI deploy |
 
@@ -36,6 +36,7 @@ Windows repo **`groketleague-web`** on Fox's machine, shipped to **Vercel projec
 
 - [ ] Runs on `python -m http.server 5173`
 - [ ] 3D and PIXEL still boot from garage
+- [ ] `node --experimental-default-type=module --test tests/physics.test.mjs` passes after physics/timing changes
 - [ ] If net touched: private room smoke (or `tests/netplay.mjs`)
 - [ ] Committed + pushed `main`
 - [ ] `vercel --prod` Ready on both domains

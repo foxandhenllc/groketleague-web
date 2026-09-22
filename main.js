@@ -5,7 +5,8 @@ import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMu
 import { bindInput, bindTouch, readControls, setQaKeys } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
-import { bodyFrom, drive, carBall, carCar, stepBall, botAI, forwardXZ, setPixelTight } from "./sim.js";
+import { bodyFrom, drive, carBall, carCar, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius } from "./sim.js";
+import { createPhysicsClock } from "./physics-clock.js";
 import { createPixelView } from "./pixel.js";
 import { initXAuth, loginWithX, logoutX, getXUser, onAuthChange } from "./x-auth.js";
 const overlay = document.getElementById("overlay");
@@ -368,16 +369,16 @@ NET.setHandlers({
       return;
     }
     matchId = crypto.randomUUID();
-    NET.send({ t: "start", phase: "setup", id: matchId, a: localChoice, b: msg.car, map: mapMode });
+    NET.send({ t: "start", phase: "setup", id: matchId, a: localChoice, b: msg.car, map: mapMode, gfx: gfxMode });
   },
   onStart(msg) {
     notePacket();
     if (NET.isGuest() && msg.phase === "setup" && !online && typeof msg.id === "string" && validCar(msg.a) && validCar(msg.b)) {
       matchId = msg.id;
       startGame(false, msg);
-      NET.send({ t: "start", phase: "ready", id: matchId, a: msg.a, b: msg.b, map: msg.map });
+      NET.send({ t: "start", phase: "ready", id: matchId, a: msg.a, b: msg.b, map: msg.map, gfx: gfxMode });
     } else if (NET.isHost() && msg.phase === "ready" && msg.id === matchId && !online && msg.a === localChoice && validCar(msg.b)) {
-      startGame(false, msg);
+      startGame(false, { ...msg, gfx: gfxMode });
       sendSnapshot();
     }
   },
@@ -518,6 +519,7 @@ let ball = { x: 0, y: 0.55, z: 0, vx: 0, vy: 0, vz: 0, flat: 0 };
 let scoreA = 0, scoreB = 0, timeLeft = 90, playing = false, locked = false, paused = false;
 let faceoffT = 0;
 let last = performance.now();
+const physicsClock = createPhysicsClock(simulateMatch);
 let boostSfxCool = 0;
 window.__controlsTest = { getYaw: () => P.yaw, getSpeed: () => Math.hypot(P.vx, P.vz), setKeys: (codes) => setQaKeys(codes) };
 function toast(msg, ms = 900, who = "p1") {
@@ -609,7 +611,7 @@ setInspect("cybertruck");
 function resetKick(toward = 0) {
   P = bodyFrom(selectedId, 0, 14, 0);
   B = bodyFrom(botId, 0, -14, Math.PI);
-  ball = { x: 0, y: 0.55, z: toward * 4, vx: 0, vy: 6, vz: toward * 3, flat: 0 };
+  ball = { x: 0, y: getBallRadius(), z: toward * 4, vx: 0, vy: gfxMode === "pixel" ? 0 : 6, vz: toward * 3, flat: 0 };
 }
 function markTeam(mesh, color) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.45, 20), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
@@ -662,7 +664,7 @@ function repairCar(c) {
 }
 function repairBall(b) {
   if (!Number.isFinite(b.x)) b.x = 0;
-  if (!Number.isFinite(b.y) || b.y < 0.55) b.y = 0.55;
+  if (!Number.isFinite(b.y) || b.y < getBallRadius()) b.y = getBallRadius();
   if (!Number.isFinite(b.z)) b.z = 0;
   if (!Number.isFinite(b.vx)) b.vx = 0;
   if (!Number.isFinite(b.vy)) b.vy = 0;
@@ -825,10 +827,9 @@ function ensureHostSimPump(on) {
       if (!online || !NET.isHost()) return;
       if (mode !== "play" && mode !== "faceoff") return;
       const now = performance.now();
-      const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
+      const dt = Math.min(0.25, Math.max(0, (now - last) / 1000));
       last = now;
-      window.__forceDt = dt;
-      try { stepGame(dt); } finally { window.__forceDt = 0; }
+      stepGame(dt);
     }, 50);
   } else if (!on && hostSimPump) {
     clearInterval(hostSimPump);
@@ -838,23 +839,18 @@ function ensureHostSimPump(on) {
 function tick(now) {
   requestAnimationFrame(tick);
   // Background online host is driven by ensureHostSimPump (rAF is throttled/paused).
-  if (document.hidden && online && NET.isHost() && !window.__forceDt) return;
-  let dt;
-  if (window.__forceDt) {
-    dt = window.__forceDt;
-  } else {
-    dt = Math.min(0.033, (now - last) / 1000);
-    last = now;
-  }
+  if (document.hidden && online && NET.isHost()) return;
+  const dt = Math.min(0.25, Math.max(0, (now - last) / 1000));
+  last = now;
   stepGame(dt);
 }
-function stepGame(dt) {
-  try {
+function simulateMatch(dt) {
   if (playing && !locked && !paused && !(online && NET.isGuest())) {
     timeLeft -= dt;
     if (timeLeft <= 0) {
       timeLeft = 0; SFX.whistle();
       finishMatch();
+      return;
     }
     const m = Math.floor(timeLeft / 60);
     const s = Math.floor(timeLeft % 60).toString().padStart(2, "0");
@@ -884,6 +880,11 @@ function stepGame(dt) {
     else if (h1 || h2) { SFX.hit(); shake = Math.max(shake, 0.16); }
     const g = stepBall(ball, dt); if (g) void onGoal(g);
   }
+}
+function stepGame(dt) {
+  try {
+  if (playing && !locked && !paused && !(online && NET.isGuest())) physicsClock.advance(dt);
+  else physicsClock.reset();
   const me = localBody();
   clockEl.textContent = Math.floor(timeLeft / 60) + ":" + Math.floor(timeLeft % 60).toString().padStart(2, "0");
   if (boostFill && me.boostMax) boostFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, me.boost / me.boostMax)) + ")";
@@ -957,7 +958,7 @@ function stepGame(dt) {
     }
   }
   camera.lookAt(camTarget);
-  renderer.render(scene, camera);
+  if (!pixelView.isActive()) renderer.render(scene, camera);
   paintPixelFrame();
   } catch (err) {
     console.error("[groket tick]", err);
@@ -1007,6 +1008,8 @@ function startGame(useFsd, config = null) {
   lastGoalCard = null; bestGoalCard = null; lastGoalBy = null;
   clearReconnect();
   if (config) {
+    // Both peers must render the host's field and ball dimensions.
+    if (config.gfx === "pixel" || config.gfx === "3d") setGfxMode(config.gfx);
     online = true; setNetPending(false);
     selectedId = config.a; botId = config.b;
     mapMode = config.map === "night" ? "night" : "day"; applyMap();
@@ -1028,7 +1031,9 @@ function startGame(useFsd, config = null) {
   document.querySelector("#pauseLayer h2").textContent = online ? "MATCH IS LIVE" : "PAUSED";
   ensureAudio();
   playBed(mapMode === "night" ? "night" : "day");
-  fsd = true; // boost-only: FSD always on peerFsd = false;
+  fsd = true; // boost-only: FSD always on
+  peerFsd = true;
+  physicsClock.reset();
   if (!config) botId = pickBot();
   playerMesh = swapMesh(playerMesh, selectedId, "#f0c020");
   botMesh = swapMesh(botMesh, botId, "#3a6fff");
@@ -1293,11 +1298,11 @@ function syncRematchUI() {
 function beginRematch(config) {
   wantRematch = false; peerWantRematch = false;
   syncRematchUI();
-  startGame(fsd, { a: config.a, b: config.b, map: config.map === "night" ? "night" : "day" });
+  startGame(fsd, { a: config.a, b: config.b, map: config.map === "night" ? "night" : "day", gfx: config.gfx });
 }
 function maybeStartRematch() {
   if (!online || !NET.isHost() || !wantRematch || !peerWantRematch || mode !== "results") return;
-  const payload = { t: "rx", id: matchId, a: selectedId, b: botId, map: mapMode };
+  const payload = { t: "rx", id: matchId, a: selectedId, b: botId, map: mapMode, gfx: gfxMode };
   NET.send(payload);
   beginRematch(payload);
 }
@@ -1351,7 +1356,7 @@ document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
 document.getElementById("again").addEventListener("click", requestRematch);
 document.getElementById("leaveBtn").addEventListener("click", returnToGarage);
 window.render_game_to_text = () => JSON.stringify({
-  mode, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
+  mode, gfxMode, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
   fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: online && NET.isGuest() ? "B" : "P",
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
   P, B, ball, scoreA, scoreB, timeLeft, netStatus: netStatus.textContent

@@ -28,7 +28,9 @@ See [04-PIXEL-MODE.md](./04-PIXEL-MODE.md). Short version:
 
 - Shared: `characters.js` ball + per-car mass/accel/max/turn/grip/boostMax
 - Runtime: `sim.js` (`drive`, `carBall`, `carCar`, `stepBall`, `setPixelTight`)
-- PIXEL no-rehit: `characters.js` -> `ball.no_rehit_s` (recently ~0.08)
+- Impact effects cooldown: `characters.js` -> `ball.no_rehit_s` (0.08); this must never disable separation or collision response.
+- Ball sizes: `catalog.js` `ballRadius(pixel)` reads the shared sheet; PIXEL rendering uses this same radius.
+- Timing: `physics-clock.js` advances `main.js` `simulateMatch` at 120 Hz. Keep rendering outside that loop.
 - Reference alternate: `pixel_sim.js` (keep as reference unless you intentionally switch main over)
 
 ## Change UI / HUD / garage

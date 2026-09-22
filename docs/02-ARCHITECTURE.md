@@ -6,6 +6,7 @@
 index.html          UI chrome (garage, HUD, menus, quick chat)
 main.js             App shell: scenes, match loop, wires modules
 sim.js              Shared physics (cars, ball, goals, bot AI, PIXEL clamp)
+physics-clock.js    Fixed 120 Hz simulation clock, bounded catch-up after suspension
 catalog.js          CATALOG view over characters.js + field constants
 characters.js       SOURCE OF TRUTH for car/ball/mode numbers
 pixel.js            2D PIXEL renderer (canvas #pixelView)
@@ -34,7 +35,7 @@ music/*             garage / day / night beds
 
 ## Match simulation flow (simplified)
 
-1. `main.js` tick -> read controls (`input.js`)
+1. `main.js` tick -> `physics-clock.js` -> `simulateMatch` at 120 Hz; read controls (`input.js`)
 2. Host (or offline) steps `drive` / `carBall` / `carCar` / `stepBall` in `sim.js`
 3. Goals update score / faceoff reset
 4. Render:
@@ -46,10 +47,19 @@ music/*             garage / day / night beds
 
 - Pitch bitmap **384x216**
 - Playable grass clamp from `characters.js` -> typically `[52, 28, 321, 202]`
-- `pixelFieldSize()` keeps **FL** from 3D and sets **fieldW = FL * (playW/playH)** so meters-per-pixel are uniform (no anisotropic 44x68 stretch)
+- `pixelFieldSize()` keeps **FL** from 3D and uses boundary spans: `fieldW = FL * (x1-x0)/(y1-y0)`. `pixelsPerUnit` is shared by both axes and ball sizing.
 - World mapping puts sim x/z into the clamp rectangle
 - Car sprites are **square cell blits** (do not stretch dest w != h - that warps SNES art)
 - Canvas CSS size should be **integer multiples of 384x216** (`layoutPixelCanvas`)
+
+## Ball contacts and timing
+
+- `catalog.js` `ballRadius(pixel)` supplies collision and draw dimensions. PIXEL is 9px in diameter; 3D uses the shared BU radius.
+- Car/ball collision is a circle against the oriented car rectangle, with closest-point normals and positional separation.
+- Only approaching contacts exchange an impulse. The 80ms cooldown limits hit sounds/lift, never physical collision resolution.
+- Rolling friction is exponential in elapsed seconds, calibrated from the original 0.986 at 60 Hz.
+- PIXEL stays on the ground; 3D retains gravity and floor bounce. Walls and goal checks include the radius; scoring requires the whole ball over the line.
+- Online setup and rematch packets include `gfx`; guests adopt host geometry. Their inputs still run only on the host.
 
 ## Auth / presence
 

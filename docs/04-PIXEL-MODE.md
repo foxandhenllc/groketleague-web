@@ -22,10 +22,18 @@ SNES/LTTP castle pitch so the OG image matches what players can play. 3D remains
 
 1. **Never stretch sprite cells** (`drawImage` dest w!=h on a square source). That was the "warped cars" bug.
 2. **Integer CSS scale** of 384x216 only (`layoutPixelCanvas`). Fractional upscale looks mushy.
-3. **Uniform field aspect** - `fieldW = FL * playW/playH`. Do not map old 44x68 anisotropically onto the clamp.
+3. **Uniform field aspect** - `fieldW = FL * (x1-x0)/(y1-y0)`. Use `pixelsPerUnit` from `catalog.js` for ball sizing; boundary spans must agree on both axes.
 4. **Hot-pink gutters** in pitch art may be ~(198,19,173), not pure `#FF00FF`. Scrub thresholds must catch both.
 5. **CASTLE DAY** label can still show night art until Pixel Forge ships a day pitch - do not "fix" with a stripped flat green field.
 6. Cars/ball should **read close to physics footprint**; oversized blits made hits feel mushy.
+
+## Current ball behavior (2026-09-22 repair)
+
+- 9px drawn diameter and 4.5px collision radius, both sourced from `characters.js` through `catalog.ballRadius(true)`.
+- Flat rolling ball: no invisible vertical bounce in a top-down view.
+- Collision separation is always active. `no_rehit_s` gates impact effects only.
+- Shared 120 Hz simulation and elapsed-time friction; monitor refresh rate must not change the feel.
+- Keep the existing sprite/pitch art. The earlier contract's 16px ball and alternate pixel-native simulation are not the live runtime.
 
 ## Toggle
 
