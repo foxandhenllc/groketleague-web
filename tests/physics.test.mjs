@@ -19,7 +19,7 @@ for (const pixel of [false, true]) {
       const b = ballAt({ z: -(c.l / 2 + getBallRadius() / 2), vz });
       assert.equal(carBall(c, b), null);
       near(b.vz, vz); near(c.vz, 0);
-      assert.ok(b.z < -(c.l / 2 + getBallRadius()));
+      assert.ok(b.z - c.z < -(c.l / 2 + getBallRadius()));
       assert.equal(carBall(c, b), null);
       near(b.vz, vz);
     }

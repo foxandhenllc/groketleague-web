@@ -5,11 +5,15 @@
 ```
 index.html          UI chrome (garage, HUD, menus, quick chat)
 main.js             App shell: scenes, match loop, wires modules
-sim.js              Shared physics (cars, ball, goals, bot AI, PIXEL clamp)
+sim.js              Shared physics (cars, ball, goals, board constraints)
 physics-clock.js    Fixed 120 Hz simulation clock, bounded catch-up after suspension
 catalog.js          CATALOG view over characters.js + field constants
 characters.js       SOURCE OF TRUTH for car/ball/mode numbers
-pixel.js            2D PIXEL renderer (canvas #pixelView)
+pixel.js            Procedural CIRCUIT renderer (canvas #pixelView)
+arena-layout.js     Responsive uniform world-to-screen transform
+arena-geometry.js   Shared rounded boards and goal recess geometry
+arena.css           2D match HUD and control layout
+autopilot.js        Shared goal-directed driving planner
 pixel_sim.js        Reference clamp-native sim (docs/reference; live path uses sim.js)
 field.js            Three.js pitch / lamps
 vehicles.js         Three.js car + ball meshes
@@ -18,7 +22,7 @@ net.js              PeerJS lobby, rooms, host/guest messages
 audio.js            Music beds + SFX + mute prefs
 x-auth.js / x-config.js   X OAuth PKCE client
 api/*               Vercel serverless helpers
-assets/pixel/*      Pitch + atlases + bounds JSON
+assets/pixel/*      Historical pitch/atlases + shared sheet export
 music/*             garage / day / night beds
 ```
 
@@ -26,10 +30,10 @@ music/*             garage / day / night beds
 
 | Concern | 3D | PIXEL |
 |---------|----|-------|
-| Render | Three.js in `main.js` + `field.js` + `vehicles.js` | `pixel.js` canvas blit |
-| Physics | `sim.js` with default FW/FL | `sim.setPixelTight(true)` widens fieldW to match grass clamp aspect |
+| Render | Three.js in `main.js` + `field.js` + `vehicles.js` | `pixel.js` procedural Canvas2D |
+| Physics | `sim.js` with default FW/FL | `sim.setPixelTight(true)`: same 44x68 field, flat larger ball, rounded boards |
 | Car stats | `characters.js` via `catalog.js` | same |
-| Art | procedural meshes | `assets/pixel/*.png` |
+| Art | procedural meshes | procedural stadium and car silhouettes |
 
 **Do not** fork mass/turn/accel per mode. Change `characters.js` (and keep `assets/pixel/characters.json` aligned if you use it as export).
 
@@ -43,18 +47,18 @@ music/*             garage / day / night beds
    - PIXEL: `pixelView.draw({ player, bot, ball, ... })`
 5. Online: host broadcasts state; guest applies + sends input packets
 
-## PIXEL coordinate mapping
+## Arcade 2D coordinate mapping
 
-- Pitch bitmap **384x216**
-- Playable grass clamp from `characters.js` -> typically `[52, 28, 321, 202]`
-- `pixelFieldSize()` keeps **FL** from 3D and uses boundary spans: `fieldW = FL * (x1-x0)/(y1-y0)`. `pixelsPerUnit` is shared by both axes and ball sizing.
-- World mapping puts sim x/z into the clamp rectangle
-- Car sprites are **square cell blits** (do not stretch dest w != h - that warps SNES art)
-- Canvas CSS size should be **integer multiples of 384x216** (`layoutPixelCanvas`)
+- Internal mode ID stays `pixel`; garage label is ARCADE 2D.
+- Logical clamp `[25,40,245,380]` maps to 44x68 world units at 5 logical pixels/unit.
+- `arena-layout.js` fits the entire arena with one uniform scale and rotates it for landscape.
+- `pixel.js` uses a DPR-aware canvas, capped at 2x, with a cached stadium background.
+- Car silhouettes use real dimensions and yaw. Board corners and goal recesses share `arena-geometry.js` with the simulation.
+- `arena.css` keeps the scoreboard and controls outside the pitch. See [04-PIXEL-MODE.md](./04-PIXEL-MODE.md).
 
 ## Ball contacts and timing
 
-- `catalog.js` `ballRadius(pixel)` supplies collision and draw dimensions. PIXEL is 9px in diameter; 3D uses the shared BU radius.
+- `catalog.js` `ballRadius(pixel)` supplies collision and draw dimensions. PIXEL is 9 logical pixels (1.8 world units) in diameter; 3D uses the shared BU radius.
 - Car/ball collision is a circle against the oriented car rectangle, with closest-point normals and positional separation.
 - Only approaching contacts exchange an impulse. The 80ms cooldown limits hit sounds/lift, never physical collision resolution.
 - Rolling friction is exponential in elapsed seconds, calibrated from the original 0.986 at 60 Hz.

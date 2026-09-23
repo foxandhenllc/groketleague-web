@@ -7,7 +7,7 @@
 - You hold **boost / Ludicrous**; **FSD always drives** each car. There is no manual steering or FSD toggle.
 - Two presentation modes:
   - **3D Arena** - Three.js field + extruded cars (`field.js`, `vehicles.js`).
-  - **PIXEL** - SNES/LTTP-style castle pitch blit (`pixel.js` + `assets/pixel/*`).
+  - **Arcade 2D** - CIRCUIT top-down stadium, procedural cars and a separate match HUD (`pixel.js`, `arena.css`). Internal mode ID remains `pixel`.
 - Online **1v1** via **PeerJS** (host-authoritative physics) - quick match + 4-character private rooms.
 - Optional **Sign in with X** (OAuth PKCE) for handles / presence flavor.
 

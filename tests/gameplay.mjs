@@ -88,6 +88,9 @@ try {
   assert.equal(h.role, 'host'); assert.equal(g.role, 'guest'); assert.equal(g.cameraFollows, 'B');
   assert.equal(h.matchId, g.matchId); assert.equal(h.B.kind, 'model3');
   assert.equal(g.gfxMode, 'pixel'); assert.equal(g.ball.y, h.ball.y);
+  assert.equal(await host.locator('#hudP1Who').textContent(), 'YOU');
+  assert.equal(await guest.locator('.scorebox.cpu .who').textContent(), 'YOU');
+  assert.equal(await guest.locator('body').evaluate(el => el.classList.contains('cyan-player')), true);
   await guest.keyboard.down('Space');
   await until(host, () => JSON.parse(window.render_game_to_text()).B.boosting);
   await guest.keyboard.up('Space');

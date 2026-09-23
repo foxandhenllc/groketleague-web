@@ -5,8 +5,7 @@
 1. Edit **`characters.js`** (canonical).
 2. Mirror into **`assets/pixel/characters.json`** if that file is used as an export artifact.
 3. `catalog.js` remaps into `CATALOG` + `spec` - usually no edit unless you add fields.
-4. PIXEL row order in atlases must match `ROW_OF` in `pixel.js`:
-   `cybertruck=0, model3=1, cybercab=2, semi=3`.
+4. 2D silhouettes in `pixel.js` branch on the same character IDs.
 5. 3D mesh branching in `vehicles.js` uses the same ids.
 
 ## Change 3D arena look
@@ -15,18 +14,20 @@
 - Lighting / camera: `main.js`
 - Map day/night labels and palette hooks: search `mapMode` / day / night in `main.js` + `field.js`
 
-## Change PIXEL pitch / sprites
+## Change Arcade 2D presentation
 
-See [04-PIXEL-MODE.md](./04-PIXEL-MODE.md). Short version:
+See [04-PIXEL-MODE.md](./04-PIXEL-MODE.md). The current renderer is procedural:
 
-- Pitch: `assets/pixel/pitch.png` (384x216), bounds JSON beside it
-- Cars: `vehicles_8dir.png`, `vehicles_boost.png` (32px cells, 1px magenta gutters)
-- Ball/VFX: `ball_vfx.png`
-- Prefer Pixel Forge for new art; wire paths in `pixel.js`
+- Stadium, cars, ball and effects: `pixel.js`
+- Uniform responsive transform: `arena-layout.js`
+- Board corners and goal depth: `arena-geometry.js` (shared with physics)
+- Scoreboard and controls: `arena.css`
+- The old PNGs in `assets/pixel/` are retained references, not live art.
 
 ## Change physics feel
 
 - Shared: `characters.js` ball + per-car mass/accel/max/turn/grip/boostMax
+- Driving decisions: `autopilot.js`; regression scenarios in `tests/autopilot.test.mjs`
 - Runtime: `sim.js` (`drive`, `carBall`, `carCar`, `stepBall`, `setPixelTight`)
 - Impact effects cooldown: `characters.js` -> `ball.no_rehit_s` (0.08); this must never disable separation or collision response.
 - Ball sizes: `catalog.js` `ballRadius(pixel)` reads the shared sheet; PIXEL rendering uses this same radius.
@@ -36,7 +37,7 @@ See [04-PIXEL-MODE.md](./04-PIXEL-MODE.md). Short version:
 ## Change UI / HUD / garage
 
 - Markup: `index.html`
-- Styles: `style.css` (PIXEL HUD overrides under `body.pixel-mode`)
+- Styles: `style.css` for garage/3D; `arena.css` for 2D match overrides
 - Behavior / wiring: `main.js`
 - Quick chat strings: search quick-chat / qc in `main.js` - prefer **ASCII** (` - `, `< BACK`) to avoid mojibake
 
@@ -60,7 +61,7 @@ See [05-NETWORK.md](./05-NETWORK.md). Entry points: `net.js`, call sites in `mai
 ## Add a new car (checklist)
 
 1. Stats + copy in `characters.js`
-2. Atlas rows (normal + boost) - update Pixel Forge sheet + `ROW_OF`
+2. 2D silhouette in `pixel.js`, using the character dimensions
 3. 3D mesh branch in `vehicles.js`
 4. Garage card / selection UI in `index.html` + `main.js` if not fully data-driven
 5. Smoke 3D + PIXEL offline, then one online room

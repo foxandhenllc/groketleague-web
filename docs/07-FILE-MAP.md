@@ -5,7 +5,11 @@
 | File | Purpose |
 |------|---------|
 | `index.html` | Shell markup, meta/OG, import map for three |
-| `style.css` / `net.css` | Game + net UI styles; PIXEL letterbox / HUD |
+| `style.css` / `net.css` | Garage / 3D / net UI styles |
+| `arena.css` | CIRCUIT 2D match HUD and responsive controls |
+| `arena-layout.js` | Uniform scale and view rotation |
+| `arena-geometry.js` | Shared rounded boards and goal depth |
+| `autopilot.js` | Shared driving planner |
 | `main.js` | App orchestration, render loop, garage, match |
 | `game.js` | Historical incomplete stub; not imported by the live app |
 | `sim.js` | Physics + bot AI + `setPixelTight` |
@@ -24,7 +28,7 @@
 | `vercel.json` | Static deploy config + cache headers |
 | `favicon.svg` / `og.png` / `og-square.png` | Brand / social |
 
-## assets/pixel/
+## assets/pixel/ (historical art; not loaded by CIRCUIT)
 
 | File | Purpose |
 |------|---------|
@@ -50,6 +54,10 @@
 ## tests/
 
 `physics.test.mjs` - dependency-free collision, bounce, friction, scaling and timing regressions.
+
+`autopilot.test.mjs` - driving scenarios, geometry, contacts and 16 full-match simulations.
+
+`arena-ui.mjs` - responsive day/night/all-car layout and screenshot checks.
 
 `netplay.mjs` - compatibility entry point for `gameplay.mjs`, the Playwright offline/PeerJS/mobile suite.
 

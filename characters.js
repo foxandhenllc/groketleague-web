@@ -1,7 +1,7 @@
 /** Shared character contract - source of truth for 3D + PIXEL. From Game Art Director. */
 export default {
   "version": 1,
-  "updated": "2026-09-22",
+  "updated": "2026-09-23",
   "reference": {
     "model3_length_bu": 1.0,
     "catalog_model3_l": 4.2,
@@ -50,16 +50,16 @@ export default {
   "modes": {
     "arena3d": { "FW": 44, "FL": 68, "GOAL_W": 11, "GOAL_H": 4.2, "meters_per_bu": 4.2 },
     "pixel": {
-      "pitch": [384, 216],
-      "grass_inclusive_xyxy": [49, 25, 324, 205],
-      "physics_clamp_xyxy": [52, 28, 321, 202],
-      "playable_px": [270, 175],
-      "px_per_bu": 22,
+      "pitch": [270, 420],
+      "grass_inclusive_xyxy": [25, 40, 245, 380],
+      "physics_clamp_xyxy": [25, 40, 245, 380],
+      "playable_px": [221, 341],
+      "px_per_bu": 21,
       "goal_mouth_frac": 0.25,
-      "goal_mouth_px": 68,
-      "goal_depth_px": 10,
-      "team_north": "#3a6fff",
-      "team_south_bronze": "#8C4E24",
+      "goal_mouth_px": 55,
+      "goal_depth_px": 26,
+      "team_north": "#62dbe8",
+      "team_south_bronze": "#ffc268",
       "team_red": "#e24a3a",
       "max_px_s": { "cybertruck": 140, "model3": 200, "cybercab": 185, "semi": 110 },
       "accel_px_s2": { "cybertruck": 170, "model3": 270, "cybercab": 240, "semi": 115 }

@@ -101,6 +101,8 @@ function setGfxMode(g) {
   setPixelTight(gfxMode === "pixel");
   try { localStorage.setItem("gl_gfx", gfxMode); } catch {}
   syncGfxUI();
+  mapTag.textContent = gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : maps[mapMode].label;
+  mapBtn.textContent = "MAP: " + (gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : maps[mapMode].label);
   syncPixelVisibility();
 }
 function syncPixelVisibility() {
@@ -116,7 +118,7 @@ function paintPixelFrame() {
     player: P,
     bot: B,
     ball,
-    mapLabel: maps[mapMode]?.label
+    localIsBot: online && NET.isGuest()
   });
 }
 let mode = "garage";
@@ -449,8 +451,8 @@ function applyMap() {
   if (turf) turf.material.color.set(m.turf);
   nightExtra.visible = mapMode === "night";
   pixelView.setNight(mapMode === "night");
-  mapTag.textContent = m.label;
-  mapBtn.textContent = "MAP: " + m.label;
+  mapTag.textContent = gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : m.label;
+  mapBtn.textContent = "MAP: " + (gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : m.label);
   if (mode === "play" || mode === "faceoff") playBed(mapMode === "night" ? "night" : "day");
 }
 applyMap();
@@ -512,7 +514,6 @@ const CHAT_CATS = [
   }
 ];
 const CHAT = CHAT_CATS.flatMap((c) => c.lines);
-let chatCool = 0;
 let P = bodyFrom("cybertruck", 0, 14, 0);
 let B = bodyFrom("model3", 0, -14, Math.PI);
 let ball = { x: 0, y: 0.55, z: 0, vx: 0, vy: 0, vz: 0, flat: 0 };
@@ -695,42 +696,49 @@ function makeShareCard(line) {
   const ctx = card.getContext("2d");
   ctx.fillStyle = "#14305a"; ctx.fillRect(0, 0, 1200, 630);
   try {
-    const tw = 640, th = 336;
-    const rt = new THREE.WebGLRenderTarget(tw, th, {
-      type: THREE.UnsignedByteType,
-      format: THREE.RGBAFormat,
-      depthBuffer: true,
-      stencilBuffer: false
-    });
-    const prevAspect = camera.aspect;
-    const prevTarget = renderer.getRenderTarget();
-    camera.aspect = tw / th;
-    camera.updateProjectionMatrix();
-    renderer.setRenderTarget(rt);
-    renderer.clear();
-    renderer.render(scene, camera);
-    paintPixelFrame();
-    const pixels = new Uint8Array(tw * th * 4);
-    renderer.readRenderTargetPixels(rt, 0, 0, tw, th, pixels);
-    renderer.setRenderTarget(prevTarget);
-    camera.aspect = prevAspect;
-    camera.updateProjectionMatrix();
-    rt.dispose();
-    if (renderer.state && renderer.state.reset) renderer.state.reset();
-    // GL returns bottom-up ' flip into an ImageData
-    const img = ctx.createImageData(tw, th);
-    for (let y = 0; y < th; y++) {
-      const src = (th - 1 - y) * tw * 4;
-      const dst = y * tw * 4;
-      img.data.set(pixels.subarray(src, src + tw * 4), dst);
+    if (gfxMode === "pixel") {
+      paintPixelFrame();
+      const source = pixelView.canvas;
+      const fit = Math.min(1200 / source.width, 630 / source.height);
+      ctx.drawImage(source, (1200 - source.width * fit) / 2, (630 - source.height * fit) / 2, source.width * fit, source.height * fit);
+    } else {
+      const tw = 640, th = 336;
+      const rt = new THREE.WebGLRenderTarget(tw, th, {
+        type: THREE.UnsignedByteType,
+        format: THREE.RGBAFormat,
+        depthBuffer: true,
+        stencilBuffer: false
+      });
+      const prevAspect = camera.aspect;
+      const prevTarget = renderer.getRenderTarget();
+      camera.aspect = tw / th;
+      camera.updateProjectionMatrix();
+      renderer.setRenderTarget(rt);
+      renderer.clear();
+      renderer.render(scene, camera);
+      paintPixelFrame();
+      const pixels = new Uint8Array(tw * th * 4);
+      renderer.readRenderTargetPixels(rt, 0, 0, tw, th, pixels);
+      renderer.setRenderTarget(prevTarget);
+      camera.aspect = prevAspect;
+      camera.updateProjectionMatrix();
+      rt.dispose();
+      if (renderer.state && renderer.state.reset) renderer.state.reset();
+      // GL returns bottom-up ' flip into an ImageData
+      const img = ctx.createImageData(tw, th);
+      for (let y = 0; y < th; y++) {
+        const src = (th - 1 - y) * tw * 4;
+        const dst = y * tw * 4;
+        img.data.set(pixels.subarray(src, src + tw * 4), dst);
+      }
+      const tmp = document.createElement("canvas");
+      tmp.width = tw; tmp.height = th;
+      tmp.getContext("2d").putImageData(img, 0, 0);
+      const scale = Math.max(1200 / tw, 630 / th);
+      const dw = tw * scale, dh = th * scale;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(tmp, (1200 - dw) / 2, (630 - dh) / 2, dw, dh);
     }
-    const tmp = document.createElement("canvas");
-    tmp.width = tw; tmp.height = th;
-    tmp.getContext("2d").putImageData(img, 0, 0);
-    const scale = Math.max(1200 / tw, 630 / th);
-    const dw = tw * scale, dh = th * scale;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(tmp, (1200 - dw) / 2, (630 - dh) / 2, dw, dh);
   } catch (err) {
     console.warn("[share card]", err);
     try { renderer.setRenderTarget(null); if (renderer.state && renderer.state.reset) renderer.state.reset(); } catch (_) {}
@@ -759,10 +767,10 @@ function syncSignalPip() {
   if (!pip) return;
   if (!online) { pip.className = "sig-hidden"; return; }
   const age = performance.now() - lastPacket;
-  if (reconnecting) { pip.className = "sig-wait"; pip.textContent = "â -  RECONNECTING"; return; }
-  if (age < 250) { pip.className = ""; pip.textContent = "â -  LIVE"; }
-  else if (age < 1200) { pip.className = "sig-mid"; pip.textContent = "â -  LAG"; }
-  else { pip.className = "sig-bad"; pip.textContent = "â -  WEAK"; }
+  if (reconnecting) { pip.className = "sig-wait"; pip.textContent = "RECONNECTING"; return; }
+  if (age < 250) { pip.className = ""; pip.textContent = "LIVE"; }
+  else if (age < 1200) { pip.className = "sig-mid"; pip.textContent = "LAG"; }
+  else { pip.className = "sig-bad"; pip.textContent = "WEAK"; }
 }
 function clearReconnect() {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = 0; }
@@ -865,14 +873,9 @@ function simulateMatch(dt) {
       if (peerFsdDrive) botAI(B, P, ball, dt, 1, !!input.boost);
       else drive(B, input.throttle, input.steer, input.boost, dt);
     } else botAI(B, P, ball, dt, 1);
-    chatCool -= dt;
     if (matchChatIdle > 0) {
       matchChatIdle -= dt;
       if (matchChatIdle <= 0 && matchChat) matchChat.classList.add("idle");
-    }
-    if (fsd && !online && chatCool <= 0 && Math.random() < dt * 0.28) {
-      pushChat("cpu", CHAT[Math.floor(Math.random() * CHAT.length)]);
-      chatCool = 2.6;
     }
     if (carCar(P, B)) { SFX.hit(); shake = Math.max(shake, 0.2); }
     const h1 = carBall(P, ball); const h2 = carBall(B, ball);
@@ -888,7 +891,7 @@ function stepGame(dt) {
   const me = localBody();
   clockEl.textContent = Math.floor(timeLeft / 60) + ":" + Math.floor(timeLeft % 60).toString().padStart(2, "0");
   if (boostFill && me.boostMax) boostFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, me.boost / me.boostMax)) + ")";
-  if (boostLab) boostLab.textContent = "LUDICROUS MODE (" + (me.boosting ? "ENGAGED" : "DISENGAGED") + ")";
+  if (boostLab) boostLab.textContent = me.boosting ? "BOOSTING" : "BOOST RESERVE";
   if (mode === "garage") {
     preview.visible = true; playerMesh.visible = false; botMesh.visible = false; ballMesh.visible = false;
     preview.rotation.y += dt * 0.7;
@@ -1002,7 +1005,7 @@ function kickoffNow(fromHost = false) {
   startCrowd();
   playBed(mapMode === "night" ? "night" : "day");
   SFX.whistle();
-  toast(online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : fsd ? "P1 - FSD SUPERVISED" : "P1 - KICK OFF", 800, "p1");
+  toast(gfxMode === "pixel" ? (online && NET.isGuest() ? "YOU ARE CYAN" : "YOU ARE AMBER") : (online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : "KICK OFF"), 1100, online && NET.isGuest() ? "cpu" : "p1");
 }
 function startGame(useFsd, config = null) {
   lastGoalCard = null; bestGoalCard = null; lastGoalBy = null;
@@ -1020,7 +1023,7 @@ function startGame(useFsd, config = null) {
   sessionSerial++;
   document.querySelector(".scorebox.cpu .who").textContent = opponentName() + (online && NET.isGuest() ? " - YOU" : "");
   document.querySelector(".scorebox.p1 .who").textContent = "P1" + (online && NET.isHost() ? " - YOU" : "");
-  document.querySelector(".cputag").textContent = opponentName() + " - BLUE GOAL";
+  syncTeamLabels();
   document.getElementById("again").textContent = "REMATCH";
   syncRematchUI();
   const pauseHintEl = document.getElementById("pauseHint");
@@ -1170,9 +1173,9 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Digit4") sayChat(3);
 });
 function syncFsdUI() {
-  const guest = online && NET.isGuest();
-  labA.textContent = byId(selectedId).name + ((guest ? peerFsd : fsd) ? " - FSD" : "");
-  labB.textContent = byId(botId).name + ((online && (guest ? fsd : peerFsd)) ? " - FSD" : "");
+  syncTeamLabels();
+  labA.textContent = byId(selectedId).name;
+  labB.textContent = byId(botId).name;
   const button = document.getElementById("fsdToggle");
   button.textContent = "FSD: ALWAYS ON";
   button.setAttribute("aria-pressed", "true");
@@ -1372,6 +1375,15 @@ function playerLabel(opts = {}) {
   }
   return opts.guest || "P1";
 }
+function syncTeamLabels() {
+  const guest = online && NET.isGuest();
+  const label = playerLabel({ guest: gfxMode === "pixel" ? "YOU" : guest ? "P2" : "P1" });
+  document.getElementById("hudP1Who").textContent = guest ? "P1" : label;
+  document.querySelector(".scorebox.cpu .who").textContent = guest ? label : opponentName();
+  document.getElementById("faceP1Tag").textContent = (guest ? "P1" : label) + (gfxMode === "pixel" ? " - AMBER GOAL" : " - YELLOW GOAL");
+  document.querySelector(".cputag").textContent = (guest ? label : opponentName()) + (gfxMode === "pixel" ? " - CYAN GOAL" : " - BLUE GOAL");
+  document.body.classList.toggle("cyan-player", guest);
+}
 function applyIdentityUI() {
   const signed = !!(getXUser() && getXUser().username);
   document.body.classList.toggle("signed-in", signed);
@@ -1394,6 +1406,7 @@ function applyIdentityUI() {
     res.textContent = label;
     res.classList.toggle("xNamed", true);
   }
+  syncTeamLabels();
 }
 
 function syncXAuthUI() {

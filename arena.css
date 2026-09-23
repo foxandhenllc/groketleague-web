@@ -1,0 +1,159 @@
+/* CIRCUIT: all 2D match chrome lives here; the canvas contains only the arena. */
+body.pixel-mode {
+  --arena-ink: #090f18;
+  --arena-panel: #111b27;
+  --arena-line: #283747;
+  --arena-text: #eaf4f4;
+  --arena-muted: #a2b4c3;
+  --arena-amber: #ffc268;
+  --arena-cyan: #62dbe8;
+  --arena-boost: var(--arena-amber);
+  --arena-top: 100px;
+  --arena-bottom: 102px;
+  background: var(--arena-ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+body.pixel-mode.cyan-player { --arena-boost: var(--arena-cyan); }
+body.pixel-mode canvas:not(#pixelView) { visibility: hidden !important; }
+body.pixel-mode #pixelView {
+  position: fixed;
+  top: var(--arena-top); left: 0;
+  width: 100%; height: calc(100% - var(--arena-top) - var(--arena-bottom));
+  image-rendering: auto;
+  transform: none;
+  z-index: 1;
+}
+body.pixel-mode #brand {
+  top: 28px; left: 30px; transform: none;
+  font: 800 13px/1.4 Arial, sans-serif;
+  letter-spacing: 2px; color: var(--arena-text);
+}
+body.pixel-mode #brand::after {
+  content: 'CIRCUIT 01 / FSD FOOTBALL'; display: block;
+  margin-top: 5px; font-size: 9px; letter-spacing: 1.4px; color: var(--arena-muted);
+}
+body.pixel-mode #topbar {
+  position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+  display: grid; grid-template-columns: 174px 102px 174px;
+  padding: 0; align-items: stretch;
+  border: 1px solid var(--arena-line); border-radius: 12px;
+  background: var(--arena-panel); box-shadow: 0 8px 32px #0003;
+  overflow: hidden;
+}
+body.pixel-mode .scorebox {
+  min-width: 0; max-width: none; border: 0; padding: 12px 14px;
+  background: transparent; text-align: left;
+  display: grid; grid-template-columns: 1fr 32px; gap: 4px 8px;
+  align-content: center; position: relative;
+}
+body.pixel-mode .scorebox::before {
+  content: ''; position: absolute; bottom: 0; height: 3px; width: 100%;
+  background: var(--arena-cyan);
+}
+body.pixel-mode .scorebox.p1 { order: 0; }
+body.pixel-mode .scorebox.p1::before { background: var(--arena-amber); }
+body.pixel-mode .scorebox.cpu { order: 2; }
+body.pixel-mode .scorebox .who { font: 700 10px/1.2 Arial, sans-serif; letter-spacing: 1.5px; color: var(--arena-cyan); }
+body.pixel-mode .scorebox .lab { font: 700 10px/1.2 Arial, sans-serif; letter-spacing: .3px; color: var(--arena-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pixel-mode .scorebox.p1 .who { color: var(--arena-amber); }
+body.pixel-mode .scorebox .num { grid-column: 2; grid-row: 1 / 3; align-self: center; text-align: right; font: 800 32px/1 Arial, sans-serif; color: var(--arena-text); }
+body.pixel-mode #clockwrap { order: 1; align-self: stretch; padding: 9px 6px; background: #0b131e; border-inline: 1px solid var(--arena-line); }
+body.pixel-mode #clock { font: 700 26px/1.2 Arial, sans-serif; font-variant-numeric: tabular-nums; color: var(--arena-text); text-shadow: none; }
+body.pixel-mode #maptag { font: 700 8px/1.3 Arial, sans-serif; letter-spacing: 1.1px; color: var(--arena-muted); margin-top: 3px; }
+body.pixel-mode #pauseHint { display: none; }
+body.pixel-mode #signalPip { position: static; margin-top: 3px; font: 700 7px/1.3 Arial, sans-serif; letter-spacing: 1px; text-shadow: none; }
+body.pixel-mode #clockwrap:has(#signalPip:not(.sig-hidden)) #maptag { display: none; }
+body.pixel-mode #menuBtn {
+  top: 28px !important; right: 30px !important; left: auto;
+  padding: 0 18px; min-height: 40px;
+  border: 1px solid var(--arena-line); border-radius: 8px;
+  background: var(--arena-panel); color: var(--arena-text);
+  box-shadow: none; font: 700 11px Arial, sans-serif; letter-spacing: 1px;
+}
+body.pixel-mode #boostHud {
+  bottom: 35px; width: 200px; left: 50%; transform: translateX(-50%);
+}
+body.pixel-mode #boostHud .lab { text-align: left; font: 700 10px/1.5 Arial, sans-serif; letter-spacing: 1.5px; color: var(--arena-boost); margin-bottom: 8px; }
+body.pixel-mode #boostBar { height: 5px; border: 0; border-radius: 4px; background: #24303b; overflow: hidden; }
+body.pixel-mode #boostFill { background: var(--arena-boost); }
+body.pixel-mode #boostHud::after { content: 'HOLD SPACE OR SHIFT'; display: block; margin-top: 8px; font: 9px Arial, sans-serif; letter-spacing: 1.4px; color: var(--arena-muted); }
+body.pixel-mode #touch { bottom: 25px; padding: 0 30px; align-items: center; }
+body.pixel-mode #boostBtn {
+  width: 126px; height: 48px; min-height: 44px; margin: 0;
+  border: 1px solid var(--arena-boost); border-radius: 8px;
+  background: var(--arena-panel); color: var(--arena-boost); box-shadow: none;
+  font: 800 11px Arial, sans-serif; letter-spacing: 1.2px;
+}
+body.pixel-mode #boostBtn:active { background: var(--arena-boost); color: #111b27; }
+body.pixel-mode #qcToggle { border: 1px solid var(--arena-line); background: var(--arena-panel); color: var(--arena-muted); border-radius: 8px; min-height: 44px; font: 700 10px Arial, sans-serif; letter-spacing: 1px; padding: 0 15px; box-shadow: none; }
+body.pixel-mode #qcMenu { bottom: 60px; background: var(--arena-panel); border: 1px solid var(--arena-line); border-radius: 10px; }
+body.pixel-mode #qcMenu .qc { border: 0; border-radius: 4px; color: var(--arena-text); font: 12px/1.3 Arial, sans-serif; padding: 12px; }
+body.pixel-mode #matchChat { top: auto; bottom: 100px; left: 26px; max-width: min(300px, 65vw); }
+body.pixel-mode #matchChat .chatline { font: 12px/1.5 Arial, sans-serif; border: 1px solid var(--arena-line); border-left: 2px solid var(--arena-cyan); border-radius: 6px; background: #111b27eb; color: var(--arena-text); }
+body.pixel-mode #matchChat .chatline.p1 { border-left-color: var(--arena-amber); }
+body.pixel-mode #matchChat .who { color: var(--arena-cyan); }
+body.pixel-mode #matchChat .p1 .who { color: var(--arena-amber); }
+body.pixel-mode #toast {
+  top: 104px; width: max-content; max-width: calc(100% - 32px);
+  transform: translateX(-50%); padding: 10px 20px;
+  background: #111b27ed; border: 1px solid var(--arena-line); border-radius: 8px;
+  font: 800 clamp(13px, 2vw, 22px)/1.3 Arial, sans-serif; letter-spacing: 1px; text-shadow: none;
+}
+body.pixel-mode #toast.from-p1 { color: var(--arena-amber); }
+body.pixel-mode #toast.from-cpu { color: var(--arena-cyan); }
+body.pixel-mode :is(#faceoffLayer, #pauseLayer) { background: #090f18df; backdrop-filter: blur(6px); }
+body.pixel-mode #faceoffLayer { justify-content: center; padding-top: 0; }
+body.pixel-mode :is(#faceoffLayer, #pauseLayer) h2 { font-family: Arial, sans-serif; font-weight: 800; letter-spacing: -1px; text-shadow: none; }
+body.pixel-mode :is(#faceoffLayer, #pauseLayer) .vs { color: var(--arena-amber); font: 700 11px Arial, sans-serif; letter-spacing: 3px; }
+body.pixel-mode .p1tag { color: var(--arena-amber); }
+body.pixel-mode .cputag { color: var(--arena-cyan); }
+body.pixel-mode button:focus-visible { outline: 2px solid var(--arena-text); outline-offset: 4px; }
+@media (max-width: 1000px) {
+  body.pixel-mode #brand { display: none; }
+  body.pixel-mode #topbar { left: 24px; transform: none; }
+}
+@media (max-width: 600px) {
+  body.pixel-mode { --arena-top: 98px; --arena-bottom: 122px; }
+  body.pixel-mode #topbar { top: 16px; left: 12px; right: 66px; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); border-radius: 8px; }
+  body.pixel-mode .scorebox { padding: 10px 8px; gap: 5px; grid-template-columns: 1fr 20px; }
+  body.pixel-mode .scorebox .who { font-size: 9px; letter-spacing: .5px; }
+  body.pixel-mode .scorebox .lab { font-size: 8px; }
+  body.pixel-mode .scorebox .num { font-size: 25px; }
+  body.pixel-mode #clock { font-size: 22px; }
+  body.pixel-mode #maptag { font-size: 7px; letter-spacing: .5px; }
+  body.pixel-mode #menuBtn { top: 24px !important; right: 10px !important; padding: 0 8px; font-size: 9px; min-height: 42px; }
+  body.pixel-mode #boostHud { bottom: 90px; width: calc(100% - 40px); }
+  body.pixel-mode #boostHud .lab { font-size: 9px; margin-bottom: 6px; }
+  body.pixel-mode #boostHud::after { display: none; }
+  body.pixel-mode #touch { padding: 0 20px; bottom: max(20px, env(safe-area-inset-bottom)); }
+  body.pixel-mode #toast { top: 84px; }
+  body.pixel-mode #matchChat { bottom: 132px; left: 20px; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  body.pixel-mode { --arena-top: 66px; --arena-bottom: 64px; }
+  body.pixel-mode #topbar { top: 8px; grid-template-columns: 144px 80px 144px; }
+  body.pixel-mode .scorebox { padding: 7px 12px; }
+  body.pixel-mode #clockwrap { padding: 5px; }
+  body.pixel-mode #menuBtn { top: 12px !important; }
+  body.pixel-mode #boostHud { bottom: 18px; }
+  body.pixel-mode #boostHud::after { display: none; }
+  body.pixel-mode #touch { bottom: 10px; }
+  body.pixel-mode #toast { top: 66px; }
+  body.pixel-mode #matchChat { bottom: 70px; }
+}
+@media (pointer: coarse) { body.pixel-mode #boostHud::after { content: 'HOLD BOOST TO ACCELERATE'; } }
+
+/* On short landscape screens, use the spare side space for controls. */
+@media (max-height: 500px) and (min-width: 740px) {
+  body.pixel-mode #pixelView { left: 156px; top: 0; width: calc(100% - 312px); height: 100%; }
+  body.pixel-mode #topbar { top: 16px; left: 16px; width: 124px; grid-template-columns: 1fr; }
+  body.pixel-mode .scorebox { padding: 12px 10px; }
+  body.pixel-mode #clockwrap { padding: 9px; border-inline: 0; border-block: 1px solid var(--arena-line); }
+  body.pixel-mode #menuBtn { top: 16px !important; right: 16px !important; width: 124px; }
+  body.pixel-mode #touch { bottom: 16px; padding: 0 16px; }
+  body.pixel-mode #qcToggle, body.pixel-mode #boostBtn { width: 124px; }
+  body.pixel-mode #boostHud { left: auto; right: 22px; bottom: 88px; width: 112px; transform: none; }
+  body.pixel-mode #boostHud .lab { font-size: 9px; letter-spacing: .8px; }
+  body.pixel-mode #toast { top: 12px; max-width: calc(100% - 340px); }
+  body.pixel-mode #matchChat { left: 16px; bottom: 76px; max-width: 124px; }
+}

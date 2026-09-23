@@ -1,15 +1,12 @@
 import { byId, FW, FL, GOAL_W, GOAL_H, pixelFieldSize, ballRadius, CHARACTERS } from "./catalog.js";
+import { planDrive } from "./autopilot.js";
+import { cornerContact, GOAL_DEPTH } from "./arena-geometry.js";
 function forwardXZ(yaw) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) };
 }
-function wrapPi(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
-  return a;
-}
 function bodyFrom(id, x, z, yaw) {
   const c = byId(id);
-  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _noRehit: 0, _ai: { t: 0, stuck: 0, lx: 0, lz: 0, mode: "hunt", modeT: 0, side: 1, orbit: 0, lastAng: 0, escape: 0, commit: 0 } };
+  return { kind: id, ...c.spec, x, z, yaw, vx: 0, vz: 0, boost: c.spec.boostMax, boosting: false, _noRehit: 0, _ai: {} };
 }
 let pixelTight = false;
 let fieldW = FW;
@@ -27,7 +24,7 @@ export function setPixelTight(on) {
   }
 }
 export function getField() {
-  return { FW: fieldW, FL: fieldL, pixelTight, GOAL_W: goalW(), ballRadius: getBallRadius() };
+  return { FW: fieldW, FL: fieldL, pixelTight, GOAL_W: goalW(), goalDepth: pixelTight ? GOAL_DEPTH : 0, ballRadius: getBallRadius() };
 }
 export function getBallRadius() { return ballRadius(pixelTight); }
 function goalW() {
@@ -35,12 +32,27 @@ function goalW() {
 }
 
 function clampFieldCar(c) {
-  const limX = fieldW / 2 - (pixelTight ? 0.85 : 0.55);
-  const limZ = fieldL / 2 + (pixelTight ? -0.55 : 0.35);
-  if (c.x > limX) { c.x = limX; c.vx *= -0.18; }
-  if (c.x < -limX) { c.x = -limX; c.vx *= -0.18; }
-  if (c.z > limZ) { c.z = limZ; c.vz *= -0.18; }
-  if (c.z < -limZ) { c.z = -limZ; c.vz *= -0.18; }
+  const sin = Math.abs(Math.sin(c.yaw)), cos = Math.abs(Math.cos(c.yaw));
+  const extentX = cos * c.w * .55 + sin * c.l * .5;
+  const extentZ = sin * c.w * .55 + cos * c.l * .5;
+  const inGoal = pixelTight && Math.abs(c.x) + extentX < goalW() / 2;
+  const limX = fieldW / 2 - extentX;
+  const limZ = fieldL / 2 + (inGoal ? GOAL_DEPTH : 0) - extentZ;
+  if (c.x > limX) { c.x = limX; if (c.vx > 0) c.vx *= -.18; }
+  if (c.x < -limX) { c.x = -limX; if (c.vx < 0) c.vx *= -.18; }
+  if (c.z > limZ) { c.z = limZ; if (c.vz > 0) c.vz *= -.18; }
+  if (c.z < -limZ) { c.z = -limZ; if (c.vz < 0) c.vz *= -.18; }
+  if (pixelTight) {
+    const f = forwardXZ(c.yaw), rx = Math.cos(c.yaw), rz = -Math.sin(c.yaw);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const contact = cornerContact(c.x + rx * c.w * .55 * sx + f.x * c.l * .5 * sz,
+        c.z + rz * c.w * .55 * sx + f.z * c.l * .5 * sz, fieldW / 2, fieldL / 2);
+      if (!contact) continue;
+      c.x -= contact.nx * contact.depth; c.z -= contact.nz * contact.depth;
+      const outward = c.vx * contact.nx + c.vz * contact.nz;
+      if (outward > 0) { c.vx -= 1.18 * outward * contact.nx; c.vz -= 1.18 * outward * contact.nz; }
+    }
+  }
 }
 
 function drive(c, throttle, steer, wantBoost, dt) {
@@ -68,9 +80,10 @@ function drive(c, throttle, steer, wantBoost, dt) {
   const cap = c.max * (c.boosting ? c.mass > 3 ? 1.42 : 1.28 : 1);
   const sp = Math.hypot(c.vx, c.vz);
   if (sp > cap) { c.vx *= cap / sp; c.vz *= cap / sp; }
-  const speedFactor = 0.35 + Math.min(sp / Math.max(c.max, 1), 1) * 0.65;
+  const speedFactor = 0.55 + Math.min(sp / Math.max(c.max, 1), 1) * 0.45;
   const heavySlow = c.mass > 3 && sp > 11 ? 0.7 : 1;
-  const reverse = throttle < -0.2 ? -1 : 1;
+  const longitudinal = c.vx * fwdX + c.vz * fwdZ;
+  const reverse = Math.abs(longitudinal) > .3 ? Math.sign(longitudinal) : (throttle < 0 ? -1 : 1);
   if (Math.abs(throttle) > 0.05 || sp > 1) {
     c.yaw += steer * c.turn * speedFactor * heavySlow * reverse * dt;
   }
@@ -111,15 +124,16 @@ function carBall(c, ball) {
   const ux = nx * rightX + nz * fwdX;
   const uz = nx * rightZ + nz * fwdZ;
   // Resolve in the rotated contact direction, even during the sound cooldown.
-  ball.x += ux * (penetration + 1e-5);
-  ball.z += uz * (penetration + 1e-5);
+  const invBall = 1 / CHARACTERS.ball.mass, invCar = 1 / c.mass;
+  const separation = (penetration + 1e-5) / (invBall + invCar);
+  ball.x += ux * separation * invBall; ball.z += uz * separation * invBall;
+  c.x -= ux * separation * invCar; c.z -= uz * separation * invCar;
   const rel = (ball.vx - c.vx) * ux + (ball.vz - c.vz) * uz;
   if (rel >= 0) return null; // Separating/resting contacts must never add a kick.
 
   const pancake = (c.kind === "cybertruck" || c.kind === "semi") && c.boosting;
   const restitution = -rel < 1 ? 0 : Math.min(1,
     CHARACTERS.ball.contact_restitution * (pancake ? CHARACTERS.ball.pancake_mult : 1));
-  const invBall = 1 / CHARACTERS.ball.mass, invCar = 1 / c.mass;
   const impulse = -(1 + restitution) * rel / (invBall + invCar);
   ball.vx += ux * impulse * invBall;
   ball.vz += uz * impulse * invBall;
@@ -131,28 +145,27 @@ function carBall(c, ball) {
   return pancake ? "pancake" : "hit";
 }
 function carCar(P, B) {
-  const dx = P.x - B.x;
-  const dz = P.z - B.z;
-  const d = Math.hypot(dx, dz);
-  const min = (P.l + B.l) * 0.38;
-  if (d < min && d > 0.01) {
-    const ux = dx / d;
-    const uz = dz / d;
-    const overlap = min - d;
-    const pW = B.mass / (P.mass + B.mass);
-    const bW = P.mass / (P.mass + B.mass);
-    P.x += ux * overlap * pW;
-    P.z += uz * overlap * pW;
-    B.x -= ux * overlap * bW;
-    B.z -= uz * overlap * bW;
-    const rel = (P.vx - B.vx) * ux + (P.vz - B.vz) * uz;
-    P.vx += ux * (-rel * 0.4 + 2);
-    P.vz += uz * (-rel * 0.4 + 2);
-    B.vx -= ux * (-rel * 0.4 + 2);
-    B.vz -= uz * (-rel * 0.4 + 2);
-    return true;
+  const axes = c => [{ x: Math.cos(c.yaw), z: -Math.sin(c.yaw) }, forwardXZ(c.yaw)];
+  const pAxes = axes(P), bAxes = axes(B);
+  const extent = (c, basis, axis) => Math.abs(basis[0].x * axis.x + basis[0].z * axis.z) * c.w * .55
+    + Math.abs(basis[1].x * axis.x + basis[1].z * axis.z) * c.l * .5;
+  let overlap = Infinity, nx = 0, nz = 0;
+  for (const axis of [...pAxes, ...bAxes]) {
+    const distance = (P.x - B.x) * axis.x + (P.z - B.z) * axis.z;
+    const penetration = extent(P, pAxes, axis) + extent(B, bAxes, axis) - Math.abs(distance);
+    if (penetration <= 0) return false;
+    if (penetration < overlap) { overlap = penetration; const sign = distance < 0 ? -1 : 1; nx = axis.x * sign; nz = axis.z * sign; }
   }
-  return false;
+  const invP = 1 / P.mass, invB = 1 / B.mass, total = invP + invB;
+  P.x += nx * (overlap + 1e-5) * invP / total; P.z += nz * (overlap + 1e-5) * invP / total;
+  B.x -= nx * (overlap + 1e-5) * invB / total; B.z -= nz * (overlap + 1e-5) * invB / total;
+  clampFieldCar(P); clampFieldCar(B);
+  const closing = (P.vx - B.vx) * nx + (P.vz - B.vz) * nz;
+  if (closing >= 0) return false;
+  const impulse = -(1 + .25) * closing / total;
+  P.vx += nx * impulse * invP; P.vz += nz * impulse * invP;
+  B.vx -= nx * impulse * invB; B.vz -= nz * impulse * invB;
+  return closing < -2;
 }
 function stepBall(ball, dt) {
   const radius = getBallRadius();
@@ -185,6 +198,14 @@ function stepBall(ball, dt) {
   const wallX = fieldW / 2 + (pixelTight ? 0 : 0.9) - radius;
   if (ball.x > wallX) { ball.x = wallX; if (ball.vx > 0) ball.vx *= -0.62; }
   if (ball.x < -wallX) { ball.x = -wallX; if (ball.vx < 0) ball.vx *= -0.62; }
+  if (pixelTight) {
+    const corner = cornerContact(ball.x, ball.z, fieldW / 2, halfZ, radius);
+    if (corner) {
+      ball.x -= corner.nx * corner.depth; ball.z -= corner.nz * corner.depth;
+      const outward = ball.vx * corner.nx + ball.vz * corner.nz;
+      if (outward > 0) { ball.vx -= 1.62 * outward * corner.nx; ball.vz -= 1.62 * outward * corner.nz; }
+    }
+  }
   const inMouth = Math.abs(ball.x) + radius < goalW() / 2 && (pixelTight || ball.y + radius < GOAL_H);
   if (inMouth && ball.z + radius <= -halfZ) return "A";
   if (inMouth && ball.z - radius >= halfZ) return "B";
@@ -195,197 +216,10 @@ function stepBall(ball, dt) {
   }
   return null;
 }
-function botAI(me, foe, ball, dt, attackSign, boostIntent) {
-  if (attackSign !== 1 && attackSign !== -1) attackSign = 1;
-  boostIntent = !!boostIntent;
-  if (!me._ai) {
-    me._ai = {
-      t: 0, stuck: 0, lx: me.x, lz: me.z,
-      mode: "hunt", modeT: 0,
-      side: Math.random() < 0.5 ? 1 : -1,
-      orbit: 0, lastAng: 0, escape: 0, commit: 0
-    };
-  }
-  const ai = me._ai;
-  ai.t += dt;
-  ai.modeT += dt;
-  if (ai.commit > 0) ai.commit = Math.max(0, ai.commit - dt);
-
-  const goalZ = attackSign * (fieldL / 2);
-  const ownZ = -attackSign * (fieldL / 2);
-  const padX = fieldW / 2 - 2.6;
-  const padZ = fieldL / 2 - 2.2;
-  const clampApproach = (x, z) => ({
-    x: Math.max(-padX, Math.min(padX, x)),
-    z: Math.max(-padZ, Math.min(padZ, z))
-  });
-
-  const speed = Math.hypot(me.vx, me.vz);
-  const moved = Math.hypot(me.x - ai.lx, me.z - ai.lz);
-  // Stuck on boards / in place
-  const nearWall = Math.abs(me.x) > fieldW / 2 - 3.2 || Math.abs(me.z) > fieldL / 2 - 2.4;
-  if ((moved < 0.26 && speed < 4.2) || (nearWall && speed < 3.2 && moved < 0.45)) ai.stuck += dt;
-  else {
-    ai.stuck = Math.max(0, ai.stuck - dt * 1.35);
-    if (ai.stuck < 0.15 && speed > 5) ai.escape = 0;
-  }
-  ai.lx = me.x;
-  ai.lz = me.z;
-
-  const predT = 0.14 + Math.min(0.28, Math.hypot(ball.vx, ball.vz) * 0.011);
-  const pred = { x: ball.x + ball.vx * predT, z: ball.z + ball.vz * predT };
-  const dBall = Math.hypot(pred.x - me.x, pred.z - me.z);
-  const ballToGoal = Math.hypot(goalZ - pred.z, pred.x);
-  const ballToOwn = Math.hypot(ownZ - pred.z, pred.x);
-  const behindBall = (me.z - pred.z) * attackSign < -0.55;
-  const betweenOwn = Math.abs(me.z - ownZ) < Math.abs(pred.z - ownZ) + 2.5;
-  const rushingOwn = (ball.vz * attackSign) < -6.5 && ballToOwn < 22;
-  const kickoff = Math.abs(ball.x) < 1.8 && Math.abs(ball.z) < 3.4 && Math.hypot(ball.vx, ball.vz) < 5.5 && ai.t < 2.4;
-
-  // Anti-orbit: track bearing to ball; sustained spinning without closing = peel/commit
-  const angToBall = Math.atan2(-(pred.x - me.x), -(pred.z - me.z));
-  let dAng = wrapPi(angToBall - ai.lastAng);
-  ai.lastAng = angToBall;
-  if (dBall < 7.5 && Math.abs(dAng) > 0.45 && speed > 5 && moved > 0.15) ai.orbit += dt;
-  else ai.orbit = Math.max(0, ai.orbit - dt * 0.7);
-
-  const toGoalX = -pred.x;
-  const toGoalZ = goalZ - pred.z;
-  const glen = Math.hypot(toGoalX, toGoalZ) || 1;
-  const ux = toGoalX / glen;
-  const uz = toGoalZ / glen;
-
-  // Desired mode (with urgency)
-  let want = "strike";
-  if (ai.stuck > 0.5 || ai.escape > 0) want = "unstuck";
-  else if (rushingOwn || (betweenOwn && ballToOwn < 16)) want = "save";
-  else if (kickoff) want = "kick";
-  else if (ai.orbit > 1.35) want = "commit";
-  else if (behindBall || dBall > 9.5) want = "flank";
-  else want = "strike";
-
-  // Human Ludicrous hold = commit harder (boost-as-intent)
-  if (boostIntent) {
-    if (want === "flank" || want === "strike") want = "commit";
-    else if (want === "kick") want = "strike";
-  }
-
-  // Hysteresis / sticky modes ' don't flip every frame
-  const sticky = {
-    unstuck: 0.95,
-    save: 0.55,
-    kick: 0.4,
-    commit: 0.7,
-    flank: 0.45,
-    strike: 0.35,
-    hunt: 0.3
-  };
-  if (want !== ai.mode) {
-    const canLeave = ai.modeT >= (sticky[ai.mode] || 0.35);
-    const urgent = want === "unstuck" || want === "save" || (want === "commit" && (ai.orbit > 1.8 || boostIntent));
-    if (canLeave || urgent) {
-      if (want === "unstuck") {
-        ai.escape = Math.min(3, ai.escape + 1);
-        ai.side *= -1;
-      }
-      if (want === "commit") ai.commit = 0.85;
-      ai.mode = want;
-      ai.modeT = 0;
-    }
-  }
-  if (ai.escape > 3) ai.escape = 1;
-  if (ai.mode === "unstuck" && ai.modeT > 0.7) {
-    ai.mode = "flank";
-    ai.modeT = 0;
-    ai.stuck = 0;
-  }
-  if (ai.mode === "commit" && ai.modeT > 0.9) {
-    ai.mode = "strike";
-    ai.modeT = 0;
-    ai.orbit = 0;
-  }
-  // Occasional side flip while flanking, but not on a short metronome
-  if (ai.mode === "flank" && ai.modeT > 3.6) {
-    ai.side *= -1;
-    ai.modeT = 0;
-  }
-
-  let tx, tz;
-  if (ai.mode === "save") {
-    // Shadow the goal mouth, slide with the ball ' don't kamikaze-chase
-    const gw = goalW(); const mouthX = Math.max(-gw * 0.42, Math.min(gw * 0.42, pred.x * 0.78));
-    tx = mouthX;
-    tz = ownZ + attackSign * (3.2 + Math.min(4, ballToOwn * 0.08));
-  } else if (ai.mode === "kick") {
-    tx = pred.x * 0.08;
-    tz = pred.z - attackSign * 0.45;
-  } else if (ai.mode === "unstuck") {
-    // Escape ladder: reverse along facing â*’ wide lateral â*’ peel to open field
-    const tier = ai.escape;
-    const f = forwardXZ(me.yaw);
-    if (tier <= 1) {
-      tx = me.x - f.x * 5;
-      tz = me.z - f.z * 5;
-    } else if (tier === 2) {
-      tx = me.x + ai.side * 8 - f.x * 2;
-      tz = me.z - attackSign * 2 - f.z * 2;
-    } else {
-      tx = Math.max(-padX, Math.min(padX, ai.side * (fieldW * 0.28)));
-      tz = Math.max(-padZ, Math.min(padZ, ownZ + attackSign * 12));
-      ai.stuck = 0;
-    }
-  } else if (ai.mode === "commit") {
-    // Stop orbiting ' drive through the ball toward goal
-    tx = pred.x + ux * 0.4;
-    tz = pred.z + uz * 0.4;
-  } else if (ai.mode === "flank") {
-    const wide = 3.1 + Math.min(2.2, dBall * 0.08);
-    tx = pred.x - ux * 4.8 + ai.side * wide;
-    tz = pred.z - uz * 4.8;
-  } else {
-    // strike: sit just behind ball on goal line
-    tx = pred.x - ux * 1.15;
-    tz = pred.z - uz * 1.15;
-  }
-
-  ({ x: tx, z: tz } = clampApproach(tx, tz));
-
-  const ax = tx - me.x;
-  const az = tz - me.z;
-  const err = wrapPi(Math.atan2(-ax, -az) - me.yaw);
-  const dist = Math.hypot(ax, az);
-  const gain =
-    ai.mode === "save" ? 1.75 :
-    ai.mode === "strike" || ai.mode === "commit" ? 1.2 :
-    ai.mode === "unstuck" ? 1.55 : 1.4;
-  const steer = Math.max(-1, Math.min(1, err * gain));
-
-  let throttle = 1;
-  if (ai.mode === "unstuck") {
-    if (ai.escape <= 1) throttle = Math.abs(err) > 0.9 ? -0.75 : -0.35;
-    else throttle = Math.abs(err) > 1.05 ? -0.5 : 0.85;
-  } else if (ai.mode === "save") {
-    throttle = dist > 5 ? 1 : (Math.abs(err) > 0.8 ? 0.35 : 0.75);
-  } else if (ai.mode === "commit") {
-    throttle = 1;
-  } else if (Math.abs(err) > 1.35) {
-    throttle = dist < 7 ? -0.4 : 0.2;
-  } else if (Math.abs(err) > 0.7 && dist < 4) {
-    throttle = 0.35;
-  }
-  if (ai.mode === "kick") throttle = Math.abs(err) > 0.85 ? 0.5 : 1;
-
-  const lined = Math.abs(err) < (ai.mode === "strike" || ai.mode === "commit" ? 0.3 : 0.38);
-  let boost = false;
-  if (ai.mode === "save" && lined && dist < 8 && rushingOwn) boost = true;
-  if ((ai.mode === "strike" || ai.mode === "commit") && lined && dBall < 5.8 && ballToGoal < 32) boost = true;
-  if (ai.mode === "flank" && lined && dist > 9 && dBall < 13 && me.boost > 0.35) boost = ((ai.t * 3.1) % 1) < 0.18;
-  if (ai.mode === "unstuck" && ai.escape >= 2 && lined) boost = true;
-  if (boostIntent) boost = true;
-
-  drive(me, throttle, steer, boost, dt);
+function botAI(me, foe, ball, dt, attackSign = 1, boostIntent) {
+  const input = planDrive(me, foe, ball, dt, attackSign, getField(), boostIntent);
+  drive(me, input.throttle, input.steer, input.boost, dt);
 }
-
 
 export { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall };
 

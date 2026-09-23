@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>GROKET LEAGUE - FSD Soccer</title>
-  <meta name="description" content="SNES pixel castle pitch + 3D arena. FSD soccer - you hold boost, FSD drives. Built with Grok." />
+  <meta name="description" content="A crisp arcade stadium + 3D arena. FSD soccer - you hold boost, FSD drives. Built with Grok." />
   <link rel="canonical" href="https://groketleague.com/" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/og.png?v=16" />
   <meta property="og:site_name" content="GROKET LEAGUE" />
   <meta property="og:title" content="GROKET LEAGUE - FSD Soccer" />
-  <meta property="og:description" content="Pixel castle pitch &amp; 3D arena. Boost is yours. The wheel is FSD. Built with Grok." />
+  <meta property="og:description" content="Arcade stadium &amp; 3D arena. Boost is yours. The wheel is FSD. Built with Grok." />
   <meta property="og:image" content="https://groketleague.com/og.png?v=16" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
@@ -19,10 +19,11 @@
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="GROKET LEAGUE - FSD Soccer" />
-  <meta name="twitter:description" content="Pixel castle pitch &amp; 3D arena. Boost is yours. The wheel is FSD. Built with Grok." />
+  <meta name="twitter:description" content="Arcade stadium &amp; 3D arena. Boost is yours. The wheel is FSD. Built with Grok." />
   <meta name="twitter:image" content="https://groketleague.com/og.png?v=16" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Black+Ops+One&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/arena.css" />
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -50,7 +51,7 @@
     </div>
   </div>
   <button id="menuBtn" aria-controls="pauseLayer" aria-expanded="false">MENU</button>
-  <div id="boostHud" class="hidden"><div class="lab" id="boostLab">LUDICROUS MODE (DISENGAGED)</div><div id="boostBar"><div id="boostFill"></div></div></div>
+  <div id="boostHud" class="hidden"><div class="lab" id="boostLab">BOOST READY</div><div id="boostBar"><div id="boostFill"></div></div></div>
   <div id="toast" class="from-p1"></div>
   <div id="matchChat" class="idle" aria-live="polite"></div>
   <div id="touch">
@@ -58,7 +59,7 @@
       <button type="button" id="qcToggle" aria-expanded="false">QUICK CHAT</button>
       <div id="qcMenu" class="hidden" role="menu"></div>
     </div>
-    <button type="button" class="boostbtn" id="boostBtn" aria-label="Ludicrous Mode hold to boost">BOOST</button>
+    <button type="button" class="boostbtn" id="boostBtn" aria-label="Hold to boost">BOOST</button>
   </div>
 
   <div id="faceoffLayer" class="hidden">
@@ -88,8 +89,8 @@
     <div class="howCard">
       <h2 id="howTitle">HOW TO PLAY</h2>
       <ul>
-        <li><strong>FSD</strong> always drives your car - no stick, no FSD drives. HOLD BOOST for Ludicrous. Quick Chat bottom-left.</li>
-        <li><strong>HOLD BOOST</strong> (SHIFT / SPACE / big button) = Ludicrous Mode / commit</li>
+        <li><strong>FSD</strong> steers and lines up shots. Your car has a chevron. Time your boost to win the ball.</li>
+        <li><strong>HOLD BOOST</strong> (SHIFT / SPACE / BOOST button) to accelerate when your car is lined up.</li>
         <li><strong>QUICK CHAT</strong> bottom-left - categories -> lines</li>
         <li><strong>QUICK MATCH</strong> find a 1v1 - <strong>CREATE / JOIN</strong> private room code</li>
         <li>Share invite link after CREATE - Rematch keeps the same opponent</li>
@@ -151,8 +152,8 @@
             <div class="gfxSub">CASTLE PITCH / WEBGL</div>
           </button>
           <button type="button" class="gfxCard" id="gfxPixel" data-gfx="pixel">
-            <div class="gfxTitle">PIXEL</div>
-            <div class="gfxSub">SNES / MATCHES THE OG</div>
+            <div class="gfxTitle">ARCADE 2D</div>
+            <div class="gfxSub">CIRCUIT STADIUM / TOP-DOWN</div>
           </button>
         </div>
         <div class="row">

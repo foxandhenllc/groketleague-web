@@ -1,53 +1,56 @@
-# PIXEL mode
+# Arcade 2D (internal mode: PIXEL)
 
-## Purpose
+## Current direction - 2026-09-23
 
-SNES/LTTP castle pitch so the OG image matches what players can play. 3D remains available; PIXEL is not a toy stub.
+At Fox's request, the old bitmap castle view has been replaced with **CIRCUIT**,
+a procedural top-down arcade stadium. The garage labels it **ARCADE 2D**;
+`pixel` remains the stored/network mode ID so existing preferences and rooms work.
+The old rules requiring castle PNGs, integer 384x216 scaling, and atlas blits are
+superseded for this renderer. The legacy assets remain in `assets/pixel/` as reference.
 
-## Key files
+## Sources of truth
 
-| File | Role |
-|------|------|
-| `pixel.js` | Canvas renderer, chroma, integer letterbox, draw loop |
-| `sim.js` `setPixelTight` | Clamp-aspect field + tighter walls |
-| `characters.js` `modes.pixel` | `physics_clamp_xyxy`, pixel drive hints |
-| `assets/pixel/pitch.png` | 384x216 rich night-castle art |
-| `assets/pixel/pitch_physics_bounds.json` | Documented clamp |
-| `assets/pixel/vehicles_8dir.png` | 8-dir cars |
-| `assets/pixel/vehicles_boost.png` | Boost variants |
-| `assets/pixel/ball_vfx.png` | Ball + VFX strip |
-| `CHARACTER_PHYSICS_SPEC.md` | Design contract |
+| File | Responsibility |
+|------|----------------|
+| `pixel.js` | Cached stadium, day/night turf, car silhouettes, ball and boost trails |
+| `arena.css` | Match scoreboard, menu, boost, chat and responsive layout |
+| `arena-layout.js` | One uniform world-to-screen scale; rotation for portrait/landscape |
+| `arena-geometry.js` | Shared rounded-corner radius and goal recess depth |
+| `characters.js`, `catalog.js` | Shared car stats, 44x68 field and ball radius |
+| `sim.js` | Oriented car contacts, board constraints, ball motion and goals |
+| `autopilot.js` | Approach, strike, defend, recovery and stalled-ball decisions |
 
-## Hard-won rules
+## Geometry and rendering rules
 
-1. **Never stretch sprite cells** (`drawImage` dest w!=h on a square source). That was the "warped cars" bug.
-2. **Integer CSS scale** of 384x216 only (`layoutPixelCanvas`). Fractional upscale looks mushy.
-3. **Uniform field aspect** - `fieldW = FL * (x1-x0)/(y1-y0)`. Use `pixelsPerUnit` from `catalog.js` for ball sizing; boundary spans must agree on both axes.
-4. **Hot-pink gutters** in pitch art may be ~(198,19,173), not pure `#FF00FF`. Scrub thresholds must catch both.
-5. **CASTLE DAY** label can still show night art until Pixel Forge ships a day pitch - do not "fix" with a stripped flat green field.
-6. Cars/ball should **read close to physics footprint**; oversized blits made hits feel mushy.
+- The logical clamp is `[25, 40, 245, 380]`: 220x340 boundary spans at 5 logical pixels/world unit, giving a 44x68 field.
+- The ball is radius 0.9 world units (9 logical pixels in diameter). Draw and collision use `ballRadius(true)`; its screen size changes with viewport scale.
+- Cars use their actual width/length and yaw. Do not inflate their painted bodies or add oversized circular hitboxes.
+- Round corners use the shared 7-unit radius. Goal mouths are 11 units wide and recesses 5.2 units deep. Render and collision changes must agree.
+- Desktop play runs left-to-right (amber starts left); portrait play runs bottom-to-top (amber starts bottom). This is a view rotation only; physics/network coordinates stay x/z.
+- The canvas uses native device resolution capped at 2x. Never stretch x and z independently.
+- Stadium art is cached until size/theme changes. Only moving objects render every frame. Reduced-motion users get no ball trail or flickering exhaust.
+- Keep text out of the canvas. The DOM scoreboard and controls occupy separate bands above/below the arena.
+- A chevron marks the local car. The host is amber and guest cyan; the guest's boost meter and identity must follow cyan.
 
-## Current ball behavior (2026-09-22 repair)
+## Driving and contacts
 
-- 9px drawn diameter and 4.5px collision radius, both sourced from `characters.js` through `catalog.ballRadius(true)`.
-- Flat rolling ball: no invisible vertical bounce in a top-down view.
-- Collision separation is always active. `no_rehit_s` gates impact effects only.
-- Shared 120 Hz simulation and elapsed-time friction; monitor refresh rate must not change the feel.
-- Keep the existing sprite/pitch art. The earlier contract's 16px ball and alternate pixel-native simulation are not the live runtime.
+- FSD drives both cars. A human hold requests boost when aligned; the offline CPU chooses its own boost timing.
+- Brake before tight turns, approach from behind the ball, retreat goal-side against incoming shots, and reverse out of blocked contacts.
+- Recovery measures progress over time. Slow deliberate turns are not automatically considered stuck. A ball-progress timer breaks circling stalemates.
+- Car/car contacts use oriented rectangles and mass-weighted separation. Car/ball separation also accounts for mass. Resting/separating contacts never add a kick.
+- PIXEL balls remain flat. Shared physics runs at 120 Hz with elapsed-time rolling friction.
 
-## Toggle
+## Verification
 
-Garage gfx control -> `localStorage` gfx mode -> `main.js` calls `setPixelTight` + `pixelView.setActive`.
+```powershell
+node --experimental-default-type=module --test tests/physics.test.mjs tests/autopilot.test.mjs
+$env:GAME_URL='http://127.0.0.1:5173'
+node tests/netplay.mjs
+node tests/arena-ui.mjs
+```
 
-## Working with Pixel Forge
-
-- Drop art under `/workspace/groket-pixel/` on the shared box when collaborating, then copy into `assets/pixel/` on the Windows repo.
-- Ask for: single center circle, N/S goals+boxes, bronze south `#8C4E24`, blue north, no magenta frame on final PNG.
-- Day variant: same layout, daylight sky.
-
-## Debugging checklist
-
-- Pink bars? Sample edge pixels; loosen chroma; repaint pitch.
-- Oval center circle on screen? Canvas CSS aspect wrong - verify integer letterbox.
-- Cars look like sticks? Square blit regressed - check car blit in `pixel.js`.
-- Ghost double-cars? Boost VFX stacked on boost sheet - do not blit boost VFX under cars if sheet already has flames.
+The AI suite checks all four cars' open shots, wrong-side approaches and board recovery,
+then runs every car pairing for 90 simulated seconds. The browser suites cover both
+renderers, real PeerJS rooms, rematches, day/night, all cars, 320px/390px phones,
+phone landscape, live resizing, controls outside the arena and screenshots.
+Screenshots and simulation receipts are under ignored `output/`.

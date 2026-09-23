@@ -1,5 +1,19 @@
 # Groket League — Character & Physics Contract
 
+## Runtime amendment: CIRCUIT rebuild, 2026-09-23
+
+This amendment supersedes conflicting bitmap/clamp proposals below. Fox authorized
+rebuilding the 2D presentation and driving logic. See `docs/04-PIXEL-MODE.md`.
+
+- 2D now uses procedural car silhouettes and a 44x68 arena. Internal `pixel` IDs remain compatible.
+- Logical pitch 270x420, boundary spans 220x340, uniform 5 logical pixels/world unit.
+- Ball radius is 0.9 world units. Screen pixels vary with viewport; render and contacts use one radius.
+- Car dimensions/stats remain shared. Low-speed steering authority starts at 0.55 of turn rate.
+- Both contact types use oriented car footprints, mass-weighted separation, and approaching-only impulses.
+- 2D boards have 7-unit rounded corners and 5.2-unit goal recesses, shared with the renderer.
+- `autopilot.js` owns goal-directed routing, turn braking, defense and progress-based recovery.
+- Human boost requests are honored when aligned; autonomous CPU boost is separate.
+
 ## Runtime amendment: ball repair, 2026-09-22
 
 The older design proposal below is historical where it conflicts with this amendment.

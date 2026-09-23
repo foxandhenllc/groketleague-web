@@ -12,13 +12,13 @@ Windows repo **`groketleague-web`** on Fox's machine, shipped to **Vercel projec
 4. Prefer **small static diffs**. No bundler migration unless Fox asks.
 5. Keep **3D + PIXEL on one characters sheet**.
 6. After PIXEL visual changes: **hard-refresh verify** or screenshot via box browser.
-7. Coordinate art with **Pixel Forge**; physics/character contract with **Game Art Director** when touching shared BU/clamp.
+7. CIRCUIT replaces the earlier Pixel Forge bitmap view by user request. See `04-PIXEL-MODE.md` for the current procedural art/physics contract.
 
 ## Safety / product
 
 - No secrets in git. X auth is public PKCE + serverless proxy.
 - Do not break host authority or rematch session reuse casually.
-- Do not "fix" pitch art by replacing the rich castle with a flat green stub.
+- Preserve the finished CIRCUIT stadium, readable vehicles, and shared render/collision geometry.
 - Avoid UTF-8 mojibake in UI strings (prefer ASCII punctuation in chat UI).
 
 ## Recurring bugs (fix these first)
@@ -26,17 +26,18 @@ Windows repo **`groketleague-web`** on Fox's machine, shipped to **Vercel projec
 | Symptom | Likely cause |
 |---------|----------------|
 | Garage white-screen | Duplicate `export` of same binding in `sim.js` |
-| Warped skinny cars | Non-square `drawImage` dest on 32x32 cells |
-| Pink side bars | Hot-pink gutters != `#FF00FF`; loosen scrub / repaint pitch |
+| Warped cars / oval center circle | Non-uniform world-to-screen scale |
+| Old castle / pink bars still showing | Stale assets: the current 2D renderer does not load pitch PNGs |
 | Mushy ball hits | Sprite/collider scale mismatch or incorrect contact normals; cooldown must not disable collision response |
-| Oval field / shimmer | Non-integer canvas CSS scale |
+| Cars circle without touching the ball | Check approach/strike transitions and ball-progress recovery |
 | Tiny `main.js` in prod | CDN stub redeployed - restore full file + CLI deploy |
 
 ## Definition of done for a typical change
 
 - [ ] Runs on `python -m http.server 5173`
 - [ ] 3D and PIXEL still boot from garage
-- [ ] `node --experimental-default-type=module --test tests/physics.test.mjs` passes after physics/timing changes
+- [ ] `node --experimental-default-type=module --test tests/physics.test.mjs tests/autopilot.test.mjs` passes after physics/timing changes
+- [ ] After visual changes: `node tests/arena-ui.mjs` plus inspect desktop/mobile screenshots
 - [ ] If net touched: private room smoke (or `tests/netplay.mjs`)
 - [ ] Committed + pushed `main`
 - [ ] `vercel --prod` Ready on both domains
