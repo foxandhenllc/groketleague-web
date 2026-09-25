@@ -110,8 +110,10 @@ try {
   await guest.screenshot({ path: `${out}/pixel-online-guest.png` });
   pass('private room: handshake, cars, shared pixel field, guest boost, quick chat, live menu');
   if (local) {
+    await until(host, () => !JSON.parse(window.render_game_to_text()).locked);
+    const expectedScore = (await state(host)).scoreA + 1;
     await host.evaluate(() => window.__scenario.goal());
-    await until(guest, () => JSON.parse(window.render_game_to_text()).scoreA === 1);
+    await until(guest, score => JSON.parse(window.render_game_to_text()).scoreA === score, expectedScore);
     await until(host, () => !JSON.parse(window.render_game_to_text()).locked);
     await host.evaluate(() => window.__scenario.expire());
     await Promise.all([host, guest].map(p => until(p, () => JSON.parse(window.render_game_to_text()).mode === 'results')));

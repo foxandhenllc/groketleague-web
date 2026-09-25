@@ -2,6 +2,7 @@ import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_M
 import { createEventStream } from './sim-events.js';
 import { boostLabel } from './boost.js';
 import { kickoffLayout, driverPersonality } from './match-variety.js';
+import { constrainChase } from './chase-camera.js';
 let matchSeed = '';
 const rulesHash = await configHash();
 diagnostics.enabled = location.hash === "#diagnostics";
@@ -31,7 +32,7 @@ import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMu
 import { bindInput, bindTouch, readControls, setQaKeys, clearInput } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
-import { bodyFrom, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius, solveContacts, resetContacts, diagnostics } from "./sim.js";
+import { bodyFrom, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius, getField, solveContacts, resetContacts, diagnostics } from "./sim.js";
 import { createPhysicsClock } from "./physics-clock.js";
 import { createPixelView } from "./pixel.js";
 import { initXAuth, loginWithX, logoutX, getXUser, onAuthChange } from "./x-auth.js";
@@ -1026,6 +1027,7 @@ function stepGame(dt) {
       camera.position.y = Math.max(camera.position.y, 7.5);
     }
   }
+  if(mode !== 'garage' && mode !== 'faceoff') constrainChase(camera.position, getField().FW/2, getField().FL/2);
   camera.lookAt(camTarget);
   updateImpactMeshes();
   if (!pixelView.isActive()) renderer.render(scene, camera);

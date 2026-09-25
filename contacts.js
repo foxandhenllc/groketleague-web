@@ -69,11 +69,11 @@ function boards(body, isBall, field, config) {
     if (sign * body.x - limX >= -.005) out.push({ feature: `x${sign}`, nx: sign, nz: 0, depth: sign * body.x - limX, x: sign * (limX + ex), z: body.z });
     if ((!isBall || !inMouth) && sign * body.z - limZ >= -.005) out.push({ feature: `z${sign}`, nx: 0, nz: sign, depth: sign * body.z - limZ, x: body.x, z: sign * (limZ + ez) });
   }
-  if (field.pixelTight) {
+  if (field.corner > 0) {
     const points = isBall ? [{ x: body.x, z: body.z }] : [-1, 1].flatMap(sx => [-1, 1].map(sz => {
       const [r, f] = basis(body); return { x: body.x + r.x * body.hx * sx + f.x * body.hz * sz, z: body.z + r.z * body.hx * sx + f.z * body.hz * sz };
     }));
-    points.forEach((p, i) => { const hit = cornerContact(p.x, p.z, halfW, halfL, isBall ? r : 0); if (hit) out.push({ ...hit, feature: `corner${i}`, x: p.x, z: p.z }); });
+    points.forEach((p, i) => { const hit = cornerContact(p.x, p.z, halfW, halfL, isBall ? r : 0, field.corner); if (hit) out.push({ ...hit, feature: `corner${i}`, x: p.x, z: p.z }); });
   }
   return out;
 }

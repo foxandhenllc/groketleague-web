@@ -21,7 +21,7 @@ planner and restarts, without changing vehicle physical stats or boost controls.
 - Human boost remains explicit. Online simulation remains host-authoritative.
   Both peers derive the seed from the match ID; local games use a fresh UUID.
   Whole-body snapshots carry the driver's personality. Rematches get new seeds.
-  Config hashing and simulation version `fsd-variety-3` reject incompatible peers.
+  Config hashing and simulation version `fsd-reachable-4` reject incompatible peers.
 
 ## Validation
 

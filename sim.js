@@ -29,7 +29,7 @@ function setPixelTight(on) {
   fieldW = geometry.width; fieldL = geometry.length;
 }
 function getField() {
-  return { FW: fieldW, FL: fieldL, pixelTight, GOAL_W: goalW(), goalDepth: config.modes[pixelTight ? 'pixel' : '3d'].depth, ballRadius: getBallRadius(), config };
+  return { FW: fieldW, FL: fieldL, pixelTight, corner:config.modes[pixelTight ? 'pixel' : '3d'].corner, GOAL_W: goalW(), goalDepth: config.modes[pixelTight ? 'pixel' : '3d'].depth, ballRadius: getBallRadius(), config };
 }
 function getBallRadius() { return pixelTight ? config.ball.radiusPixel : config.ball.radius3d; }
 function goalW() {
@@ -47,11 +47,11 @@ function clampFieldCar(c) {
   if (c.x < -limX) { c.x = -limX; if (c.vx < 0) c.vx *= -config.drive.boardRestitution; }
   if (c.z > limZ) { c.z = limZ; if (c.vz > 0) c.vz *= -config.drive.boardRestitution; }
   if (c.z < -limZ) { c.z = -limZ; if (c.vz < 0) c.vz *= -config.drive.boardRestitution; }
-  if (pixelTight) {
+  if (getField().corner > 0) {
     const f = forwardXZ(c.yaw), rx = Math.cos(c.yaw), rz = -Math.sin(c.yaw);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
       const contact = cornerContact(c.x + rx * c.hx * sx + f.x * c.hz * sz,
-        c.z + rz * c.hx * sx + f.z * c.hz * sz, fieldW / 2, fieldL / 2);
+        c.z + rz * c.hx * sx + f.z * c.hz * sz, fieldW / 2, fieldL / 2, 0, getField().corner);
       if (!contact) continue;
       c.x -= contact.nx * contact.depth; c.z -= contact.nz * contact.depth;
       const outward = c.vx * contact.nx + c.vz * contact.nz;
@@ -209,8 +209,8 @@ function stepBall(ball, dt) {
   const wallX = fieldW / 2 + config.modes[pixelTight ? 'pixel' : '3d'].sideOffset - radius;
   if (ball.x > wallX) { ball.x = wallX; if (ball.vx > 0) ball.vx *= -config.ball.wall_restitution; }
   if (ball.x < -wallX) { ball.x = -wallX; if (ball.vx < 0) ball.vx *= -config.ball.wall_restitution; }
-  if (pixelTight) {
-    const corner = cornerContact(ball.x, ball.z, fieldW / 2, halfZ, radius);
+  if (getField().corner > 0) {
+    const corner = cornerContact(ball.x, ball.z, fieldW / 2, halfZ, radius, getField().corner);
     if (corner) {
       ball.x -= corner.nx * corner.depth; ball.z -= corner.nz * corner.depth;
       const outward = ball.vx * corner.nx + ball.vz * corner.nz;

@@ -315,7 +315,7 @@ body:not(.pixel-mode) #toast {
   border: 3px solid #f0c02099;
   z-index: 7;
 }
-#menuBtn { top: 88px !important; }
+#menuBtn { top: 136px !important; }
 #garage {
   gap: 6px !important;
   padding: 0 12px !important;

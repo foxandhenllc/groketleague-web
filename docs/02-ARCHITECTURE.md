@@ -64,6 +64,8 @@ music/*             garage / day / night beds
 - Rolling friction is exponential in elapsed seconds, calibrated from the original 0.986 at 60 Hz.
 - PIXEL stays on the ground; 3D retains gravity and floor bounce. Walls and goal checks include the radius; scoring requires the whole ball over the line.
 - Online setup and rematch packets include `gfx`; guests adopt host geometry. Their inputs still run only on the host.
+- Both modes now use 7-unit rounded corners. The 3D ball no longer receives extra side-wall space; low visible rails mark the physical boundary. Goal recess behavior remains mode-specific.
+- `drive-geometry.js` fits setup/contact targets to each car's footprint. Board routes, earlier interception and committed escapes live in `autopilot.js`; `chase-camera.js` keeps the 3D viewpoint inside the castle scenery.
 
 ## Auth / presence
 

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { FW, FL, GOAL_W, GOAL_H } from "./catalog.js";
+import { simulationConfig } from './simulation-config.js';
 
 const lamps = [];
 
@@ -160,10 +161,27 @@ function makeField(scene, fieldRoot, nightExtra) {
     m.position.set(x, 0.03, z);
     fieldRoot.add(m);
   };
-  line(FW, 0.22, 0, -FL / 2);
-  line(FW, 0.22, 0, FL / 2);
-  line(0.22, FL, -FW / 2, 0);
-  line(0.22, FL, FW / 2, 0);
+  const corner=simulationConfig.modes['3d'].corner;
+  line(FW-2*corner, 0.22, 0, -FL / 2);
+  line(FW-2*corner, 0.22, 0, FL / 2);
+  line(0.22, FL-2*corner, -FW / 2, 0);
+  line(0.22, FL-2*corner, FW / 2, 0);
+  // Low rails expose the actual collision boundary; castle scenery sits outside it.
+  const rail=(x1,z1,x2,z2)=>{
+    const mesh=addBox(fieldRoot,.18,.55,Math.hypot(x2-x1,z2-z1), (x1+x2)/2,.275,(z1+z2)/2,lineMat);
+    mesh.rotation.y=Math.atan2(x2-x1,z2-z1);
+  };
+  for(const sx of [-1,1]){
+    rail(sx*FW/2,-FL/2+corner,sx*FW/2,FL/2-corner);
+    for(const sz of [-1,1]){
+      rail(sx*GOAL_W/2,sz*FL/2,sx*(FW/2-corner),sz*FL/2);
+      for(let i=0;i<20;i++){
+        const a=i*Math.PI/40,b=(i+1)*Math.PI/40;
+        rail(sx*(FW/2-corner+corner*Math.cos(a)),sz*(FL/2-corner+corner*Math.sin(a)),
+          sx*(FW/2-corner+corner*Math.cos(b)),sz*(FL/2-corner+corner*Math.sin(b)));
+      }
+    }
+  }
   line(FW, 0.2, 0, 0);
   const circ = new THREE.Mesh(
     new THREE.RingGeometry(4.25, 4.55, 16),

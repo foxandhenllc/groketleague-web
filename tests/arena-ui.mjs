@@ -12,7 +12,10 @@ const cases = [
   { name: 'night', width: 1440, height: 900, car: 'model3', night: true },
   { name: 'mobile', width: 390, height: 844, car: 'cybercab', mobile: true },
   { name: 'small-phone', width: 320, height: 568, car: 'semi', mobile: true },
-  { name: 'landscape-phone', width: 844, height: 390, car: 'model3', mobile: true }
+  { name: 'landscape-phone', width: 844, height: 390, car: 'model3', mobile: true },
+  { name: '3d-capture', width: 960, height: 640, car: 'model3', gfx: '3d' },
+  { name: '3d-phone', width: 390, height: 844, car: 'semi', mobile: true, gfx: '3d' },
+  { name: '3d-landscape', width: 844, height: 390, car: 'cybercab', mobile: true, gfx: '3d' }
 ];
 try {
   for (const spec of cases) {
@@ -29,7 +32,7 @@ try {
     await p.goto(url);
     await p.waitForFunction(() => typeof window.render_game_to_text === 'function');
     await p.locator(`[data-id="${spec.car}"]`).click(); await p.locator('#toMatchup').click();
-    await p.locator('#gfxPixel').click(); if (spec.night) await p.locator('#mapBtn').click();
+    await p.locator(spec.gfx === '3d' ? '#gfx3d' : '#gfxPixel').click(); if (spec.night) await p.locator('#mapBtn').click();
     await p.locator('#go').click();
     await p.waitForFunction(() => JSON.parse(window.render_game_to_text()).mode === 'play');
     await p.waitForFunction(() => getComputedStyle(document.querySelector('#toast')).opacity === '0');
@@ -42,6 +45,8 @@ try {
     });
     assert.ok(layout.scroll <= layout.width);
     const separate = (a, b) => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
+    assert.ok(separate(layout.amber, layout.menu) && separate(layout.cyan, layout.menu), 'menu does not obscure either score');
+    if (spec.gfx !== '3d') {
     assert.ok(separate(layout.header, layout.field), 'scoreboard stays outside arena');
     assert.ok(layout.header.right < layout.menu.x, 'menu does not overlap scoreboard');
     assert.ok(separate(layout.boost, layout.field), 'boost reserve stays outside arena');
@@ -49,6 +54,7 @@ try {
     assert.ok(layout.amber.width > 60 && layout.cyan.width > 60, 'team score boxes fill their columns');
     assert.ok(layout.button.height >= 44 && layout.chat.height >= 44);
     assert.equal(layout.name, 'YOU'); assert.equal(layout.theme, spec.night ? 'AFTER HOURS' : 'CIRCUIT 01');
+    }
     await p.screenshot({ path: `${out}/circuit-${spec.name}.png` });
     await p.locator('#qcToggle').click();
     assert.equal(await p.locator('#qcMenu').isVisible(), true);

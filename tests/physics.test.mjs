@@ -85,7 +85,7 @@ for (const pixel of [false, true]) {
   test(`${mode}: walls reflect outgoing balls only and include their radius`, () => {
     setPixelTight(pixel);
     const f = getField(), r = getBallRadius();
-    const wall = f.FW / 2 + (pixel ? 0 : .9) - r;
+    const wall = f.FW / 2 - r;
     for (const side of [-1, 1]) {
       const outgoing = ballAt({ x: side * (wall + 1), vx: side * 10 });
       stepBall(outgoing, PHYSICS_DT);

@@ -15,7 +15,7 @@ const runs=['pixel','3d'].flatMap((mode,m)=>ids.map((car,i)=>({
   id:`${m*4+i+1}-${mode}-${car}`,mode,car,opponent:ids[(i+(m?2:1))%4],seed:`capture-review-${m}-${i}-20260925`
 })));
 const revision=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
-const sources=Object.fromEntries(await Promise.all(['main.js','autopilot.js','sim.js','simulation-config.js','match-variety.js','tests/capture-matches.mjs'].map(async f=>[f,createHash('sha256').update(await fs.readFile(f)).digest('hex')])));
+const sources=Object.fromEntries(await Promise.all(['main.js','autopilot.js','sim.js','simulation-config.js','match-variety.js','arena-geometry.js','contacts.js','drive-geometry.js','chase-camera.js','field.js','style.css','tests/capture-matches.mjs'].map(async f=>[f,createHash('sha256').update(await fs.readFile(f)).digest('hex')])));
 const manifest={revision,sources,url,out,captureEveryFrames:10,frameHz:120,viewport:{width:960,height:640},
   screenshot:'JPEG quality 65; full browser viewport',
   policy:'P uses a 0.3-second boost pulse when goalward, aligned within 0.25 radians, with reserve >0.25 and ball within reach+8; B uses normal CPU boost.',

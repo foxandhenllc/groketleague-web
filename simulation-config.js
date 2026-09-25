@@ -27,7 +27,7 @@ export const simulationConfig = deepFreeze(validateConfig({
   drive:{...CHARACTERS.drive, carRestitution:.25, boardRestitution:.18, startThreshold:.18,
     rearmSeconds:.12, rechargeDelay:.25, safetyHeading:.9, controlSeconds:.25, reverseMax:5,
     reverseEntry:.5, invalidSpeed:80, accelerationTaper:.15},
-  planner:{rollingK:.846, revision:'personality-faceoffs-1', aimWidth:1.25,
+  planner:{rollingK:.846, revision:'reachable-bank-intercept-1', aimWidth:1.25,
     kickoffs:[
       {name:'Centre rush',x:0,offset:0,distance:14},
       {name:'Diagonal duel',x:0,offset:6,distance:12},
@@ -42,5 +42,5 @@ export const simulationConfig = deepFreeze(validateConfig({
   contacts:{velocityIterations:4, positionIterations:2, slop:.005, correction:.8, maxCorrection:.20,
     bounceThreshold:1, opposingDot:-.8, launchRestitutionSpeed:48},
   modes:{pixel:{geometryId:'legacy-circuit-1',width:44,length:68,goalWidth:11,goalHeight:4.2,corner:7,depth:5.2,sideOffset:0},
-    '3d':{geometryId:'legacy-castle-1',width:44,length:68,goalWidth:11,goalHeight:4.2,corner:0,depth:0,sideOffset:.9}}
+    '3d':{geometryId:'rounded-castle-2',width:44,length:68,goalWidth:11,goalHeight:4.2,corner:7,depth:0,sideOffset:0}}
 }));
