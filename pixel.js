@@ -125,8 +125,11 @@ function vehicle(ctx, car, team, local, clock, reducedMotion) {
     }
   }
   for (const side of [-1, 1]) for (const axle of [-1, 1]) {
-    rounded(ctx, side * w * .47 - .15, axle * l * .29 - .4, .3, .8, .08, '#080f15', '#6f8590', .05);
+    rounded(ctx, side * Math.min(w * .47, w * .55 - .18) - .15, axle * l * .29 - .4, .3, .8, .08, '#080f15', '#6f8590', .05);
   }
+  // Square pale perimeter makes the OBB contact edge visible, including its corners.
+  ctx.strokeStyle = '#eaf0dc'; ctx.lineWidth = .06;
+  ctx.strokeRect(-w*.55+.03, -l/2+.03, w*1.1-.06, l-.06);
   const color = BODY[car.kind] || '#bbcbd2';
   if (car.kind === 'cybertruck') {
     path(ctx, [[-w * .45, l * .45], [-w * .49, -l * .24], [-w * .35, -l * .5], [w * .35, -l * .5], [w * .49, -l * .24], [w * .45, l * .45]], color, 0, true, true);
@@ -184,7 +187,7 @@ export function createPixelView() {
       dirty = true; trail = []; lastPoint = null;
     },
     setNight(on) { if (night !== !!on) { night = !!on; dirty = true; } },
-    draw({ player, bot, ball, localIsBot = false }) {
+    draw({ player, bot, ball, impacts = [], localIsBot = false }) {
       if (!active) return;
       resize(); if (!width || !height) return;
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(background, 0, 0);
@@ -215,6 +218,11 @@ export function createPixelView() {
           circle(ctx, Math.cos(a) * R * .83, Math.sin(a) * R * .83, R * .13, '#27414a');
         }
         ctx.restore();
+      }
+      for (const e of impacts) {
+        const length = .35 + Math.min(1,e.closing/25)*.55;
+        path(ctx, [[e.x-e.nz*.3,e.z+e.nx*.3],[e.x+e.nz*.3,e.z-e.nx*.3]], '#fff4ce', .15);
+        path(ctx, [[e.x,e.z],[e.x+e.nx*length,e.z+e.nz*length]], '#fff4ce', .13);
       }
       ctx.restore();
     }

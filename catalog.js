@@ -1,6 +1,7 @@
+import { deepFreeze, simulationConfig } from "./simulation-config.js";
 import CHARACTERS from "./characters.js";
 
-const CATALOG = CHARACTERS.characters.map((c) => ({
+const CATALOG = deepFreeze(CHARACTERS.characters.map((c) => ({
   id: c.id,
   name: c.name,
   tag: c.tag,
@@ -8,6 +9,8 @@ const CATALOG = CHARACTERS.characters.map((c) => ({
   stats: c.stats,
   accent: c.accent,
   spec: {
+    hx: c.w * simulationConfig.drive.hitbox.w_factor,
+    hz: c.l * simulationConfig.drive.hitbox.l_factor,
     w: c.w,
     l: c.l,
     mass: c.mass,
@@ -21,16 +24,16 @@ const CATALOG = CHARACTERS.characters.map((c) => ({
     draw_length_px: c.draw_length_px,
     draw_width_px: c.draw_width_px
   }
-}));
+})));
 
 function byId(id) {
   return CATALOG.find((v) => v.id === id);
 }
 
-const FW = CHARACTERS.modes.arena3d.FW;
-const FL = CHARACTERS.modes.arena3d.FL;
-const GOAL_W = CHARACTERS.modes.arena3d.GOAL_W;
-const GOAL_H = CHARACTERS.modes.arena3d.GOAL_H;
+const FW = simulationConfig.modes['3d'].width;
+const FL = simulationConfig.modes['3d'].length;
+const GOAL_W = simulationConfig.modes['3d'].goalWidth;
+const GOAL_H = simulationConfig.modes['3d'].goalHeight;
 
 /** PIXEL playable aspect from clamp; used when setPixelTight(true). */
 function pixelFieldSize() {
@@ -45,9 +48,7 @@ function pixelFieldSize() {
 }
 
 function ballRadius(pixel = false) {
-  return pixel
-    ? CHARACTERS.ball.pixel.radius_px / pixelFieldSize().pixelsPerUnit
-    : CHARACTERS.ball.radius_bu * CHARACTERS.reference.catalog_model3_l;
+  return pixel ? simulationConfig.ball.radiusPixel : simulationConfig.ball.radius3d;
 }
 
 export {

@@ -1,11 +1,35 @@
+import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_MESSAGE } from './net-protocol.js';
+import { createEventStream } from './sim-events.js';
+import { boostLabel } from './boost.js';
+const rulesHash = await configHash();
+diagnostics.enabled = location.hash === "#diagnostics";
+window.exportSimulationTrace = () => diagnostics.export({rulesHash, mode:gfxMode, tick:simTick});
+const rules = compatibilityFields(rulesHash);
+const impactStream = createEventStream();
+let roundEpoch = 0, simTick = 0;
+const impactMarks = [];
+let impactSoundTimes = [];
+let lastBoostActive = false;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function consumeImpacts(events) {
+  const now = performance.now();
+  for (const e of events.sort((a,b)=>b.impulse-a.impulse)) {
+    impactMarks.push({ ...e, until: now + 140 });
+    while (impactMarks.length > 2) impactMarks.shift();
+    impactSoundTimes = impactSoundTimes.filter(t=>now-t<1000);
+    if (impactSoundTimes.length < 4 && e.closing >= (e.type === 'carHit' ? 2 : 1)) {
+      e.heavyBoost ? SFX.thunk() : SFX.hit(); impactSoundTimes.push(now);
+    }
+  }
+}
 import * as THREE from "three";
 import * as NET from "./net.js";
 import { CATALOG, byId } from "./catalog.js";
 import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMuted, setMusicMuted, setSfxMuted } from "./audio.js";
-import { bindInput, bindTouch, readControls, setQaKeys } from "./input.js";
+import { bindInput, bindTouch, readControls, setQaKeys, clearInput } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
-import { bodyFrom, drive, carBall, carCar, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius } from "./sim.js";
+import { bodyFrom, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius, solveContacts, resetContacts, diagnostics } from "./sim.js";
 import { createPhysicsClock } from "./physics-clock.js";
 import { createPixelView } from "./pixel.js";
 import { initXAuth, loginWithX, logoutX, getXUser, onAuthChange } from "./x-auth.js";
@@ -118,6 +142,7 @@ function paintPixelFrame() {
     player: P,
     bot: B,
     ball,
+    impacts: impactMarks.filter(e => e.until > performance.now()),
     localIsBot: online && NET.isGuest()
   });
 }
@@ -171,6 +196,7 @@ function setNetPending(value) {
   bumpPresence(value ? "queue" : (online ? "match" : "garage"));
 }
 function leaveNetwork(message = "ONLINE 1v1 - PICK YOUR CAR, THEN PLAY") {
+  clearInput(); impactMarks.length = 0; impactStream.reset(roundEpoch);
   clearTimeout(window.__queueWaitTimer);
   ensureHostSimPump(false);
 
@@ -359,10 +385,11 @@ NET.setHandlers({
     notePacket();
     setInviteVisible(false);
     netMessage("CONNECTED - STARTING MATCH...");
-    if (NET.isGuest()) NET.send({ t: "hello", car: localChoice, version: 1, clientId });
+    if (NET.isGuest()) NET.send({ t: "hello", car: localChoice, ...rules, clientId });
   },
   onHello(msg) {
-    if (!NET.isHost() || matchId || !validCar(msg.car) || msg.version !== 1) return;
+    if (!NET.isHost() || matchId || !validCar(msg.car)) return;
+    if (!compatible(msg, rulesHash)) { NET.send({t:'versionError'}); netMessage(VERSION_MESSAGE); return; }
     if (msg.clientId && msg.clientId === clientId) {
       netMessage("CAN'T MATCH YOURSELF - WAITING FOR ANOTHER PLAYER");
       try { NET.kickPeer?.() || NET.destroy?.(); } catch (_) {}
@@ -371,14 +398,17 @@ NET.setHandlers({
       return;
     }
     matchId = crypto.randomUUID();
-    NET.send({ t: "start", phase: "setup", id: matchId, a: localChoice, b: msg.car, map: mapMode, gfx: gfxMode });
+    NET.send({ t: "start", ...rules, phase: "setup", id: matchId, a: localChoice, b: msg.car, map: mapMode, gfx: gfxMode });
   },
+  onVersionError() { netMessage(VERSION_MESSAGE); },
+  onEventAck(msg) { if (NET.isHost() && msg.id === matchId && msg.epoch === roundEpoch) impactStream.acknowledge(msg.ids); },
   onStart(msg) {
     notePacket();
+    if (!compatibleSetup(msg, rulesHash, NET.isHost() ? gfxMode : undefined)) { netMessage(VERSION_MESSAGE); return; }
     if (NET.isGuest() && msg.phase === "setup" && !online && typeof msg.id === "string" && validCar(msg.a) && validCar(msg.b)) {
       matchId = msg.id;
       startGame(false, msg);
-      NET.send({ t: "start", phase: "ready", id: matchId, a: msg.a, b: msg.b, map: msg.map, gfx: gfxMode });
+      NET.send({ t: "start", ...rules, phase: "ready", id: matchId, a: msg.a, b: msg.b, map: msg.map, gfx: gfxMode });
     } else if (NET.isHost() && msg.phase === "ready" && msg.id === matchId && !online && msg.a === localChoice && validCar(msg.b)) {
       startGame(false, { ...msg, gfx: gfxMode });
       sendSnapshot();
@@ -396,6 +426,11 @@ NET.setHandlers({
     if (![msg.P, msg.B, msg.ball].every(c => c && [c.x, c.z, c.vx, c.vz].every(Number.isFinite))) return;
     notePacket();
     if (peerFsd !== (msg.fsdA === true)) { peerFsd = msg.fsdA === true; syncFsdUI(); }
+    if (!Number.isInteger(msg.epoch) || msg.epoch < roundEpoch) return;
+    if (msg.epoch > roundEpoch) { roundEpoch = msg.epoch; impactStream.reset(roundEpoch); impactMarks.length = 0; }
+    const delivered = impactStream.receive(roundEpoch, msg.events);
+    consumeImpacts(delivered.events);
+    NET.send({t:'eventAck',id:matchId,epoch:roundEpoch,ids:delivered.ack});
     Object.assign(P, msg.P); Object.assign(B, msg.B); Object.assign(ball, msg.ball);
     if (msg.scoreA > scoreA || msg.scoreB > scoreB) {
       SFX.goal(); SFX.crowd(msg.scoreB > scoreB); shake = 0.55;
@@ -417,6 +452,7 @@ NET.setHandlers({
     maybeStartRematch();
   },
   onRematchGo(msg) {
+    if (!compatibleSetup(msg, rulesHash, gfxMode) || typeof msg.nextId !== "string") { netMessage(VERSION_MESSAGE); return; }
     if (!online || msg.id !== matchId) return;
     if (!validCar(msg.a) || !validCar(msg.b)) return;
     beginRematch(msg);
@@ -426,7 +462,7 @@ NET.setHandlers({
   onError: err => disconnected(err.message || "Connection lost. Try again.")
 });
 function sendSnapshot() {
-  NET.send({ t: "st", id: matchId, P, B, ball, scoreA, scoreB, timeLeft, locked, mode, faceoffT, fsdA: fsd, fsdB: peerFsd });
+  NET.send({ t: "st", id: matchId, ...impactStream.packet(), P, B, ball, scoreA, scoreB, timeLeft, locked, mode, faceoffT, fsdA: fsd, fsdB: peerFsd });
 }
 setInterval(() => {
   if (!NET.isOnline()) return;
@@ -610,6 +646,8 @@ function setMatchMode(mode) {
 rebuildGarage();
 setInspect("cybertruck");
 function resetKick(toward = 0) {
+  clearInput(); resetContacts(); impactMarks.length = 0;
+  impactStream.reset(++roundEpoch);
   P = bodyFrom(selectedId, 0, 14, 0);
   B = bodyFrom(botId, 0, -14, Math.PI);
   ball = { x: 0, y: getBallRadius(), z: toward * 4, vx: 0, vy: gfxMode === "pixel" ? 0 : 6, vz: toward * 3, flat: 0 };
@@ -617,7 +655,7 @@ function resetKick(toward = 0) {
 function markTeam(mesh, color) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.45, 20), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
   ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.06;
+  ring.position.y = 0.06; ring.userData.decoration = true;
   mesh.add(ring);
   return mesh;
 }
@@ -648,6 +686,7 @@ function showResults(title, sub, winner) {
   syncRematchUI();
 }
 function repairCar(c) {
+  if (![c.x,c.z,c.vx,c.vz,c.yaw,c.boost].every(Number.isFinite)) diagnostics.count("carRepair");
   if (!Number.isFinite(c.x)) c.x = 0;
   if (!Number.isFinite(c.z)) c.z = 0;
   if (!Number.isFinite(c.vx)) c.vx = 0;
@@ -664,6 +703,7 @@ function repairCar(c) {
   if (!Number.isFinite(c.boostMax) || c.boostMax < 0.1) c.boostMax = 1;
 }
 function repairBall(b) {
+  if (![b.x,b.y,b.z,b.vx,b.vy,b.vz].every(Number.isFinite) || b.y > 18) diagnostics.count("ballRepair");
   if (!Number.isFinite(b.x)) b.x = 0;
   if (!Number.isFinite(b.y) || b.y < getBallRadius()) b.y = getBallRadius();
   if (!Number.isFinite(b.z)) b.z = 0;
@@ -677,7 +717,8 @@ function syncMesh(mesh, c) {
   mesh.visible = true;
   mesh.scale.set(1, 1, 1);
   mesh.position.set(c.x, 0, c.z);
-  mesh.rotation.set(0, c.yaw + Math.PI, 0);
+  mesh.rotation.set(0, c.yaw, 0);
+  mesh.children.filter(child => child.name === "boost-exhaust").forEach(child => { child.visible = !!c.boosting; });
   if (![mesh.position.x, mesh.position.y, mesh.position.z].every(Number.isFinite)) {
     mesh.position.set(0, 0, 0);
   }
@@ -866,32 +907,52 @@ function simulateMatch(dt) {
     const ctl = online && pauseLayer && !pauseLayer.classList.contains("hidden") ? { throttle: 0, steer: 0, boost: false } : readControls();
     // FSD always drives; human only holds Ludicrous (boost-as-intent)
     botAI(P, B, ball, dt, -1, !!ctl.boost);
-    if (P.boosting) { boostSfxCool -= dt; if (boostSfxCool <= 0) { SFX.boost(); boostSfxCool = 0.16; } }
     if (online) {
       const input = performance.now() - lastInput < 500 ? remoteInput : { throttle: 0, steer: 0, boost: false };
-      const peerFsdDrive = input.fsd || (Math.abs(input.throttle) < 0.2 && Math.abs(input.steer) < 0.2);
-      if (peerFsdDrive) botAI(B, P, ball, dt, 1, !!input.boost);
-      else drive(B, input.throttle, input.steer, input.boost, dt);
+      botAI(B, P, ball, dt, 1, !!input.boost);
     } else botAI(B, P, ball, dt, 1);
     if (matchChatIdle > 0) {
       matchChatIdle -= dt;
       if (matchChatIdle <= 0 && matchChat) matchChat.classList.add("idle");
     }
-    if (carCar(P, B)) { SFX.hit(); shake = Math.max(shake, 0.2); }
-    const h1 = carBall(P, ball); const h2 = carBall(B, ball);
-    if (h1 === "pancake" || h2 === "pancake") { SFX.thunk(); shake = Math.max(shake, 0.35); }
-    else if (h1 || h2) { SFX.hit(); shake = Math.max(shake, 0.16); }
+    const events = impactStream.emit(solveContacts([P, B], ball, dt));
+    consumeImpacts(events);
+    simTick++;
+    if (diagnostics.enabled) diagnostics.record({tick:simTick,input:[!!ctl.boost,!!remoteInput.boost],
+      P:{...P,_boost:{...P._boost},_ai:{...P._ai,target:{...P._ai.target}}},B:{...B,_boost:{...B._boost},_ai:{...B._ai,target:{...B._ai.target}}},ball:{...ball},events});
     const g = stepBall(ball, dt); if (g) void onGoal(g);
   }
+}
+const impactLines = Array.from({length:2}, () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(12),3));
+  const line = new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:'#fff4ce',depthTest:false}));
+  line.visible=false; line.frustumCulled=false; line.renderOrder=10; scene.add(line); return line;
+});
+function updateImpactMeshes() {
+  const active=impactMarks.filter(e=>e.until>performance.now());
+  impactLines.forEach((line,i)=>{
+    const e=active[i]; line.visible=!!e && !pixelView.isActive(); if(!e)return;
+    const length=.35+Math.min(1,e.closing/25)*.55;
+    line.geometry.attributes.position.array.set([e.x-e.nz*.3,e.y,e.z+e.nx*.3,e.x+e.nz*.3,e.y,e.z-e.nx*.3,
+      e.x,e.y,e.z,e.x+e.nx*length,e.y,e.z+e.nz*length]);
+    line.geometry.attributes.position.needsUpdate=true;
+  });
 }
 function stepGame(dt) {
   try {
   if (playing && !locked && !paused && !(online && NET.isGuest())) physicsClock.advance(dt);
   else physicsClock.reset();
   const me = localBody();
+  if (me.boosting && !lastBoostActive) SFX.boost();
+  lastBoostActive = !!me.boosting;
   clockEl.textContent = Math.floor(timeLeft / 60) + ":" + Math.floor(timeLeft % 60).toString().padStart(2, "0");
   if (boostFill && me.boostMax) boostFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, me.boost / me.boostMax)) + ")";
-  if (boostLab) boostLab.textContent = me.boosting ? "BOOSTING" : "BOOST RESERVE";
+  if (boostLab) boostLab.textContent = boostLabel(me);
+  const boostButton = document.getElementById('boostBtn');
+  const pressed = mode === 'play' && !paused && pauseLayer.classList.contains('hidden') && readControls().boost;
+  boostButton?.classList.toggle('hot', !!pressed);
+  boostButton?.setAttribute('aria-pressed', String(!!pressed));
   if (mode === "garage") {
     preview.visible = true; playerMesh.visible = false; botMesh.visible = false; ballMesh.visible = false;
     preview.rotation.y += dt * 0.7;
@@ -920,7 +981,7 @@ function stepGame(dt) {
       ballMesh.rotation.set(0, 0, 0);
     }
     ballMesh.position.set(ball.x, ball.y, ball.z);
-    ballMesh.rotation.x += ball.vz * 0.02; ballMesh.rotation.z -= ball.vx * 0.02;
+    ballMesh.rotation.x += ball.vz * dt / getBallRadius(); ballMesh.rotation.z -= ball.vx * dt / getBallRadius();
     repairCar(me);
     repairBall(ball);
     let fx = -Math.sin(me.yaw), fz = -Math.cos(me.yaw);
@@ -929,7 +990,7 @@ function stepGame(dt) {
     }
     // Chase offset must stay behind the car ' never collapse onto the look point (top-down grass)
     desired.set(me.x - fx * 12.5, 8.2, me.z - fz * 12.5);
-    if (shake > 0) {
+    if (shake > 0 && !reducedMotion) {
       desired.x += (Math.random() - 0.5) * shake * 1.1;
       desired.y += (Math.random() - 0.5) * shake * 0.45;
       shake = Math.max(0, shake - dt * 1.8);
@@ -961,10 +1022,12 @@ function stepGame(dt) {
     }
   }
   camera.lookAt(camTarget);
+  updateImpactMeshes();
   if (!pixelView.isActive()) renderer.render(scene, camera);
   paintPixelFrame();
   } catch (err) {
     console.error("[groket tick]", err);
+    if (diagnostics.enabled) { paused = true; playing = false; locked = true; netMessage('Simulation stopped - export diagnostic trace'); return; }
     try {
       repairCar(P); repairCar(B); repairBall(ball);
       if (playerMesh) { playerMesh.visible = true; syncMesh(playerMesh, P); }
@@ -1042,6 +1105,7 @@ function startGame(useFsd, config = null) {
   botMesh = swapMesh(botMesh, botId, "#3a6fff");
   syncFsdUI();
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
+  roundEpoch = 0; simTick = 0; diagnostics.reset();
   timeLeft = 90; resetKick(0);
   playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
   syncPixelVisibility();
@@ -1194,6 +1258,7 @@ function syncMenuUI() {
   document.getElementById("menuBtn").setAttribute("aria-expanded", String(!pauseLayer.classList.contains("hidden")));
 }
 function togglePause(force) {
+  clearInput();
   if (mode !== "play") return;
   if (online) {
     pauseLayer.classList.toggle("hidden", force === false ? true : !pauseLayer.classList.contains("hidden"));
@@ -1299,13 +1364,14 @@ function syncRematchUI() {
   }
 }
 function beginRematch(config) {
+  if (config.nextId) matchId = config.nextId;
   wantRematch = false; peerWantRematch = false;
   syncRematchUI();
   startGame(fsd, { a: config.a, b: config.b, map: config.map === "night" ? "night" : "day", gfx: config.gfx });
 }
 function maybeStartRematch() {
   if (!online || !NET.isHost() || !wantRematch || !peerWantRematch || mode !== "results") return;
-  const payload = { t: "rx", id: matchId, a: selectedId, b: botId, map: mapMode, gfx: gfxMode };
+  const payload = { t: "rx", id: matchId, nextId: crypto.randomUUID(), ...rules, a: selectedId, b: botId, map: mapMode, gfx: gfxMode };
   NET.send(payload);
   beginRematch(payload);
 }
@@ -1362,7 +1428,7 @@ window.render_game_to_text = () => JSON.stringify({
   mode, gfxMode, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
   fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: online && NET.isGuest() ? "B" : "P",
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
-  P, B, ball, scoreA, scoreB, timeLeft, netStatus: netStatus.textContent
+  P, B, ball, scoreA, scoreB, timeLeft, rulesHash, roundEpoch, diagnostics: diagnostics.export({tick:simTick}).counters, netStatus: netStatus.textContent
 });
 
 

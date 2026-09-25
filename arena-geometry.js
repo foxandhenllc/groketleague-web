@@ -1,6 +1,7 @@
+import { simulationConfig } from "./simulation-config.js";
 /** Rounded 2D boards prevent dead ninety-degree corners. Shared with the renderer. */
-export const CORNER_RADIUS = 7;
-export const GOAL_DEPTH = 5.2;
+export const CORNER_RADIUS = simulationConfig.modes.pixel.corner;
+export const GOAL_DEPTH = simulationConfig.modes.pixel.depth;
 
 export function cornerContact(x, z, halfW, halfL, padding = 0) {
   const cx = halfW - CORNER_RADIUS, cz = halfL - CORNER_RADIUS;

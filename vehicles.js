@@ -1,3 +1,4 @@
+import { vehicleBounds, ballArtRadius } from "./art-contract.js";
 import * as THREE from "three";
 function hull(points, width, mat) {
   const shape = new THREE.Shape();
@@ -61,6 +62,10 @@ function makeVehicle(id) {
     const skirt = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.08, 3.6), dark);
     skirt.position.set(0, 0.4, 0);
     g.add(skirt);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(1.22,.025,1.6), glass);
+    roof.position.set(0,1.325,-.1); g.add(roof);
+    const roofBar = new THREE.Mesh(new THREE.BoxGeometry(1.23,.03,.12), paint);
+    roofBar.position.set(0,1.34,-.1); g.add(roofBar);
     wheels(g, 1.32, 1.22, 0.36, 0.92, 0.32);
     g.add(stripeLight(1.35, "#fff", 0.62, 2.14));
   } else if (id === "cybercab") {
@@ -91,19 +96,34 @@ function makeVehicle(id) {
     g.add(mid2);
     g.add(stripeLight(1.7, "#fff6c8", 0.82, 3.52));
   }
+  const { hx, hz } = vehicleBounds(id);
+  // Fit all solid panels, tyres and lights as one editable source group.
+  const solids = new THREE.Group();
+  while (g.children.length) solids.add(g.children[0]);
+  const bounds = new THREE.Box3().setFromObject(solids);
+  const center = bounds.getCenter(new THREE.Vector3());
+  solids.position.x = -center.x; solids.position.z = -center.z;
+  const wrapper = new THREE.Group(); wrapper.add(solids);
+  wrapper.scale.set((2*hx-.04)/(bounds.max.x-bounds.min.x), 1, (2*hz-.04)/(bounds.max.z-bounds.min.z));
+  wrapper.rotation.y = Math.PI; wrapper.name = 'solid-body'; g.add(wrapper);
+  const bumperMat = lambert('#eaf0dc');
+  for (const side of [-1,1]) {
+    const end = new THREE.Mesh(new THREE.BoxGeometry(2*hx,.12,.06),bumperMat);
+    end.position.set(0,.42,side*(hz-.03)); g.add(end);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(.06,.12,2*hz),bumperMat);
+    rail.position.set(side*(hx-.03),.42,0); g.add(rail);
+    const exhaust = new THREE.Mesh(new THREE.BoxGeometry(.15,.12,.65),new THREE.MeshBasicMaterial({color:'#f5edc8'}));
+    exhaust.position.set(side*hx*.48,.35,hz+.35); exhaust.name='boost-exhaust'; exhaust.userData.decoration=true;
+    exhaust.visible=false; g.add(exhaust);
+  }
+  g.userData.forward = '-Z';
   return g;
 }
-function makeBall() {
-  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshLambertMaterial({ color: "#f4f0e6" }));
+function makeBall(radius = ballArtRadius(false)) {
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 2), new THREE.MeshLambertMaterial({ color: '#f4f0e6' }));
   m.castShadow = true;
-  const patch = new THREE.Mesh(new THREE.IcosahedronGeometry(0.56, 0), new THREE.MeshBasicMaterial({ color: "#1a1420", wireframe: true }));
-  m.add(patch);
-  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 6), new THREE.MeshBasicMaterial({ color: "#111" }));
-  eye.position.set(-0.18, 0.22, 0.42);
-  m.add(eye);
-  const eyeR = eye.clone();
-  eyeR.position.x = 0.18;
-  m.add(eyeR);
-  return m;
+  // Panel edges sit inside the physical sphere; no larger wire shell.
+  const patch = new THREE.Mesh(new THREE.IcosahedronGeometry(radius * .995, 1), new THREE.MeshBasicMaterial({ color: '#27414a', wireframe: true }));
+  m.add(patch); return m;
 }
 export { makeBall, makeVehicle };

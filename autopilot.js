@@ -1,8 +1,10 @@
+import { simulationConfig } from "./simulation-config.js";
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 const angle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** Plan a goal-directed route. Human boost is explicit; an undefined intent is the CPU. */
 export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
+  const config = field.config || simulationConfig;
   const halfW = field.FW / 2, halfL = field.FL / 2;
   const radius = field.ballRadius;
   const ai = me._ai ||= {};
@@ -12,7 +14,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   const speed = Math.hypot(me.vx, me.vz);
   // Estimate arrival, including rolling drag; don't chase a point behind a moving ball.
   const lead = clamp((distance - reach) / (speed + 14), 0, .5);
-  const travel = (1 - Math.exp(-.846 * lead)) / .846;
+  const travel = (1 - Math.exp(-config.planner.rollingK * lead)) / config.planner.rollingK;
   const bx = clamp(ball.x + ball.vx * travel, -halfW + radius, halfW - radius);
   const bz = clamp(ball.z + ball.vz * travel, -halfL + radius, halfL - radius);
   const goalZ = attackSign * halfL;
@@ -97,23 +99,30 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   }
   if (ai.recovery > 0) {
     ai.mode = 'recover'; ai.target = { x: tx, z: tz };
-    return { throttle: -.8, steer: ai.recoverySteer * .85, boost: false, state: ai.mode };
+    return { throttle: -.8, steer: ai.recoverySteer * .85, boost: boostIntent === true, safe: false, reason: 'BRAKING', state: ai.mode };
   }
 
   const turn = clamp(error * 2.2, -1, 1);
   const heading = Math.abs(error);
   // Brake before a tight turn. This bounds the turning circle for the heavy cars.
-  const cruise = Math.min(me.max, me.accel / (me.mass > 3 ? 1.85 : 1.45));
+  const cruise = Math.min(me.max, me.accel / (me.mass > 3 ? config.drive.drag_heavy : config.drive.drag_light));
   let desiredSpeed = cruise * clamp(1 - heading / 1.1, .07, 1);
   const turnRadiusSpeed = me.turn * .55 * Math.max(1, targetDistance - reach * .5) / Math.max(.3, Math.sin(heading) * 2);
   if (heading > .25) desiredSpeed = Math.min(desiredSpeed, Math.max(1, turnRadiusSpeed));
   if (state !== 'strike') desiredSpeed = Math.min(desiredSpeed, Math.max(2.2, targetDistance * 1.5));
   const forwardSpeed = -Math.sin(me.yaw) * me.vx - Math.cos(me.yaw) * me.vz;
-  const drag = me.mass > 3 ? 1.85 : 1.45;
+  const drag = me.mass > 3 ? config.drive.drag_heavy : config.drive.drag_light;
   const throttle = clamp(((desiredSpeed - forwardSpeed) * 4 + forwardSpeed * drag) / me.accel, -1, 1);
-  const lined = heading < .28 && forwardSpeed > -1;
+  const lined = heading < config.drive.safetyHeading && forwardSpeed > -.5;
   const automatic = state === 'strike' && distance < 16 && distance > reach + .5;
-  const boost = lined && throttle > .5 && me.boost > .08 && (boostIntent === undefined ? automatic : !!boostIntent);
+  // CPU must release after depletion; it uses the same economy as a human.
+  const boost = boostIntent === undefined ? automatic && me.boostState !== 'release' && me.boostState !== 'recharging' : !!boostIntent;
+  const brake = me.brake;
+  const stopping = Math.max(0, forwardSpeed) ** 2 / (2 * brake) + .8;
+  const fx = -Math.sin(me.yaw), fz = -Math.cos(me.yaw);
+  const towardX = Math.abs(me.x + fx * stopping) + me.w * .55 > halfW;
+  const towardZ = Math.abs(me.z + fz * stopping) + me.l * .5 > halfL + (Math.abs(me.x) + me.w * .55 < field.GOAL_W / 2 ? field.goalDepth : 0);
+  const safe = lined && !towardX && !towardZ;
   ai.mode = state; ai.target = { x: tx, z: tz };
-  return { throttle, steer: turn, boost, state };
+  return { throttle, steer: turn, boost, safe, reason: lined ? 'BRAKING' : 'TURNING', desiredSpeed, state };
 }

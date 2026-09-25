@@ -1,0 +1,36 @@
+{
+  "recordedAt": "2026-09-25T20:07:58.554149+00:00",
+  "base": "304e880eb9541b77dd85c506033343450f6440de",
+  "branch": "codex/first-playable-slice",
+  "gate": "pending-human-review",
+  "sources": {
+    "arena-geometry.js": "1a4573e3ba231c6ea76837281e64eccd9c33bef86214a382df3bba474bf08dde",
+    "art-contract.js": "ba8f8507cd5afb62b603a147dab4f46cdcff4b4f2bf2339ef7e83e3a06c01966",
+    "autopilot.js": "12984b9cb950b71a310f6bdb4162ed85c6ba2761e2b407a3b278010dd8a88c86",
+    "boost.js": "271641060799d4f706b2541d6f52191116bf145bcdb31c2e5d4f66aff1f457b8",
+    "catalog.js": "aa983a2668f6820b00d8180459fb57a033f455fca463fb95497732bd1cbd40d4",
+    "characters.js": "7b6bdb685b366cb2af99c9013a6a3098d2b8408e171b1204ce52e5c779e70703",
+    "contacts.js": "e71d3689feb54d8484e76bf91d72d407972588804c228b9fddc899a76ad3d226",
+    "diagnostics.js": "ea0dbe9df825357546571dd19a0548602a66886cf81cf5c11bee15e5670f4dc0",
+    "input.js": "d4abe181debb8a71becf589058a428c919d8cbf21b122fb6104ec1ff319670a8",
+    "main.js": "332fbfb73d9c0a3b1a7767e4f429d51d182724b28507380c32430b817db4889d",
+    "net.js": "a842044d55c44222516af1a8eb7864a2e2d0ccdf65d62da849f8211f4a13d166",
+    "net-protocol.js": "029a57e40d6e9b2fcc6e83451d0e629935e7b437c02bd802ae90dd8e64422ba7",
+    "physics-clock.js": "0cbffff9f3a260414d0a64dc1d5f6a9cacfc0886fd10bed8bb3cdd6b6d143a3b",
+    "pixel.js": "036b1eeb053afd86862df677b16fd2730cab43a0f497e421ff1613f59bcb06d5",
+    "sim.js": "15e7bbb8f86fe98f2d1799111fc1ef2a8e36131ec4366b60949ed49690323aa2",
+    "sim-events.js": "b64c6edb7253551d1decd8d23dfbe2296927da18a2be2d377d8394fdc8da8753",
+    "simulation-config.js": "17a7fbc7b9ae37691cd8d315e29a3e7699db630091e220e5db05142c9e485a56",
+    "vehicles.js": "70d326b14c4edabdaddfa48b7b5b156e90bf3a81f45756edab5577b7ed0e0066",
+    "arena.css": "0a30a59f62ecfd14f70df2aadc81f2e757f7c8e48b7e9027d8904051907352da"
+  },
+  "receipts": {
+    "output\\first-playable-slice\\final-unit.txt": "6d2b548b0a26f066a58fdde93268a4a6724290dd7fd8b82aed1bdac4d50acff9",
+    "output\\first-playable-slice\\final-browser\\results.json": "18002967f29f9cd456851fe0053acc70d748debf39fc85a9a5451cf77ae74260",
+    "output\\first-playable-slice\\review-contracts\\results.json": "ff274d3bede3b3e85e9fe8f46746a62ca0077bcde0f4b7114145af844ca93d07",
+    "output\\first-playable-slice\\review-ui-retry\\arena-ui-results.json": "2ef8b6c605fb25510ec5441db6f2dea6c290a71db5244bb509da8d8caeb1a978",
+    "output\\first-playable-slice\\final-visual\\bounds.json": "d31da72a154ac5bb9354bce4b4e6052ed8d84bd2d68d1a721764cd4b93fa9750",
+    "output\\first-playable-slice\\review-control\\probes.json": "7349ed192da45b0ff2a0593613333926fce9f3993555dd45ba1f581d04dd08f8"
+  },
+  "configHash": "sha256:500bac8669fb92d828d3a186b5e93e4f7f6e62fd2f99c4a24d48c83b0eeabbb0"
+}

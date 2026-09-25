@@ -1,6 +1,6 @@
 # Arcade 2D (internal mode: PIXEL)
 
-## Current direction - 2026-09-23
+## Current direction
 
 At Fox's request, the old bitmap castle view has been replaced with **CIRCUIT**,
 a procedural top-down arcade stadium. The garage labels it **ARCADE 2D**;
@@ -16,8 +16,8 @@ superseded for this renderer. The legacy assets remain in `assets/pixel/` as ref
 | `arena.css` | Match scoreboard, menu, boost, chat and responsive layout |
 | `arena-layout.js` | One uniform world-to-screen scale; rotation for portrait/landscape |
 | `arena-geometry.js` | Shared rounded-corner radius and goal recess depth |
-| `characters.js`, `catalog.js` | Shared car stats, 44x68 field and ball radius |
-| `sim.js` | Oriented car contacts, board constraints, ball motion and goals |
+| `characters.js`, `simulation-config.js`, `catalog.js` | Validated runtime configuration, immutable derived footprints and shared ball radius |
+| `sim.js`, `contacts.js`, `boost.js` | Per-instance simulation, coupled contacts, boost state machine, ball motion and goals |
 | `autopilot.js` | Approach, strike, defend, recovery and stalled-ball decisions |
 
 ## Geometry and rendering rules
@@ -34,10 +34,13 @@ superseded for this renderer. The legacy assets remain in `assets/pixel/` as ref
 
 ## Driving and contacts
 
-- FSD drives both cars. A human hold requests boost when aligned; the offline CPU chooses its own boost timing.
+- FSD drives both cars. Holding requests boost subject to heading/reverse/board safety. Start reserve is .18; holding never recharges. After depletion, release for at least .12 seconds to rearm; recharge also waits .25 seconds after active boost. The CPU uses the same economy.
+- The HUD distinguishes BOOST, WAITING with its reason, BOOSTING, RELEASE TO RECHARGE and RECHARGING. Release/blur/cancel/menu entry clears intent.
 - Brake before tight turns, approach from behind the ball, retreat goal-side against incoming shots, and reverse out of blocked contacts.
 - Recovery measures progress over time. Slow deliberate turns are not automatically considered stuck. A ball-progress timer breaks circling stalemates.
 - Car/car contacts use oriented rectangles and mass-weighted separation. Car/ball separation also accounts for mass. Resting/separating contacts never add a kick.
+- Contacts use four velocity and two position iterations. Extreme return shots reduce restitution to target a 48-unit/s launch envelope while preserving recoil/momentum; the 55-unit/s cap remains a failure diagnostic, not normal handling.
+- Model noses point -Z in Three.js; bumpers show the collision rectangle. Ball roll uses elapsed time/radius, not rendered-frame count.
 - PIXEL balls remain flat. Shared physics runs at 120 Hz with elapsed-time rolling friction.
 
 ## Verification
@@ -54,3 +57,7 @@ then runs every car pairing for 90 simulated seconds. The browser suites cover b
 renderers, real PeerJS rooms, rematches, day/night, all cars, 320px/390px phones,
 phone landscape, live resizing, controls outside the arena and screenshots.
 Screenshots and simulation receipts are under ignored `output/`.
+
+## First-slice preview status
+
+See [Gate A evidence](tickets/first-playable-slice/GATE-A.md) for tests, experimental tuning decisions and remaining human review. These source changes have not been deployed.

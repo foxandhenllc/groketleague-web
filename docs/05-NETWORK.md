@@ -21,6 +21,12 @@
 - Host `gfx` mode is included in setup/ready and rematch packets; both peers use the same field and ball geometry
 - Disconnect returns the other player to garage
 
+## First playable slice protocol
+
+Protocol 2 exchanges a simulation version and SHA-256 hash of canonical simulation settings before starting. Mode is confirmed in setup/ready. Incompatible peers see a refresh-both-players message. Connected rematches keep PeerJS but receive a new match ID.
+
+Host impact records carry pair, point, normal, impulse, tick and an event ID. A bounded 64-event resend window is acknowledged by explicit IDs; the guest deduplicates by round epoch and ID. Kickoff/rematch/disconnect clears effects. This is minimal feedback delivery: guest interpolation, narrow state records, fresh-input sequences and transport impairment work remain T08. Current state/input cadence remains 20 Hz and stale input cutoff remains 500 ms.
+
 ## Testing
 
 ```powershell

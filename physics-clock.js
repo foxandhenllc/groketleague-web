@@ -1,5 +1,6 @@
+import { simulationConfig } from "./simulation-config.js";
 // Rendering and networking may run at any rate; gameplay always advances at 120 Hz.
-export const PHYSICS_DT = 1 / 120;
+export const PHYSICS_DT = 1 / simulationConfig.fixedHz;
 
 export function createPhysicsClock(step) {
   let accumulated = 0;
