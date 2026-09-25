@@ -1,6 +1,8 @@
 import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_MESSAGE } from './net-protocol.js';
 import { createEventStream } from './sim-events.js';
 import { boostLabel } from './boost.js';
+import { kickoffLayout, driverPersonality } from './match-variety.js';
+let matchSeed = '';
 const rulesHash = await configHash();
 diagnostics.enabled = location.hash === "#diagnostics";
 window.exportSimulationTrace = () => diagnostics.export({rulesHash, mode:gfxMode, tick:simTick});
@@ -645,12 +647,15 @@ function setMatchMode(mode) {
 }
 rebuildGarage();
 setInspect("cybertruck");
-function resetKick(toward = 0) {
+function resetKick() {
   clearInput(); resetContacts(); impactMarks.length = 0;
   impactStream.reset(++roundEpoch);
-  P = bodyFrom(selectedId, 0, 14, 0);
-  B = bodyFrom(botId, 0, -14, Math.PI);
-  ball = { x: 0, y: getBallRadius(), z: toward * 4, vx: 0, vy: gfxMode === "pixel" ? 0 : 6, vz: toward * 3, flat: 0 };
+  const round = roundEpoch - 1, layout = kickoffLayout(matchSeed, round);
+  P = bodyFrom(selectedId, layout.P.x, layout.P.z, layout.P.yaw);
+  B = bodyFrom(botId, layout.B.x, layout.B.z, layout.B.yaw);
+  P.personality = driverPersonality(selectedId, matchSeed, round, 'P');
+  B.personality = driverPersonality(botId, matchSeed, round, 'B');
+  ball = { ...layout.ball, y: getBallRadius(), vx: 0, vy: gfxMode === "pixel" ? 0 : 6, vz: 0, flat: 0 };
 }
 function markTeam(mesh, color) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.45, 20), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
@@ -863,7 +868,7 @@ async function onGoal(who) {
   }
   await new Promise((r) => setTimeout(r, 1000));
   if (serial !== sessionSerial) return;
-  resetKick(who === "A" ? 1 : -1);
+  resetKick();
   SFX.whistle(); locked = false;
 }
 
@@ -1106,7 +1111,8 @@ function startGame(useFsd, config = null) {
   syncFsdUI();
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   roundEpoch = 0; simTick = 0; diagnostics.reset();
-  timeLeft = 90; resetKick(0);
+  matchSeed = online ? matchId : crypto.randomUUID();
+  timeLeft = 90; resetKick();
   playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
   syncPixelVisibility();
   ensureHostSimPump(!!online);
@@ -1428,7 +1434,9 @@ window.render_game_to_text = () => JSON.stringify({
   mode, gfxMode, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
   fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: online && NET.isGuest() ? "B" : "P",
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
-  P, B, ball, scoreA, scoreB, timeLeft, rulesHash, roundEpoch, diagnostics: diagnostics.export({tick:simTick}).counters, netStatus: netStatus.textContent
+  P, B, ball, scoreA, scoreB, timeLeft, rulesHash, roundEpoch, matchSeed,
+  faceoffName: kickoffLayout(matchSeed, Math.max(0,roundEpoch-1)).name,
+  diagnostics: diagnostics.export({tick:simTick}).counters, netStatus: netStatus.textContent
 });
 
 

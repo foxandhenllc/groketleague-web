@@ -8,6 +8,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   const halfW = field.FW / 2, halfL = field.FL / 2;
   const radius = field.ballRadius;
   const ai = me._ai ||= {};
+  const personality = me.personality || config.planner.personalities[me.kind];
   ai.time = (ai.time || 0) + dt;
   const distance = Math.hypot(ball.x - me.x, ball.z - me.z);
   const reach = me.l / 2 + radius;
@@ -21,7 +22,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   const ownDistance = halfL + bz * attackSign;
   // Slightly favour the open half of the net when a defender is in the goal mouth.
   const keeper = foe && Math.abs(foe.z - goalZ) < 8;
-  const goalX = keeper ? clamp(-foe.x * .45, -field.GOAL_W * .2, field.GOAL_W * .2) : 0;
+  const goalX = keeper ? clamp(-foe.x * .45, -field.GOAL_W * .2, field.GOAL_W * .2) : (personality?.aim || 0);
   const goalLength = Math.hypot(goalX - bx, goalZ - bz) || 1;
   let ux = (goalX - bx) / goalLength, uz = (goalZ - bz) / goalLength;
   // At our end board, clear toward open field instead of trying to get outside it.
@@ -37,9 +38,9 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   const rx = me.x - bx, rz = me.z - bz;
   const behind = -(rx * ux + rz * uz);
   const lateral = rx * px + rz * pz;
-  const setup = reach + 4.5;
+  const setup = reach + (personality?.setup ?? 4.5);
   let tx, tz, state;
-  const threat = ball.vz * attackSign < -5 && ownDistance < 23;
+  const threat = ball.vz * attackSign < -5 && ownDistance < (personality?.defend ?? 23);
   const goalSide = (me.z - bz) * attackSign < -1;
   if (threat && !goalSide && distance > reach + 1) {
     state = 'defend';
@@ -47,15 +48,15 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
     tz = -attackSign * (halfL - reach - 1.5);
     // Pass beside the ball while retreating, not through it toward our own net.
     if (Math.abs(me.x - bx) < reach + 1 && Math.abs(me.z - bz) < 10) tx = bx + (me.x < bx ? -1 : 1) * (reach + 3);
-  } else if (behind > reach * .2 && Math.abs(lateral) < Math.max(1.35, behind * .35, ai.mode === 'strike' ? reach + 1.8 : 0)) {
+  } else if (behind > reach * .2 && Math.abs(lateral) < Math.max(1.35, behind * (personality?.commit ?? .35), ai.mode === 'strike' ? reach + 1.8 : 0)) {
     state = 'strike'; tx = bx + ux * .5; tz = bz + uz * .5;
   } else {
     state = 'approach'; tx = bx - ux * setup; tz = bz - uz * setup;
     // A car on the wrong side first passes alongside the ball. Keep the chosen
     // side until it is behind; otherwise a moving ball causes left/right dithering.
     if (behind < reach + .6 && Math.abs(lateral) < setup + 1.5) {
-      if (!ai.detour) ai.detour = Math.abs(lateral) > .5 ? Math.sign(lateral) : (me.x < 0 ? -1 : 1);
-      const wide = setup + 1.8;
+      if (!ai.detour) ai.detour = Math.abs(lateral) > .5 ? Math.sign(lateral) : (personality?.side || (me.x < 0 ? -1 : 1));
+      const wide = setup + (personality?.wide ?? 1.8);
       tx += px * ai.detour * wide; tz += pz * ai.detour * wide;
     } else if (behind > setup || Math.abs(lateral) > setup + 2) ai.detour = 0;
   }
@@ -72,6 +73,20 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
       state = 'defend'; tx = bx + (me.x < bx ? -1 : 1) * (reach + 1);
       tz = bz - attackSign * (reach + .5);
     }
+  }
+  // Break a slow bumper-to-bumper contest with a short, committed re-approach.
+  // Different patience gives one driver space to play; never yield an own-goal threat.
+  ai.reposition = Math.max(0, (ai.reposition || 0) - dt);
+  const contested = foe && ownDistance > 12 && !threat && distance < reach + 3 &&
+    Math.hypot(ball.vx, ball.vz) < 4 && Math.hypot(me.x-foe.x,me.z-foe.z) < (me.l+foe.l)/2+3;
+  ai.contestTime = contested ? (ai.contestTime || 0) + dt : 0;
+  if (ai.contestTime > (personality?.patience ?? 2.5) && ai.reposition === 0) {
+    ai.reposition = 1.5; ai.contestTime = 0;
+  }
+  if (ai.reposition > 0 && ownDistance > 12 && !threat) {
+    state = 'reposition';
+    tx = bx - ux * setup + px * (personality?.side || 1) * (setup + 2);
+    tz = bz - uz * setup + pz * (personality?.side || 1) * (setup + 2);
   }
   // Targets remain reachable with the entire vehicle inside the boards.
   const margin = Math.max(me.w * .55, 1.4);
@@ -114,7 +129,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   const drag = me.mass > 3 ? config.drive.drag_heavy : config.drive.drag_light;
   const throttle = clamp(((desiredSpeed - forwardSpeed) * 4 + forwardSpeed * drag) / me.accel, -1, 1);
   const lined = heading < config.drive.safetyHeading && forwardSpeed > -.5;
-  const automatic = state === 'strike' && distance < 16 && distance > reach + .5;
+  const automatic = state === 'strike' && distance < (personality?.boostRange ?? 16) && distance > reach + .5;
   // CPU must release after depletion; it uses the same economy as a human.
   const boost = boostIntent === undefined ? automatic && me.boostState !== 'release' && me.boostState !== 'recharging' : !!boostIntent;
   const brake = me.brake;

@@ -64,14 +64,18 @@ try {
     await p.locator('#resumeBtn').click();
     await until(p, t => JSON.parse(window.render_game_to_text()).timeLeft < t, paused.timeLeft);
     if (local) {
+      let previousFaceoff = null;
       for (let score = 1; score <= 3; score++) {
         await until(p, () => !JSON.parse(window.render_game_to_text()).locked);
+        const currentFaceoff = (await state(p)).faceoffName;
+        assert.notEqual(currentFaceoff,previousFaceoff); previousFaceoff=currentFaceoff;
         await p.evaluate(() => window.__scenario.goal());
         await until(p, score => JSON.parse(window.render_game_to_text()).scoreA === score, score);
       }
       await until(p, () => JSON.parse(window.render_game_to_text()).mode === 'results');
       await p.locator('#again').click(); await playing(p);
       assert.equal((await state(p)).scoreA, 0);
+      assert.notEqual((await state(p)).matchSeed,initial.matchSeed);
       pass(`${gfx}: goals, kickoffs, result and offline rematch`);
     }
     pass(`${gfx}: boot, FSD, boost, timer, pause and resume`);
@@ -87,6 +91,8 @@ try {
   let h = await state(host), g = await state(guest);
   assert.equal(h.role, 'host'); assert.equal(g.role, 'guest'); assert.equal(g.cameraFollows, 'B');
   assert.equal(h.matchId, g.matchId); assert.equal(h.B.kind, 'model3');
+  assert.equal(h.matchSeed,g.matchSeed); assert.equal(h.faceoffName,g.faceoffName);
+  assert.deepEqual(h.P.personality,g.P.personality); assert.deepEqual(h.B.personality,g.B.personality);
   assert.equal(g.gfxMode, 'pixel'); assert.equal(g.ball.y, h.ball.y);
   assert.equal(await host.locator('#hudP1Who').textContent(), 'YOU');
   assert.equal(await guest.locator('.scorebox.cpu .who').textContent(), 'YOU');
@@ -113,6 +119,7 @@ try {
     await Promise.all([playing(host), playing(guest)]);
     h = await state(host); g = await state(guest);
     assert.equal(h.matchId, g.matchId); assert.equal(h.scoreA, 0); assert.equal(g.gfxMode, 'pixel');
+    assert.equal(h.matchSeed,g.matchSeed); assert.equal(h.faceoffName,g.faceoffName);
     pass('authoritative score, results and rematch preserve field and peer session');
   }
   await guest.locator('#menuBtn').click(); await guest.locator('#newGameBtn').click();
