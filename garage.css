@@ -1,0 +1,59 @@
+/* Garage-only presentation; match HUD and result overlays keep their own layout. */
+body:not(.playing) #brand { display:none; }
+#overlay:not(.results) { align-items:flex-start; justify-content:center; padding:24px; background:linear-gradient(90deg,#06101999,transparent 75%); }
+#garageShell { --panel:#101a23; --muted:#a4b3bf; --line:#ffffff24; --accent:#ffd43b; width:min(460px,100%); max-height:calc(100dvh - 48px); overflow:auto; padding:24px; box-sizing:border-box; border:1px solid var(--line); border-radius:18px; background:var(--panel); box-shadow:0 18px 60px #0005; color:#f2f5f7; font:14px/1.45 "Segoe UI",Arial,sans-serif; }
+#garageShell * { box-sizing:border-box; }
+#garageShell [hidden] { display:none !important; }
+#garageShell .masthead { display:block; padding:0 0 20px; }
+#garageShell .brand h1 { font:24px/1.2 "Black Ops One",sans-serif; margin:0; color:var(--accent); letter-spacing:0; text-shadow:none; }
+#garageShell .brand .sub { font:11px/1.5 "Segoe UI",Arial,sans-serif; letter-spacing:1.3px; color:var(--muted); margin-top:5px; }
+#garageShell .presenceBar { gap:12px; margin-top:12px; }
+#garageShell .presChip { padding:0; background:none; border:0; color:var(--muted); font:11px/1.4 "Segoe UI",Arial,sans-serif; }
+#garageShell .presChip b { font:inherit; color:#e8edf1; margin-right:3px; }
+#garageShell .stepLabel { padding:0; justify-content:space-between; gap:8px; font:12px/1.4 "Segoe UI",Arial,sans-serif; letter-spacing:0; color:var(--muted); }
+#garageShell #inspect { text-align:left; margin:12px 0 16px !important; padding:0; min-height:0 !important; }
+#garageShell #inspect .name { font:600 23px/1.2 "Segoe UI",Arial,sans-serif; letter-spacing:0; text-shadow:none; color:#fff; }
+#garageShell #inspect .meme { font:14px/1.5 "Segoe UI",Arial,sans-serif; margin:8px 0 10px; color:var(--muted); max-width:none; }
+#garageShell summary { cursor:pointer; font:600 12px/1.5 "Segoe UI",Arial,sans-serif; color:#c6d2db; padding:6px 0; }
+#garageShell #inspStats dl { margin:10px 0; display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+#garageShell #inspStats dt { font-size:11px; color:var(--muted); }
+#garageShell #inspStats dd { margin:2px 0 0; font-size:13px; font-variant-numeric:tabular-nums; }
+#garageShell .specNote,#garageShell .accountHint { font:12px/1.5 "Segoe UI",Arial,sans-serif; color:var(--muted); margin:10px 0; }
+#garageShell #garage { grid-template-columns:1fr 1fr !important; width:100%; padding:0; gap:8px; margin:0; }
+#garageShell .card { min-height:66px !important; padding:11px 12px !important; background:#ffffff05; border:1px solid var(--line); border-radius:9px; box-shadow:none; text-align:left; color:#f2f5f7; transform:none; }
+#garageShell .card:hover { background:#ffffff0b; border-color:#ffffff65; }
+#garageShell .card.on { background:#ffd43b0e; border-color:var(--accent); box-shadow:inset 3px 0 var(--accent); }
+#garageShell .card .title { display:block; font:600 13px/1.3 "Segoe UI",Arial,sans-serif; margin:0; }
+#garageShell .card .tag { display:block; font:12px/1.4 "Segoe UI",Arial,sans-serif; margin:4px 0 0; letter-spacing:0; color:var(--muted); }
+#garageShell button,#garageShell input { font:600 13px/1.3 "Segoe UI",Arial,sans-serif; letter-spacing:0; text-shadow:none; }
+#garageShell button:focus-visible,#garageShell summary:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+#garageShell .row { gap:8px; margin:0; padding:0; }
+#garageShell .stepActions { margin-top:16px; }
+#garageShell .cta { min-height:42px; padding:10px 14px; border:1px solid transparent; border-radius:8px; background:var(--accent); color:#18202a; box-shadow:none; transform:none; }
+#garageShell .cta.ghost,#garageShell .backLink { background:transparent; color:#dce4ea; border:1px solid var(--line); box-shadow:none; }
+#garageShell #toMatchup { width:100%; }
+#garageShell .garageControlHint { font:12px/1.5 "Segoe UI",Arial,sans-serif; color:var(--muted); margin:12px 0 18px; }
+#garageShell #garageSettings { border-top:1px solid var(--line); padding-top:10px; }
+#garageShell .chromeRow { display:grid; gap:12px; padding:12px 0 0; justify-content:stretch; }
+#garageShell .garageAudio { justify-content:flex-start; }
+#garageShell .xAuthBar,#garageShell .xSignedIn { justify-content:flex-start; border:0; border-radius:0; padding:0; gap:8px; background:none; }
+#garageShell .xIdentity,#garageShell .xDisplayName,#garageShell #xHandle,#garageShell .xGuestBadge { font:12px/1.4 "Segoe UI",Arial,sans-serif; letter-spacing:0; }
+#garageShell .xGuestBadge { border:0; padding:0; color:var(--muted); }
+#garageShell .legalLine,#garageShell #credit { font:10px/1.5 "Segoe UI",Arial,sans-serif; letter-spacing:0; padding:0; margin:8px 0 0; color:var(--muted); text-align:left; }
+#garageShell #credit a { color:#c6d2db; }
+#garageShell .garageStep { padding:0; }
+#garageShell .lockedVehicle { font:600 14px/1.4 "Segoe UI",Arial,sans-serif; text-align:left; padding:12px 0; text-shadow:none; letter-spacing:0; }
+#garageShell .matchModes { padding:0; gap:6px; grid-template-columns:repeat(3,minmax(0,1fr)); }
+#garageShell .modeCard,#garageShell .gfxCard { padding:10px; min-height:0; border:1px solid var(--line); border-radius:8px; background:#ffffff05; box-shadow:none; }
+#garageShell .modeCard.on,#garageShell .gfxCard.on { border-color:var(--accent); background:#ffd43b0e; }
+#garageShell .modeTitle,#garageShell .gfxTitle { font:600 12px/1.4 "Segoe UI",Arial,sans-serif; color:#fff; letter-spacing:0; }
+#garageShell .modeSub,#garageShell .gfxSub { font:10px/1.4 "Segoe UI",Arial,sans-serif; letter-spacing:0; color:var(--muted); }
+#garageShell .gfxRow { margin:12px 0; padding:0; gap:6px; }
+#garageShell .matchPane { margin-top:12px; }
+#garageShell .backLink { padding:7px 10px; border-radius:6px; }
+#garageShell .searchCard { font:14px/1.5 "Segoe UI",Arial,sans-serif; }
+@media(max-width:600px) {
+  #overlay:not(.results) { padding:12px; align-items:center; }
+  #garageShell { padding:20px; max-height:calc(100dvh - 24px); }
+}
+@media(max-height:600px) { #overlay:not(.results) { justify-content:flex-start; } #garageShell { padding:18px; } }

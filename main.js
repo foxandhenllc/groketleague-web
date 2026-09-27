@@ -617,12 +617,23 @@ function pushChat(who, msg) {
   matchChat.classList.remove("idle");
   matchChatIdle = 3.0;
 }
+const vehicleDescriptions = {
+  cybertruck: ['Heavy hitter', 'Strong boosted touches, with slower acceleration and turning.'],
+  model3: ['Fast attacker', 'The fastest vehicle, with quick acceleration and responsive handling.'],
+  cybercab: ['Agile runner', 'The lightest vehicle and quickest turner, with a smaller boost reserve.'],
+  semi: ['Heavy defender', 'The largest and heaviest vehicle. Covers more space, but moves slowly.']
+};
 function setInspect(id) {
   const v = byId(id);
+  const spec = bodyFrom(id,0,0,0);
   document.getElementById("inspName").textContent = v.name;
-  document.getElementById("inspMeme").textContent = v.meme;
-  document.getElementById("inspStats").textContent = v.stats;
-  document.getElementById("inspName").style.color = v.accent;
+  document.getElementById("inspMeme").textContent = vehicleDescriptions[id][1];
+  document.getElementById("inspStats").innerHTML = '<dl>' + [
+    ['Mass', spec.mass], ['Top speed', spec.max + ' units/s'],
+    ['Acceleration', spec.accel + ' units/s squared'], ['Turn rate', spec.turn + ' rad/s'],
+    ['Grip', spec.grip], ['Boost reserve', spec.boostMax], ['Size', spec.w + ' x ' + spec.l + ' units']
+  ].map(([label,value])=>`<div><dt>${label}</dt><dd>${value}</dd></div>`).join('') + '</dl>';
+  document.getElementById("inspName").style.color = "";
   if (hoverId !== id) {
     hoverId = id;
     preview.remove(previewMesh);
@@ -635,16 +646,18 @@ function setInspect(id) {
 function rebuildGarage() {
   garageEl.innerHTML = "";
   for (const v of CATALOG) {
-    const el = document.createElement("div");
+    const el = document.createElement("button");
+    el.type = "button";
+    el.setAttribute("aria-pressed", String(v.id === selectedId));
     el.className = "card" + (v.id === selectedId ? " on" : "");
     el.dataset.id = v.id;
-    el.innerHTML = `<div class="who">${v.id === selectedId ? "YOU" : "FIGHTER"}</div><div class="title">${v.name}</div><div class="tag">${v.tag}</div>`;
-    el.addEventListener("pointerenter", () => setInspect(v.id));
+    el.innerHTML = `<span class="title">${v.name}</span><span class="tag">${vehicleDescriptions[v.id][0]}</span>`;
     el.addEventListener("click", () => {
       if (netPending || online) return;
       selectedId = localChoice = v.id;
       setInspect(v.id);
       rebuildGarage();
+      garageEl.querySelector(`[data-id="${selectedId}"]`)?.focus({preventScroll:true});
       syncLockedVehicle();
     });
     garageEl.appendChild(el);
