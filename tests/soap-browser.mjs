@@ -114,7 +114,7 @@ try {
     });
     await page.goto(url); await page.waitForFunction(() => !!window.__soapAudit, {}, { timeout: 60000 });
     await page.locator('[data-id="model3"]').click(); await page.locator('#toMatchup').click();
-    await page.locator('#arenaSelect').selectOption('sink'); await page.locator('#gfx3d').click(); await page.locator('#go').click();
+    await page.locator('[data-arena="sink"]').click(); await page.locator('#gfx3d').click(); await page.locator('#go').click();
     await page.waitForFunction(() => JSON.parse(window.render_game_to_text()).mode === 'play');
     const result = { case: spec, reducedMotion: process.env.SOAP_REDUCED === '1', staged: [], flight: [], goal: [], winning: [] };
     checks.push(result);

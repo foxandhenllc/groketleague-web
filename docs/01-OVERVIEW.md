@@ -8,7 +8,7 @@
 - Two presentation modes:
   - **3D Arena** - Three.js field + extruded cars (`field.js`, `vehicles.js`).
   - **Arcade 2D** - CIRCUIT top-down stadium, procedural cars and a separate match HUD (`pixel.js`, `arena.css`). Internal mode ID remains `pixel`.
-- **Kitchen Sink** is an alternate arena in either view: colored drain goals, visible curved banks, a slippery wet lane with localized faucet flow, meteors and lightning. Warnings precede force changes and the environmental cycle continues across goals. The host selects the arena for online play. See the [surface and presentation report](KITCHEN-SINK-READABILITY-2026-09-27.md).
+- **Kitchen Sink** is the default arena, available in either view: colored drain goals, visible curved banks, a slippery wet lane with localized faucet flow, meteors and lightning. Warnings precede force changes and the environmental cycle continues across goals. The host selects the arena for online play. See the [surface and presentation report](KITCHEN-SINK-READABILITY-2026-09-27.md).
 - **3D Kitchen Sink** now plays with a glossy bar of soap: low-friction slides, bank launches, tumbling flight and sliding landings. Goals spiral into the drain and burst into team-colored bubbles while the camera eases closer and returns. See the [soap arcade report](SOAP-ARCADE-2026-09-27.md). New sink work targets 3D; 2D keeps its existing ball mechanics.
 - Online **1v1** via **PeerJS** (host-authoritative physics) - quick match + 4-character private rooms.
 - Optional **Sign in with X** (OAuth PKCE) for handles / presence flavor.
@@ -38,7 +38,9 @@ Parody Tesla/xAI vibes, meme car names (CYBERT RUCKER, MODEST 3, ROB TACKSY, SEE
 
 ## Player loop
 
-Garage (pick car, gfx 3D/PIXEL, day/night map) -> Faceoff -> Match -> Results -> Rematch or Garage.
+Home (pick a car -> Play Kitchen Sink) -> Faceoff -> Match -> Results -> Rematch or Home.
+
+Fresh visits default to **3D Kitchen Sink vs Grok**, including browsers with an old saved 2D preference. **Match options** provides arena image buttons, 3D/2D and stadium Day/Night buttons, plus Solo, Find a match and With a friend. Choices remain active for the current session and rematches. Invite links open the private-room panel with their code filled in. Help, car details, audio and account settings are optional buttons; no setup dropdowns or automatic tutorial popup. See the [home flow report](HOME-FLOW-2026-09-27.md).
 
 Online: host simulates; guest sends inputs; both render. Menus offline pause; online menus leave the match running.
 

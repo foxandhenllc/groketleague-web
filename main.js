@@ -175,21 +175,22 @@ const maps = {
   day: { label: "CASTLE DAY", bg: "#3a6aaa", fogN: 42, fogF: 115, hemi: ["#b8d8ff", "#5a3a18", 1.05], sun: 1.25, fill: 0.48, lamp: 18, turf: "#ffffff" },
   night: { label: "TORCH NIGHT", bg: "#0c1430", fogN: 28, fogF: 95, hemi: ["#4a6aaa", "#1a1020", 0.5], sun: 0.12, fill: 0.22, lamp: 48, turf: "#ffffff" }
 };
-let mapMode = "day";
+let mapMode = "sink";
 const pixelView = createPixelView();
 let gfxMode = "3d";
-try { const g = localStorage.getItem("gl_gfx"); if (g === "pixel" || g === "3d") gfxMode = g; } catch {}
 setPixelTight(gfxMode === "pixel");
 function syncGfxUI() {
   document.getElementById("gfx3d")?.classList.toggle("on", gfxMode === "3d");
   document.getElementById("gfxPixel")?.classList.toggle("on", gfxMode === "pixel");
+  document.getElementById('gfx3d')?.setAttribute('aria-pressed',String(gfxMode==='3d'));
+  document.getElementById('gfxPixel')?.setAttribute('aria-pressed',String(gfxMode==='pixel'));
 }
 function setGfxMode(g) {
   gfxMode = g === "pixel" ? "pixel" : "3d";
   setPixelTight(gfxMode === "pixel");
-  try { localStorage.setItem("gl_gfx", gfxMode); } catch {}
   syncGfxUI();
   syncArenaDescription();
+  syncHomeMatch();
   mapTag.textContent = mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : maps[mapMode].label;
   mapBtn.textContent = "MAP: " + (mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : maps[mapMode].label);
   syncPixelVisibility();
@@ -245,10 +246,11 @@ function validRoomCode(code) {
 function netMessage(text) { netStatus.textContent = text; }
 function setNetPending(value) {
   netPending = value;
-  for (const id of ["netQuick", "netCreate", "netJoin", "roomCodeIn", "toMatchup", "backVehicle", "modeLocal", "modeQuick", "modePrivate", "go", "mapBtn"]) {
+  for (const id of ["netQuick", "netCreate", "netJoin", "roomCodeIn", "toMatchup", "backVehicle", "modeLocal", "modeQuick", "modePrivate", "go", "playNow", "mapBtn", "gfx3d", "gfxPixel", "specsToggle", "settingsToggle", "howOpen"]) {
     const el = document.getElementById(id);
     if (el) el.disabled = !!value;
   }
+  for(const button of document.querySelectorAll('[data-arena],[data-light]'))button.disabled=!!value;
   const shell = document.getElementById("searchShell");
   if (shell) shell.hidden = !value;
   document.body.classList.toggle("garageSearching", !!value);
@@ -319,12 +321,12 @@ for (const [id, kind] of [["netQuick", "quick"], ["netCreate", "create"], ["netJ
 document.getElementById("netCancel").addEventListener("click", () => leaveNetwork("CANCELLED - READY TO PLAY"));
 document.getElementById("toMatchup")?.addEventListener("click", () => {
   if (netPending || online) return;
-  showGarageStep("matchup");
+  showGarageStep("matchup",true);
   setMatchMode("local");
 });
 document.getElementById("backVehicle")?.addEventListener("click", () => {
   if (netPending || online) return;
-  showGarageStep("vehicle");
+  showGarageStep("vehicle",true);
 });
 document.getElementById("modeLocal")?.addEventListener("click", () => {
   if (netPending) return;
@@ -439,7 +441,7 @@ document.getElementById("shareInviteBtn")?.addEventListener("click", async () =>
     const input = document.getElementById("roomCodeIn");
     if (input) {
       input.value = code;
-      input.focus();
+      queueMicrotask(()=>{showGarageStep('matchup');setMatchMode('private');input.focus();});
     }
     netMessage("ROOM " + code + " LOADED - PICK A CAR, THEN JOIN");
     params.delete("room");
@@ -551,13 +553,32 @@ setInterval(() => {
 window.addEventListener("pagehide", () => NET.destroy());
 function syncArenaDescription() {
   document.getElementById('arenaDescription').textContent=mapMode!=='sink'?'Car soccer on the stadium pitch.':gfxMode==='3d'
-    ?'Slide a bar of soap into the opposing drain. Ride the curved banks for airtime, then skid back into play. Blue wet steel is extra slippery; faucet arrows show the current. Watch the marked meteor and lightning warnings.'
-    :'Sink the ball into the opposing drain. Curved banks roll downhill; blue wet steel is slippery. The faucet pushes along its arrows. Marked meteors blast outward; lightning briefly stuns cars.';
+    ?'Slide soap into the opposing drain. Ride the banks for airtime; dodge the marked meteor and lightning strikes.'
+    :'Sink the ball into the opposing drain. Slippery steel, faucet currents and wild hazards keep it moving.';
+}
+function syncHomeMatch() {
+  const sink=mapMode==='sink',title=sink?'Kitchen Sink':'Stadium',view=gfxMode==='3d'?'3D':'2D';
+  const image=document.getElementById('homeArenaImage');
+  image.src='/assets/menu/'+(sink?'sink':'classic')+'.webp';
+  image.alt=sink?'The Kitchen Sink arena with two drain goals and a running faucet':'The castle stadium and its soccer pitch';
+  document.getElementById('homeArenaTitle').textContent=title;
+  document.getElementById('homeModeTag').textContent=view+' · VS GROK'+(mapMode==='night'?' · NIGHT':'');
+  document.getElementById('homeArenaHint').textContent=sink?(gfxMode==='3d'?'Slippery soap. Big air. Down the drain.':'Drain goals. Wild hazards. Top-down chaos.'):'A classic pitch. A very unconventional team.';
+  document.getElementById('homeMatchSummary').textContent=view+' · You vs Grok · First to 3';
+  document.getElementById('playNow').innerHTML='Play '+title+' <span aria-hidden="true">&#8594;</span>';
+  document.getElementById('go').textContent='Play '+title;
 }
 function applyMap() {
-  const sink=mapMode==='sink';mapBtn.hidden=sink;document.body.classList.toggle('sink-mode',sink);setSink(sink);fieldRoot.visible=!sink;sinkScene.root.visible=sink;
-  document.getElementById('arenaSelect').value=sink?'sink':'classic';
+  const sink=mapMode==='sink';mapBtn.hidden=true;document.body.classList.toggle('sink-mode',sink);setSink(sink);fieldRoot.visible=!sink;sinkScene.root.visible=sink;
+  for(const button of document.querySelectorAll('[data-arena]')) {
+    const selected=button.dataset.arena===(sink?'sink':'classic');button.classList.toggle('on',selected);button.setAttribute('aria-pressed',String(selected));
+  }
+  for(const button of document.querySelectorAll('[data-light]')) {
+    const selected=button.dataset.light===mapMode;button.classList.toggle('on',selected);button.setAttribute('aria-pressed',String(selected));
+  }
+  document.getElementById('stadiumLighting').hidden=sink;
   syncArenaDescription();
+  syncHomeMatch();
   fitRenderer(sink);
   const m = maps[mapMode];
   scene.background = new THREE.Color(m.bg);
@@ -575,10 +596,11 @@ function applyMap() {
 }
 applyMap();
 function cycleMap() { if (online || netPending || mapMode==='sink') return; mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
-document.getElementById('arenaSelect').addEventListener('change',e=>{if(online||netPending||mode!=='garage')return;mapMode=e.target.value==='sink'?'sink':'day';applyMap();});
+for(const button of document.querySelectorAll('[data-arena]'))button.addEventListener('click',()=>{if(online||netPending||mode!=='garage')return;mapMode=button.dataset.arena==='sink'?'sink':'day';applyMap();});
+for(const button of document.querySelectorAll('[data-light]'))button.addEventListener('click',()=>{if(online||netPending||mode!=='garage'||mapMode==='sink')return;mapMode=button.dataset.light==='night'?'night':'day';applyMap();});
 mapBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); cycleMap(); });
-document.getElementById("gfx3d")?.addEventListener("click", () => setGfxMode("3d"));
-document.getElementById("gfxPixel")?.addEventListener("click", () => setGfxMode("pixel"));
+document.getElementById("gfx3d")?.addEventListener("click", () => {if(!netPending&&!online&&mode==='garage')setGfxMode("3d");});
+document.getElementById("gfxPixel")?.addEventListener("click", () => {if(!netPending&&!online&&mode==='garage')setGfxMode("pixel");});
 syncGfxUI();
 bindInput(cycleMap);
 window.addEventListener("pointerdown", () => { ensureAudio(); if (mode === "garage") playBed("garage"); }, { once: true });
@@ -701,7 +723,7 @@ function rebuildGarage() {
     el.setAttribute("aria-pressed", String(v.id === selectedId));
     el.className = "card" + (v.id === selectedId ? " on" : "");
     el.dataset.id = v.id;
-    el.innerHTML = `<span class="title">${v.name}</span><span class="tag">${vehicleDescriptions[v.id][0]}</span>`;
+    el.innerHTML = `<img src="/assets/menu/${v.id}.webp" alt="" width="224" height="128" /><span class="carCopy"><span class="title">${v.name}</span><span class="tag">${vehicleDescriptions[v.id][0]}</span></span>`;
     el.addEventListener("click", () => {
       if (netPending || online) return;
       selectedId = localChoice = v.id;
@@ -718,9 +740,9 @@ function syncLockedVehicle() {
   const strip = document.getElementById("lockedVehicle");
   if (!strip) return;
   const v = byId(selectedId);
-  strip.textContent = v ? ("LOCKED - " + v.name) : "";
+  strip.textContent = v ? ("YOUR RIDE · " + v.name) : "";
 }
-function showGarageStep(step) {
+function showGarageStep(step,focus=false) {
   const vehicle = document.getElementById("stepVehicle");
   const matchup = document.getElementById("stepMatchup");
   if (!vehicle || !matchup) return;
@@ -728,13 +750,15 @@ function showGarageStep(step) {
   vehicle.hidden = onMatch;
   matchup.hidden = !onMatch;
   if (onMatch) syncLockedVehicle();
+  document.getElementById('garageShell').scrollTop=0;
+  if(focus)document.getElementById(onMatch?'backVehicle':'playNow')?.focus({preventScroll:true});
 }
 function setMatchMode(mode) {
   const localPane = document.getElementById("localPane");
   const privatePane = document.getElementById("privatePane");
   for (const id of ["modeLocal", "modeQuick", "modePrivate"]) {
     const btn = document.getElementById(id);
-    if (btn) btn.classList.toggle("on", btn.dataset.mode === mode);
+    if (btn) {btn.classList.toggle("on", btn.dataset.mode === mode);btn.setAttribute('aria-pressed',String(btn.dataset.mode===mode));}
   }
   if (localPane) localPane.hidden = mode !== "local";
   if (privatePane) privatePane.hidden = mode !== "private";
@@ -1332,6 +1356,7 @@ window.addEventListener("keydown", (e) => {
   if (mode === "faceoff" && (e.code === "Space" || e.code === "Enter" || e.code === "Escape")) kickoffNow();
 });
 document.getElementById("go").addEventListener("click", () => startGame(true));
+document.getElementById('playNow').addEventListener('click',()=>{if(mode==='garage'&&!netPending&&!online)startGame(true);});
 const goFsd = document.getElementById("goFsd");
 if (goFsd) goFsd.addEventListener("click", () => startGame(true));
 function sayChat(i) {
@@ -1599,6 +1624,7 @@ function returnToGarage() {
   hud.classList.add("hidden"); boostHud.classList.add("hidden");
   syncPixelVisibility();
   rebuildGarage(); setInspect(selectedId);
+  showGarageStep('vehicle',true);setMatchMode('local');syncHomeMatch();
   syncRematchUI();
   syncAudioUI();
 
@@ -1606,19 +1632,26 @@ function returnToGarage() {
 function maybeShowHow() {
   const layer = document.getElementById("howLayer");
   if (!layer) return;
-  try {
-    if (localStorage.getItem("gl_seen_how") === "1") return;
-  } catch {}
   layer.classList.remove("hidden");
+  document.getElementById('howGotIt').focus();
 }
 function dismissHow() {
   const layer = document.getElementById("howLayer");
   if (layer) layer.classList.add("hidden");
   try { localStorage.setItem("gl_seen_how", "1"); } catch {}
+  if(mode==='garage')document.getElementById('howOpen').focus();
 }
 document.getElementById("howGotIt")?.addEventListener("click", dismissHow);
 document.getElementById("howLayer")?.addEventListener("click", (e) => { if (e.target.id === "howLayer") dismissHow(); });
-maybeShowHow();
+document.getElementById('howLayer').addEventListener('keydown',e=>{
+  if(e.key==='Escape'){e.preventDefault();dismissHow();}
+  if(e.key==='Tab'){e.preventDefault();document.getElementById('howGotIt').focus();}
+});
+document.getElementById('howOpen').addEventListener('click',maybeShowHow);
+for(const [buttonId,panelId] of [['specsToggle','inspect'],['settingsToggle','garageSettings']]) {
+  const button=document.getElementById(buttonId),panel=document.getElementById(panelId);
+  button.addEventListener('click',()=>{panel.hidden=!panel.hidden;button.setAttribute('aria-expanded',String(!panel.hidden));});
+}
 
 for (const b of document.querySelectorAll('[data-tactic]')) b.addEventListener('click',()=>chooseTactic(b.dataset.tactic));
 document.getElementById('specialBtn').addEventListener('click',triggerSpecial);

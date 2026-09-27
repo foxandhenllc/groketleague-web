@@ -57,8 +57,86 @@ body:not(.playing) #brand { display:none; }
   #garageShell { padding:20px; max-height:calc(100dvh - 24px); }
 }
 @media(max-height:600px) { #overlay:not(.results) { justify-content:flex-start; } #garageShell { padding:18px; } }
-#garageShell .arenaChoice { display:flex; align-items:center; gap:10px; margin-top:14px; color:#a4b3bf; font:12px 'Segoe UI',Arial,sans-serif; }
-#garageShell #arenaSelect { min-width:0; flex:1; border:1px solid #ffffff40; border-radius:7px; padding:10px; color:#f2f5f7; background:#15242f; font:13px 'Segoe UI',Arial,sans-serif; }
+/* A direct launch on home; visual alternatives live one button away. */
+#garageShell { width:min(480px,100%); padding:22px; }
+#garageShell .masthead { padding-bottom:16px; }
+#garageShell .featuredArena { position:relative; margin-bottom:14px; height:166px; border-radius:12px; overflow:hidden; background:#253e4e; border:1px solid var(--line); }
+#garageShell .featuredArena>img { width:100%; height:100%; object-fit:cover; object-position:center 45%; display:block; }
+#garageShell .featuredCopy { position:absolute; inset:0; display:flex; flex-direction:column; justify-content:flex-end; padding:14px; background:linear-gradient(0deg,#071723f5,#07172399 34%,transparent 78%); }
+#garageShell .featuredCopy>span { align-self:flex-start; font-size:9px; font-weight:700; letter-spacing:1.3px; color:#a5f0f3; }
+#garageShell .featuredCopy h2 { margin:2px 0 3px; font:750 25px/1.2 'Segoe UI',Arial,sans-serif; letter-spacing:0; color:#fff; text-shadow:none; }
+#garageShell .featuredCopy p { margin:0; font-size:12px; color:#d3e4e8; }
+#garageShell .stepLabel { display:flex; align-items:center; min-height:36px; }
+#garageShell .textButton { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:4px 2px; border:0; background:transparent; color:#b7ccd7; box-shadow:none; font-size:12px; }
+#garageShell .textButton:hover { color:#fff; }
+#garageShell .card { display:flex; align-items:center; gap:6px; padding:6px 8px!important; min-height:62px!important; border-width:1px!important; }
+#garageShell .card img { display:block; width:62px; height:40px; object-fit:contain; flex:none; }
+#garageShell .card .carCopy { min-width:0; }
+#garageShell .card .title { font-size:11px; }
+#garageShell .card .tag { font-size:10px; margin-top:3px; }
+#garageShell .stepActions { display:grid; grid-template-columns:minmax(0,1fr) 120px; gap:8px; margin-top:14px; }
+#garageShell .cta { min-height:46px; font-size:13px!important; padding:10px 12px!important; box-shadow:none!important; }
+#garageShell #playNow { font-size:14px!important; display:flex; align-items:center; justify-content:space-between; gap:6px; text-align:left; }
+#garageShell #toMatchup { width:auto; font-size:12px!important; padding:10px!important; }
+#garageShell .launchNote { margin:8px 0 0; font-size:11px; text-align:center; color:var(--muted); }
+#garageShell .garageControlHint { margin:12px 0 4px; font-size:12px; }
+#garageShell .garageTools { display:flex; justify-content:space-between; gap:12px; border-top:1px solid var(--line); margin-top:12px; }
+#garageShell #garageSettings { border-top:0; padding-top:0; }
+#garageShell .arenaChoices { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+#garageShell .arenaCard { min-width:0; overflow:hidden; display:flex; flex-direction:column; padding:0 0 10px; border:1px solid var(--line); border-radius:10px; background:#ffffff05; color:#fff; text-align:left; box-shadow:none; }
+#garageShell .arenaCard img { display:block; width:100%; height:100px; object-fit:cover; }
+#garageShell .arenaCardTitle { display:block; margin:9px 10px 3px; font-weight:700; font-size:14px; }
+#garageShell .arenaCardNote { display:block; margin:0 10px; font-weight:400; font-size:10px; color:var(--muted); }
+#garageShell .arenaCard.on { border-color:var(--accent); background:#ffd43b10; box-shadow:inset 0 -3px var(--accent); }
+#garageShell .arenaCard.on .arenaCardTitle::after { content:' ✓'; color:var(--accent); }
+#garageShell .gfxRow { display:grid; grid-template-columns:1fr 1fr; }
+#garageShell .gfxCard { min-height:46px; display:flex; align-items:center; justify-content:center; gap:8px; }
+#garageShell .stadiumLighting { display:grid; grid-template-columns:1fr 1fr; margin-bottom:12px; }
+#garageShell .modeCard { min-height:58px; }
+#garageShell #localPane #go { width:100%; }
+#garageShell .lockedVehicle { color:var(--muted); font-size:11px; }
+#garageShell .backLink { min-height:44px; }
+#garageShell .searchCard { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:0 16px 40px #0005; }
+#garageShell .searchTitle { font:800 24px/1.2 'Segoe UI',Arial,sans-serif; text-shadow:none; letter-spacing:0; }
+#garageShell .searchKicker { font:700 11px/1.4 'Segoe UI',Arial,sans-serif; letter-spacing:1px; }
+@media(max-width:600px) {
+  #garageShell { padding:16px; }
+  #garageShell .featuredArena { height:148px; }
+  #garageShell .card img { width:48px; height:36px; }
+  #garageShell .card .title { font-size:10px; }
+  #garageShell .stepActions { grid-template-columns:minmax(0,1fr) 106px; }
+  #garageShell #playNow { font-size:13px!important; }
+  #garageShell .gfxCard { flex-direction:column; gap:2px; }
+}
+@media(max-width:380px) {
+  #garageShell .card { gap:2px; padding:5px!important; }
+  #garageShell .card img { width:37px; }
+  #garageShell .featuredCopy p { font-size:11px; }
+  #garageShell .stepActions { grid-template-columns:minmax(0,1fr) 94px; }
+}
+@media(max-height:700px) {
+  #garageShell .featuredArena { height:114px; }
+  #garageShell .masthead { padding-bottom:8px; }
+  #garageShell .presenceBar { margin-top:6px; }
+}
+@media(max-height:500px) and (min-width:501px) {
+  #garageShell { width:min(860px,100%); padding:14px; }
+  #garageShell .masthead { position:relative; padding-bottom:10px; }
+  #garageShell .brand .sub { display:none; }
+  #garageShell .presenceBar { position:absolute; right:0; top:0; }
+  #garageShell #stepVehicle { display:grid; grid-template-columns:.9fr 1.3fr; column-gap:14px; }
+  #garageShell .featuredArena { height:164px; grid-column:1; grid-row:1/4; margin:0; }
+  #garageShell .featuredCopy h2 { font-size:21px; }
+  #garageShell #stepVehicle>.stepLabel { grid-column:2; grid-row:1; }
+  #garageShell #garage { grid-column:2; grid-row:2; }
+  #garageShell .card { min-height:49px!important; }
+  #garageShell .stepActions { grid-column:2; grid-row:3; margin-top:8px; }
+  #garageShell .launchNote { grid-column:1/-1; margin-top:8px; }
+  #garageShell #inspect { grid-column:1/-1; }
+  #garageShell .garageControlHint { display:none; }
+  #garageShell .garageTools { margin-top:7px; }
+  #garageShell .arenaCard img { height:86px; }
+}
 #hazardNotice { position:fixed; z-index:6; top:100px; left:50%; transform:translateX(-50%); padding:7px 12px; background:#0e1b29e8; border-radius:6px; color:#ffbc85; font:700 11px 'Segoe UI',Arial,sans-serif; pointer-events:none; }
 #hazardNotice[hidden] { display:none; }
 body.pixel-mode #hazardNotice { top:88px; }

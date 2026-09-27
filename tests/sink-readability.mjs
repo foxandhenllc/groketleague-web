@@ -81,7 +81,7 @@ try {
     await page.goto(url);
     await page.waitForFunction(() => !!window.__sinkAudit, {}, { timeout: 60000 });
     await page.locator(`[data-id="${spec.car}"]`).click(); await page.locator('#toMatchup').click();
-    await page.locator('#arenaSelect').selectOption('sink'); await page.locator(gfx === 'pixel' ? '#gfxPixel' : '#gfx3d').click(); await page.locator('#go').click();
+    await page.locator('[data-arena="sink"]').click(); await page.locator(gfx === 'pixel' ? '#gfxPixel' : '#gfx3d').click(); await page.locator('#go').click();
     await page.waitForFunction(() => JSON.parse(window.render_game_to_text()).mode === 'play');
     await page.evaluate(() => window.__sinkAudit.set('dry-slope'));
     await page.waitForTimeout(1800); // Let the real camera settle before measuring framing.

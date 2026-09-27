@@ -22,7 +22,7 @@ try{
   await r.fulfill({response,body:s+`
    const realRender=renderer.render.bind(renderer);
    window.__motion={
-    setup(){selectedId='semi';setGfxMode('3d');startGame(false);kickoffNow(true);playing=false;camera.position.set(0,12.5,24);camTarget.set(0,.6,0);camera.lookAt(camTarget);if(typeof playCamera!=='undefined')playCamera.reset();renderer.render=()=>{};},
+    setup(){mapMode='day';applyMap();selectedId='semi';setGfxMode('3d');startGame(false);kickoffNow(true);playing=false;camera.position.set(0,12.5,24);camTarget.set(0,.6,0);camera.lookAt(camTarget);if(typeof playCamera!=='undefined')playCamera.reset();renderer.render=()=>{};},
     frame(row,dt,draw=false){Object.assign(P,row.P);Object.assign(B,row.B);Object.assign(ball,row.ball);stepGame(dt);
       if(draw)realRender(scene,camera);
       return {p:camera.position.toArray(),q:camera.quaternion.toArray(),cue:document.querySelector('#ballCue')?.hidden===false};},

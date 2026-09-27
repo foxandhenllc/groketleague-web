@@ -10,7 +10,7 @@ for(const gfx of ['pixel','3d']) for(const [i,car] of ['cybertruck','model3','cy
  const viewport=[{width:1280,height:800},{width:390,height:844},{width:844,height:390},{width:320,height:568}][i];
  const context=await browser.newContext({viewport});await context.addInitScript(()=>{localStorage.setItem('gl_seen_how','1');localStorage.setItem('gl_mute_music','1');});
  const p=await context.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(url);await p.waitForFunction(()=>!!window.render_game_to_text);
- await p.locator(`[data-id="${car}"]`).click();await p.locator('#toMatchup').click();await p.locator(gfx==='pixel'?'#gfxPixel':'#gfx3d').click();await p.locator('#go').click();
+ await p.locator(`[data-id="${car}"]`).click();await p.locator('#toMatchup').click(); await p.locator('[data-arena="classic"]').click();await p.locator(gfx==='pixel'?'#gfxPixel':'#gfx3d').click();await p.locator('#go').click();
  await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).mode==='play');
  await p.locator('[data-tactic="defend"]').click();await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).P.tactic==='defend');
  await p.keyboard.press('KeyA');await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).P.tactic==='attack');

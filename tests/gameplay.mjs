@@ -41,7 +41,7 @@ async function page({ gfx = '3d', car = 'cybertruck', mobile = false } = {}) {
   await p.goto(url);
   await until(p, () => typeof window.render_game_to_text === 'function');
   await p.locator(`[data-id="${car}"]`).click(); await p.locator('#toMatchup').click();
-  await p.locator('#arenaSelect').selectOption(arena);
+  await p.locator(`[data-arena="${arena}"]`).click();
   await p.locator(gfx === 'pixel' ? '#gfxPixel' : '#gfx3d').click();
   return p;
 }
@@ -115,6 +115,7 @@ try {
   await host.locator('#modePrivate').click(); await guest.locator('#modePrivate').click();
   await host.locator('#netCreate').click();
   await until(host, () => /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/.test(document.querySelector('#roomCodeOut').textContent));
+  for(const selector of ['[data-arena="sink"]','[data-arena="classic"]','#gfx3d','#gfxPixel','#backVehicle'])assert.equal(await host.locator(selector).isDisabled(),true,'Match setup stays fixed while waiting for a player');
   const code = await host.locator('#roomCodeOut').textContent();
   await guest.locator('#roomCodeIn').fill(code.toLowerCase()); await guest.locator('#netJoin').click();
   await Promise.all([playing(host), playing(guest)]);

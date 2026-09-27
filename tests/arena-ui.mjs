@@ -31,8 +31,8 @@ try {
     }
     await p.goto(url);
     await p.waitForFunction(() => typeof window.render_game_to_text === 'function');
-    await p.locator(`[data-id="${spec.car}"]`).click(); await p.locator('#toMatchup').click();
-    await p.locator(spec.gfx === '3d' ? '#gfx3d' : '#gfxPixel').click(); if (spec.night) await p.locator('#mapBtn').click();
+    await p.locator(`[data-id="${spec.car}"]`).click(); await p.locator('#toMatchup').click(); await p.locator('[data-arena="classic"]').click();
+    await p.locator(spec.gfx === '3d' ? '#gfx3d' : '#gfxPixel').click(); if (spec.night) await p.locator('[data-light="night"]').click();
     await p.locator('#go').click();
     await p.waitForFunction(() => JSON.parse(window.render_game_to_text()).mode === 'play');
     await p.waitForFunction(() => getComputedStyle(document.querySelector('#toast')).opacity === '0');

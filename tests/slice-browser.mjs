@@ -33,7 +33,7 @@ async function page(stale = false) {
     await fs.writeFile(out + '/startup-failure.json', JSON.stringify({ stale, errors, resources: await p.evaluate(() => performance.getEntriesByType('resource').map(r => ({ name:r.name, duration:r.duration }))) }, null, 2));
     throw error;
   }
-  await p.locator('[data-id="model3"]').click(); await p.locator('#toMatchup').click(); await p.locator('#gfxPixel').click();
+  await p.locator('[data-id="model3"]').click(); await p.locator('#toMatchup').click(); await p.locator('[data-arena="classic"]').click(); await p.locator('#gfxPixel').click();
   return p;
 }
 try {

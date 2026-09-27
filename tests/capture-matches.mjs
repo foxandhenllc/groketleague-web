@@ -31,7 +31,7 @@ function captureWait(ms){return new Promise(resolve=>captureDelay(resolve,ms));}
 window.__capture = {
  setup(options){
   window.__captureBot=options.opponent; window.__captureSeed=options.seed;
-  selectedId=options.car;setGfxMode(options.mode); startGame(false);
+  mapMode='day';applyMap();selectedId=options.car;setGfxMode(options.mode); startGame(false);
   captureFrame=0;captureHold=0;captureTimers.length=0;setQaKeys([]);stepGame(0);
   return this.state();
  },

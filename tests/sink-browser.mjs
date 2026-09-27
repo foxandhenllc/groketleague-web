@@ -9,7 +9,7 @@ for(const gfx of ['pixel','3d'])for(const [i,car] of ['cybertruck','model3','cyb
  const p=await c.newPage();
  await p.route('https://cdn.jsdelivr.net/**',async r=>{const u=r.request().url();if(!moduleCache.has(u)){const response=await r.fetch();moduleCache.set(u,{body:await response.body(),headers:response.headers(),status:response.status()});}await r.fulfill(moduleCache.get(u));});
  p.on('pageerror',e=>errors.push(e.message));await p.goto(url);await p.waitForFunction(()=>!!window.render_game_to_text,{},{timeout:60000});
- await p.locator(`[data-id="${car}"]`).click();await p.locator('#toMatchup').click();await p.locator('#arenaSelect').selectOption('sink');await p.locator(gfx==='pixel'?'#gfxPixel':'#gfx3d').click();await p.locator('#go').click();
+ await p.locator(`[data-id="${car}"]`).click();await p.locator('#toMatchup').click();await p.locator('[data-arena="sink"]').click();await p.locator(gfx==='pixel'?'#gfxPixel':'#gfx3d').click();await p.locator('#go').click();
  await p.waitForFunction(()=>JSON.parse(window.render_game_to_text()).mode==='play');
  await p.waitForFunction(()=>{const s=JSON.parse(window.render_game_to_text());return s.arenaState.hazard&&!s.arenaState.hazard.fired;});
  await p.screenshot({path:`${out}/${gfx}-${car}-warning.png`});

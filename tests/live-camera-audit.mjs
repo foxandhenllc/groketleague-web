@@ -23,7 +23,7 @@ async function run(spec){
   await page.screenshot({path:`${dir}/startup-failure.png`});
   await fs.writeFile(`${dir}/startup-errors.json`,JSON.stringify(errors));throw error;
  });
- await page.locator(`[data-id="${spec.car}"]`).click();await page.locator('#toMatchup').click();
+ await page.locator(`[data-id="${spec.car}"]`).click();await page.locator('#toMatchup').click(); await page.locator('[data-arena="classic"]').click();
  await page.locator('#gfx3d').click();await page.locator('#go').click();
  const start=Date.now();let lastBoost=false;
  for(let i=0;Date.now()-start<240000;i++){
