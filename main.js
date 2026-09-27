@@ -2,7 +2,7 @@ import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_M
 import { createEventStream } from './sim-events.js';
 import { boostLabel } from './boost.js';
 import { kickoffLayout, driverPersonality } from './match-variety.js';
-import { constrainChase, framePlay } from './chase-camera.js';
+import { createPlayCamera } from './chase-camera.js';
 let matchSeed = '';
 const rulesHash = await configHash();
 diagnostics.enabled = location.hash === "#diagnostics";
@@ -13,7 +13,6 @@ let roundEpoch = 0, simTick = 0;
 const impactMarks = [];
 let impactSoundTimes = [];
 let lastBoostActive = false;
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function consumeImpacts(events) {
   const now = performance.now();
   for (const e of events.sort((a,b)=>b.impulse-a.impulse)) {
@@ -77,13 +76,44 @@ renderer.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefau
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 220);
 const camTarget = new THREE.Vector3();
-const desired = new THREE.Vector3();
+const playCamera = createPlayCamera(camera);
 const garageCam = new THREE.Vector3(6.4, 3.1, 9.2);
 const garageLook = new THREE.Vector3(0, 1.05, 6);
 const faceCam = new THREE.Vector3(0, 12.5, 24);
 const faceLook = new THREE.Vector3(0, 0.6, 0);
-const playLook = new THREE.Vector3();
-let shake = 0;
+const ballCue=document.createElement('div');
+ballCue.id='ballCue';ballCue.hidden=true;ballCue.setAttribute('aria-hidden','true');
+document.body.append(ballCue);
+const cuePoint=new THREE.Vector3(),cueEdge=new THREE.Vector3(),cueDirection=new THREE.Vector3();
+const cueRay=new THREE.Raycaster();
+let cueOccluded=false,cueAge=1;
+function updateBallCue(dt){
+  if(mode!=='play'||pixelView.isActive()||paused||!pauseLayer.classList.contains('hidden')){ballCue.hidden=true;return;}
+  camera.updateMatrixWorld();
+  cuePoint.set(ball.x,ball.y,ball.z).project(camera);
+  cueEdge.set(ball.x+getBallRadius(),ball.y,ball.z).project(camera);
+  const x=(cuePoint.x+1)*innerWidth/2,y=(1-cuePoint.y)*innerHeight/2;
+  const top=innerHeight<500?132:150,bottom=innerHeight-100;
+  const behind=cuePoint.z>1||cuePoint.z< -1;
+  const edge=behind||x<24||x>innerWidth-24||y<top||y>bottom;
+  cueAge+=dt;
+  if(cueAge>=.1){
+    cueAge=0;scene.updateMatrixWorld(true);
+    cueDirection.set(ball.x,ball.y,ball.z).sub(camera.position);
+    cueRay.set(camera.position,cueDirection.clone().normalize());
+    cueRay.far=Math.max(0,cueDirection.length()-getBallRadius()*.8);
+    cueOccluded=cueRay.intersectObjects([playerMesh,botMesh,fieldRoot],true).length>0;
+  }
+  const tiny=Math.abs(cueEdge.x-cuePoint.x)*innerWidth<14;
+  ballCue.hidden=!(edge||cueOccluded||tiny);
+  if(ballCue.hidden)return;
+  ballCue.classList.toggle('edge',edge);
+  ballCue.textContent='';
+  ballCue.style.left=Math.max(24,Math.min(innerWidth-24,behind?innerWidth-x:x))+'px';
+  ballCue.style.top=Math.max(top,Math.min(bottom,behind?innerHeight-y:y))+'px';
+  const angle=Math.atan2(y-innerHeight/2,x-innerWidth/2)+(behind?Math.PI:0);
+  ballCue.style.transform=`translate(-50%,-50%) rotate(${edge?angle:0}rad)`;
+}
 const hemi = new THREE.HemisphereLight("#8ec8ff", "#4a2a10", 1.15);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight("#ffe6a0", 1.35);
@@ -436,7 +466,7 @@ NET.setHandlers({
     NET.send({t:'eventAck',id:matchId,epoch:roundEpoch,ids:delivered.ack});
     Object.assign(P, msg.P); Object.assign(B, msg.B); Object.assign(ball, msg.ball);
     if (msg.scoreA > scoreA || msg.scoreB > scoreB) {
-      SFX.goal(); SFX.crowd(msg.scoreB > scoreB); shake = 0.55;
+      SFX.goal(); SFX.crowd(msg.scoreB > scoreB);
       toast(msg.scoreA > scoreA ? "P1 GOAL" : "P2 GOAL", 1100, msg.scoreA > scoreA ? "p1" : "cpu");
     }
     scoreA = msg.scoreA; scoreB = msg.scoreB; timeLeft = msg.timeLeft; locked = msg.locked;
@@ -854,7 +884,7 @@ async function onGoal(who) {
   if (locked) return;
   locked = true;
   captureGoalStill(who);
-  SFX.goal(); SFX.crowd(who === "A"); shake = 0.55;
+  SFX.goal(); SFX.crowd(who === "A");
   if (who === "A") { scoreA++; toast("P1 GOAL - " + byId(selectedId).name, 1100, "p1"); }
   else { scoreB++; toast(opponentName() + " GOAL - " + byId(botId).name, 1100, "cpu"); }
   scoreAEl.textContent = String(scoreA);
@@ -971,6 +1001,7 @@ function stepGame(dt) {
     ballMesh.visible = true;
     ballMesh.scale.set(1, 1, 1);
     ballMesh.position.set(ball.x, ball.y, ball.z);
+    faceCam.z=online && NET.isGuest() ? -24 : 24;
     camera.position.lerp(faceCam, 1 - Math.pow(0.002, dt));
     camTarget.lerp(faceLook, 1 - Math.pow(0.002, dt));
     if (!(online && NET.isGuest())) faceoffT -= dt;
@@ -990,52 +1021,24 @@ function stepGame(dt) {
     ballMesh.rotation.x += ball.vz * dt / getBallRadius(); ballMesh.rotation.z -= ball.vx * dt / getBallRadius();
     repairCar(me);
     repairBall(ball);
-    let fx = -Math.sin(me.yaw), fz = -Math.cos(me.yaw);
-    if (![fx, fz].every(Number.isFinite) || (fx * fx + fz * fz) < 0.25) {
-      fx = 0; fz = 1;
-    }
-    // Chase offset must stay behind the car ' never collapse onto the look point (top-down grass)
-    desired.set(me.x - fx * 12.5, 8.2, me.z - fz * 12.5);
-    if (shake > 0 && !reducedMotion) {
-      desired.x += (Math.random() - 0.5) * shake * 1.1;
-      desired.y += (Math.random() - 0.5) * shake * 0.45;
-      shake = Math.max(0, shake - dt * 1.8);
-    }
-    desired.y = Math.max(6.5, Math.min(14, desired.y));
-    camera.position.lerp(desired, 1 - Math.pow(0.001, dt));
-    playLook.set(me.x * 0.55 + ball.x * 0.45, 1.0, me.z * 0.55 + ball.z * 0.45);
-    camTarget.lerp(playLook, 1 - Math.pow(0.0008, dt));
+    if (!paused) playCamera.update(camTarget, me, ball, getField(), dt, online && NET.isGuest() ? -1 : 1);
   }
-  // Always sanitize camera after mode branch ' recover from turf-lock / NaNs
-  if (![camera.position.x, camera.position.y, camera.position.z, camTarget.x, camTarget.y, camTarget.z].every(Number.isFinite)) {
-    camera.position.set(0, 14, 28); camTarget.set(0, 1, 0);
+  if (mode === 'garage' || mode === 'faceoff') {
+    playCamera.reset();
+    camera.lookAt(camTarget);
   }
-  camera.position.y = Math.max(5.5, Math.min(18, camera.position.y));
-  {
-    const dx = camera.position.x - camTarget.x;
-    const dz = camera.position.z - camTarget.z;
-    const sep = Math.hypot(dx, dz);
-    if (sep < 6.5) {
-      const s = sep < 0.05 ? 1 : 6.5 / sep;
-      if (sep < 0.05) {
-        camera.position.x = camTarget.x - 0 * 6.5;
-        camera.position.z = camTarget.z + 6.5;
-      } else {
-        camera.position.x = camTarget.x + dx * s;
-        camera.position.z = camTarget.z + dz * s;
-      }
-      camera.position.y = Math.max(camera.position.y, 7.5);
-    }
+  if (![camera.position.x,camera.position.y,camera.position.z,camTarget.x,camTarget.y,camTarget.z].every(Number.isFinite)) {
+    camera.position.set(0,22,24);camTarget.set(0,1,0);playCamera.reset();camera.lookAt(camTarget);
   }
-  if(mode !== 'garage' && mode !== 'faceoff') constrainChase(camera.position, getField().FW/2, getField().FL/2);
-  camera.lookAt(camTarget);
-  if(mode !== 'garage' && mode !== 'faceoff' && !pixelView.isActive())
-    framePlay(camera,camTarget,me,ball,getBallRadius(),p=>new THREE.Vector3(p.x,p.y,p.z).project(camera));
+  // Keep the pitch legible when portrait framing raises the camera.
+  if(scene.fog){const m=maps[mapMode],lift=Math.max(0,camera.position.y-18);scene.fog.near=m.fogN+lift;scene.fog.far=m.fogF+lift;}
+  updateBallCue(dt);
   updateImpactMeshes();
   if (!pixelView.isActive()) renderer.render(scene, camera);
   paintPixelFrame();
   } catch (err) {
     console.error("[groket tick]", err);
+    ballCue.hidden=true;
     if (diagnostics.enabled) { paused = true; playing = false; locked = true; netMessage('Simulation stopped - export diagnostic trace'); return; }
     try {
       repairCar(P); repairCar(B); repairBall(ball);

@@ -29,6 +29,7 @@ async function page({ gfx = '3d', car = 'cybertruck', mobile = false } = {}) {
       const response = await r.fetch();
       await r.fulfill({ response, body: await response.text() + `
         window.__scenario = {
+          reset: () => { startGame(false); kickoffNow(true); },
           goal: () => { Object.assign(P, { x: 20, z: 0 }); Object.assign(B, { x: -20, z: 0 }); Object.assign(ball, { x: 0, y: getBallRadius(), z: -33, vx: 0, vy: 0, vz: -18 }); },
           expire: () => { timeLeft = 0.001; }
         };
@@ -64,6 +65,9 @@ try {
     await p.locator('#resumeBtn').click();
     await until(p, t => JSON.parse(window.render_game_to_text()).timeLeft < t, paused.timeLeft);
     if (local) {
+      // The preceding real-time boost check can already have scored a goal.
+      // Start the controlled three-goal phase from an actual fresh match.
+      await p.evaluate(() => window.__scenario.reset());
       let previousFaceoff = null;
       for (let score = 1; score <= 3; score++) {
         await until(p, () => !JSON.parse(window.render_game_to_text()).locked);

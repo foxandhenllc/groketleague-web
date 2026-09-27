@@ -1,5 +1,9 @@
 # Tactical routing and camera release
 
+The instant camera framing described here was subsequently replaced by the
+[continuous camera follow-up](./CAMERA-MOTION-2026-09-27.md) after live motion
+and visibility problems were found. The results below describe that earlier release.
+
 Game source: `feec7cd`. This release follows the
 [September 25 recovery comparison](./RECOVERY-IMPROVEMENTS-2026-09-25.md).
 
