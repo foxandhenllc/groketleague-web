@@ -81,7 +81,11 @@ try{
    replace('setTimeout(() => {\n      if (serial !== sessionSerial) return;\n      finishMatch();','captureDelay(() => {\n      if (serial !== sessionSerial) return;\n      finishMatch();');
    await r.fulfill({response,body:source+'\n'+hooks});
   });
-  await page.goto(url);await page.waitForFunction(()=>!!window.__capture,{},{timeout:60000});
+  await page.goto(url);await page.waitForFunction(()=>!!window.__capture,{},{timeout:60000}).catch(async error=>{
+    await page.screenshot({path:path.join(dir,'startup-failure.png')});
+    await fs.writeFile(path.join(dir,'startup-errors.json'),JSON.stringify(errors,null,2));
+    console.error('Capture startup errors:',errors);throw error;
+  });
   let state=await page.evaluate(run=>window.__capture.setup(run),run);
   const cdp=await context.newCDPSession(page), rows=[];
   const start=Date.now();
