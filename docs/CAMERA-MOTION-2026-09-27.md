@@ -60,6 +60,8 @@ not the complete prior simulation internals.
 - The browser scoring fixture now starts a fresh match before its controlled
   three-goal phase. Previously, a real goal during the earlier boost check could
   invalidate its assumption that scoring still started at zero.
+- The final local integration rerun passed all nine checks, with no page or
+  console errors (`output/camera-smooth-browser-final/results.json`).
 - A concurrent browser run encountered startup timeouts; the gameplay suite
   recorded connection-refused resource errors. Those failed attempts are
   retained. A simple fresh boot succeeded; full-match capture was restarted
@@ -69,3 +71,16 @@ not the complete prior simulation internals.
 This is a calmer, elevated view with bounded zoom. It intentionally uses a ball
 cue instead of forcing every ball position into view with an abrupt zoom. The
 motion replay does not prove every random match or device will render smoothly.
+
+## Release
+
+Game revision `f87533c` was deployed to the existing Vercel project as
+`dpl_knyNeiupAomgta2Rn4XKc2EhF7QH`. The candidate's online 3D guest, rotation and
+resume checks passed before promotion. Both public domains then returned exact
+SHA-256 matches for all 11 checked source files and working presence responses.
+The preceding deployment is `dpl_BVmXj8d3bmbZ95FfJMbVYgXUyv7A` if rollback is
+needed. Internal test fixtures, docs and recordings remain excluded from uploads.
+
+All six public-site browser checks passed, with no page or console errors:
+both renderers, boost/pause/resume, private rooms, disconnect, quick match and
+mobile controls. Evidence is under `output/camera-smooth-production/`.
