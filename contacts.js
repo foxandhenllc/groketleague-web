@@ -62,9 +62,9 @@ function boards(body, isBall, field, config) {
   const ex = isBall ? r : extent(body, { x: 1, z: 0 });
   const ez = isBall ? r : extent(body, { x: 0, z: 1 });
   const mouth = Math.abs(body.x) + ex < field.GOAL_W / 2;
-  const inMouth = mouth && (!isBall || field.pixelTight || body.y + r < config.modes['3d'].goalHeight);
+  const inMouth = !field.sink && mouth && (!isBall || field.pixelTight || body.y + r < config.modes['3d'].goalHeight);
   const limX = halfW + (isBall && !field.pixelTight ? config.modes['3d'].sideOffset : 0) - ex;
-  const limZ = halfL + (!isBall && field.pixelTight && mouth ? field.goalDepth : 0) - ez;
+  const limZ = halfL + (!field.sink && !isBall && field.pixelTight && mouth ? field.goalDepth : 0) - ez;
   const out = [];
   for (const sign of [-1, 1]) {
     if (sign * body.x - limX >= -.005) out.push({ feature: `x${sign}`, nx: sign, nz: 0, depth: sign * body.x - limX, x: sign * (limX + ex), z: body.z });
@@ -158,9 +158,9 @@ export function createContactSolver(config, diagnostics) {
         if ((c.fresh || freshPeak) && closing >= 1 && c.lambda > 0 && cooldown === 0) {
           cooldowns.set(c.id,config.ball.no_rehit_s);
           const sign = c.a.attackSign || (cars.indexOf(c.a)===0 ? -1 : 1);
-          const t = (-sign*field.FL/2-incomingBall.z)/incomingBall.vz;
+          const t = (-sign*(field.drainZ||field.FL/2)-incomingBall.z)/incomingBall.vz;
           const save = c.type==='ballHit' && incomingBall.vz*sign < -3 && t>0 && t<1.5
-            && Math.abs(incomingBall.x+incomingBall.vx*t)<field.GOAL_W/2
+            && Math.abs(incomingBall.x+incomingBall.vx*t)<(field.sink?config.sink.drainRadius-field.ballRadius:field.GOAL_W/2)
             && ball.vz*sign>incomingBall.vz*sign+3;
           const timed = !!c.timed && c.fresh && c.bounce>0;
           if(timed) c.a._boost.timedUsed = true;

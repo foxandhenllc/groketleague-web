@@ -55,6 +55,7 @@
   <button id="menuBtn" aria-controls="pauseLayer" aria-expanded="false">MENU</button>
   <div id="boostHud" class="hidden"><div class="lab" id="boostLab">BOOST READY</div><div id="boostBar"><div id="boostFill"></div></div></div>
   <div id="toast" class="from-p1"></div>
+  <div id="hazardNotice" hidden aria-live="polite"></div>
   <div id="matchChat" class="idle" aria-live="polite"></div>
   <div id="skillControls" aria-label="Driving tactics and signature move">
     <button type="button" data-tactic="attack" aria-pressed="false" title="Attack (A)">Attack</button>
@@ -155,15 +156,17 @@
         </button>
       </div>
 
+      <label class="arenaChoice">Arena <select id="arenaSelect"><option value="classic">Stadium soccer</option><option value="sink">Kitchen Sink - chaos soccer</option></select></label>
+      <p class="specNote" id="arenaDescription">Car soccer on the stadium pitch.</p>
       <div id="localPane" class="matchPane">
         <div class="gfxRow" role="group" aria-label="Graphics version">
           <button type="button" class="gfxCard on" id="gfx3d" data-gfx="3d">
             <div class="gfxTitle">3D ARENA</div>
-            <div class="gfxSub">CASTLE PITCH / WEBGL</div>
+            <div class="gfxSub">FOLLOW CAMERA / WEBGL</div>
           </button>
           <button type="button" class="gfxCard" id="gfxPixel" data-gfx="pixel">
             <div class="gfxTitle">ARCADE 2D</div>
-            <div class="gfxSub">CIRCUIT STADIUM / TOP-DOWN</div>
+            <div class="gfxSub">FULL ARENA / TOP-DOWN</div>
           </button>
         </div>
         <div class="row">

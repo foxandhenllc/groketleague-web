@@ -168,6 +168,8 @@ function stopCrowd() {
   crowdNode = null;
 }
 const _SFX_RAW = {
+  meteor: () => { noise(.35,.14,350); beep(70,.25,'triangle',.12,-45); },
+  zap: () => { noise(.16,.1,4200); beep(800,.15,'sawtooth',.07,-600); },
   perfect: () => { beep(660,.1,'sine',.09); setTimeout(()=>beep(990,.12,'sine',.09),65); },
   save: () => { beep(440,.18,'triangle',.12,220); },
   boost: () => {

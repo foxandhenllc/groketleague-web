@@ -57,3 +57,18 @@ body:not(.playing) #brand { display:none; }
   #garageShell { padding:20px; max-height:calc(100dvh - 24px); }
 }
 @media(max-height:600px) { #overlay:not(.results) { justify-content:flex-start; } #garageShell { padding:18px; } }
+#garageShell .arenaChoice { display:flex; align-items:center; gap:10px; margin-top:14px; color:#a4b3bf; font:12px 'Segoe UI',Arial,sans-serif; }
+#garageShell #arenaSelect { min-width:0; flex:1; border:1px solid #ffffff40; border-radius:7px; padding:10px; color:#f2f5f7; background:#15242f; font:13px 'Segoe UI',Arial,sans-serif; }
+#hazardNotice { position:fixed; z-index:6; top:100px; left:50%; transform:translateX(-50%); padding:7px 12px; background:#0e1b29e8; border-radius:6px; color:#ffbc85; font:700 11px 'Segoe UI',Arial,sans-serif; pointer-events:none; }
+#hazardNotice[hidden] { display:none; }
+body.pixel-mode #hazardNotice { top:88px; }
+@media(max-height:500px) and (min-width:740px) { body.pixel-mode #hazardNotice { top:auto; bottom:8px; max-width:calc(100% - 320px); } }
+body.sink-mode.pixel-mode #brand::after { content:'KITCHEN SINK / CHAOS SOCCER'; }
+@media(max-height:500px) and (min-width:601px) {
+  body.sink-mode.playing:not(.pixel-mode) #skillControls { display:grid; grid-template-columns:1fr 1fr; left:auto; right:16px; top:136px; bottom:auto; transform:none; width:124px; }
+  body.sink-mode:not(.pixel-mode) #skillControls button { padding:5px 2px; min-width:0; }
+  body.sink-mode:not(.pixel-mode) #skillControls #specialBtn { min-width:0; }
+  body.sink-mode:not(.pixel-mode) #menuBtn { left:16px; right:auto !important; }
+  body.sink-mode:not(.pixel-mode) #boostBtn { width:70px; height:70px; font-size:16px; }
+  body.sink-mode:not(.pixel-mode) #boostHud { left:22px; right:auto; bottom:88px !important; width:110px; transform:none; }
+}

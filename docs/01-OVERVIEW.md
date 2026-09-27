@@ -8,6 +8,7 @@
 - Two presentation modes:
   - **3D Arena** - Three.js field + extruded cars (`field.js`, `vehicles.js`).
   - **Arcade 2D** - CIRCUIT top-down stadium, procedural cars and a separate match HUD (`pixel.js`, `arena.css`). Internal mode ID remains `pixel`.
+- **Kitchen Sink** is an alternate arena in either view: colored drain goals, basin slopes, faucet surges, meteors and lightning. The host selects the arena for online play.
 - Online **1v1** via **PeerJS** (host-authoritative physics) - quick match + 4-character private rooms.
 - Optional **Sign in with X** (OAuth PKCE) for handles / presence flavor.
 

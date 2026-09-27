@@ -1,7 +1,7 @@
 import { simulationConfig } from './simulation-config.js';
 
 export const PROTOCOL = 2;
-export const SIM_VERSION = 'player-skills-6';
+export const SIM_VERSION = 'sink-chaos-7';
 export const VERSION_MESSAGE = 'Game versions differ - refresh both players';
 
 export function canonicalJSON(value) {

@@ -1,5 +1,7 @@
 import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_MESSAGE } from './net-protocol.js';
 import { createEventStream } from './sim-events.js';
+import { makeArenaState, stepSink, sinkHeight, SINK } from './sink.js';
+import { makeSinkScene } from './sink-scene.js';
 import { movePhase, timingCue, moveDescriptions } from './skills.js';
 import { simulationConfig } from './simulation-config.js';
 import { boostLabel } from './boost.js';
@@ -38,7 +40,7 @@ import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMu
 import { bindInput, bindTouch, readControls, setQaKeys, clearInput, chooseTactic, triggerSpecial } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
-import { bodyFrom, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius, getField, solveContacts, resetContacts, diagnostics } from "./sim.js";
+import { setSink, bodyFrom, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius, getField, solveContacts, resetContacts, diagnostics } from "./sim.js";
 import { createPhysicsClock } from "./physics-clock.js";
 import { createPixelView } from "./pixel.js";
 import { initXAuth, loginWithX, logoutX, getXUser, onAuthChange } from "./x-auth.js";
@@ -135,6 +137,9 @@ const fieldRoot = new THREE.Group();
 const nightExtra = new THREE.Group();
 scene.add(fieldRoot, nightExtra);
 makeField(scene, fieldRoot, nightExtra);
+const sinkScene=makeSinkScene(scene);
+let arenaState=makeArenaState(), drainAnimation=0, lastHazardToken='';
+const sinkCameraPosition=new THREE.Vector3(),sinkCameraTarget=new THREE.Vector3();
 let playerMesh = makeVehicle("cybertruck");
 let botMesh = makeVehicle("model3");
 const ballMesh = makeBall();
@@ -148,6 +153,7 @@ preview.add(previewMesh);
 preview.position.set(0, 0, 6);
 scene.add(preview);
 const maps = {
+  sink: { label:'KITCHEN SINK',bg:'#354b59',fogN:70,fogF:160,hemi:['#d8f6ff','#78604c',1.7],sun:1.5,fill:.7,lamp:0,turf:'#ffffff' },
   day: { label: "CASTLE DAY", bg: "#3a6aaa", fogN: 42, fogF: 115, hemi: ["#b8d8ff", "#5a3a18", 1.05], sun: 1.25, fill: 0.48, lamp: 18, turf: "#ffffff" },
   night: { label: "TORCH NIGHT", bg: "#0c1430", fogN: 28, fogF: 95, hemi: ["#4a6aaa", "#1a1020", 0.5], sun: 0.12, fill: 0.22, lamp: 48, turf: "#ffffff" }
 };
@@ -165,8 +171,8 @@ function setGfxMode(g) {
   setPixelTight(gfxMode === "pixel");
   try { localStorage.setItem("gl_gfx", gfxMode); } catch {}
   syncGfxUI();
-  mapTag.textContent = gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : maps[mapMode].label;
-  mapBtn.textContent = "MAP: " + (gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : maps[mapMode].label);
+  mapTag.textContent = mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : maps[mapMode].label;
+  mapBtn.textContent = "MAP: " + (mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : maps[mapMode].label);
   syncPixelVisibility();
 }
 function syncPixelVisibility() {
@@ -183,6 +189,8 @@ function paintPixelFrame() {
     bot: B,
     ball,
     impacts: impactMarks.filter(e => e.until > performance.now()),
+    sink:mapMode==='sink',arenaState,
+    drainProgress:mapMode==='sink'&&locked?Math.min(1,(performance.now()-drainAnimation)/700):0,
     localIsBot: online && NET.isGuest()
   });
 }
@@ -467,12 +475,14 @@ NET.setHandlers({
     notePacket();
     if (peerFsd !== (msg.fsdA === true)) { peerFsd = msg.fsdA === true; syncFsdUI(); }
     if (!Number.isInteger(msg.epoch) || msg.epoch < roundEpoch) return;
-    if (msg.epoch > roundEpoch) { roundEpoch = msg.epoch; impactStream.reset(roundEpoch); impactMarks.length = 0; }
+    if (msg.epoch > roundEpoch) { roundEpoch = msg.epoch; lastHazardToken=''; impactStream.reset(roundEpoch); impactMarks.length = 0; }
     const delivered = impactStream.receive(roundEpoch, msg.events);
     consumeImpacts(delivered.events);
     NET.send({t:'eventAck',id:matchId,epoch:roundEpoch,ids:delivered.ack});
+    if(msg.arenaState)arenaState=msg.arenaState;
     Object.assign(P, msg.P); Object.assign(B, msg.B); Object.assign(ball, msg.ball);
     if (msg.scoreA > scoreA || msg.scoreB > scoreB) {
+      drainAnimation=performance.now();
       SFX.goal(); SFX.crowd(msg.scoreB > scoreB);
       toast(msg.scoreA > scoreA ? "P1 GOAL" : "P2 GOAL", 1100, msg.scoreA > scoreA ? "p1" : "cpu");
     }
@@ -502,7 +512,7 @@ NET.setHandlers({
   onError: err => disconnected(err.message || "Connection lost. Try again.")
 });
 function sendSnapshot() {
-  NET.send({ t: "st", id: matchId, ...impactStream.packet(), P, B, ball, scoreA, scoreB, timeLeft, locked, mode, faceoffT, fsdA: fsd, fsdB: peerFsd });
+  NET.send({ t: "st", id: matchId, ...impactStream.packet(), P, B, ball, arenaState, scoreA, scoreB, timeLeft, locked, mode, faceoffT, fsdA: fsd, fsdB: peerFsd });
 }
 setInterval(() => {
   if (!NET.isOnline()) return;
@@ -517,6 +527,9 @@ setInterval(() => {
 }, 50);
 window.addEventListener("pagehide", () => NET.destroy());
 function applyMap() {
+  const sink=mapMode==='sink';mapBtn.hidden=sink;document.body.classList.toggle('sink-mode',sink);setSink(sink);fieldRoot.visible=!sink;sinkScene.root.visible=sink;
+  document.getElementById('arenaSelect').value=sink?'sink':'classic';
+  document.getElementById('arenaDescription').textContent=sink?'Drain the ball into the opposing colored goal. Dodge marked meteor and lightning zones; faucet surges push everyone sideways.':'Car soccer on the stadium pitch.';
   const m = maps[mapMode];
   scene.background = new THREE.Color(m.bg);
   scene.fog = new THREE.Fog(m.bg, m.fogN, m.fogF);
@@ -527,12 +540,13 @@ function applyMap() {
   if (turf) turf.material.color.set(m.turf);
   nightExtra.visible = mapMode === "night";
   pixelView.setNight(mapMode === "night");
-  mapTag.textContent = gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : m.label;
-  mapBtn.textContent = "MAP: " + (gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : m.label);
+  mapTag.textContent = mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : m.label;
+  mapBtn.textContent = "MAP: " + (mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : m.label);
   if (mode === "play" || mode === "faceoff") playBed(mapMode === "night" ? "night" : "day");
 }
 applyMap();
-function cycleMap() { if (online || netPending) return; mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
+function cycleMap() { if (online || netPending || mapMode==='sink') return; mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
+document.getElementById('arenaSelect').addEventListener('change',e=>{if(online||netPending||mode!=='garage')return;mapMode=e.target.value==='sink'?'sink':'day';applyMap();});
 mapBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); cycleMap(); });
 document.getElementById("gfx3d")?.addEventListener("click", () => setGfxMode("3d"));
 document.getElementById("gfxPixel")?.addEventListener("click", () => setGfxMode("pixel"));
@@ -701,6 +715,7 @@ setInspect("cybertruck");
 function resetKick() {
   clearInput(); resetContacts(); impactMarks.length = 0;
   impactStream.reset(++roundEpoch);
+  arenaState=makeArenaState(matchSeed+roundEpoch); lastHazardToken='';
   const round = roundEpoch - 1, layout = kickoffLayout(matchSeed, round);
   P = bodyFrom(selectedId, layout.P.x, layout.P.z, layout.P.yaw);
   B = bodyFrom(botId, layout.B.x, layout.B.z, layout.B.yaw);
@@ -773,7 +788,7 @@ function syncMesh(mesh, c) {
   repairCar(c);
   mesh.visible = true;
   mesh.scale.set(1, 1, 1);
-  mesh.position.set(c.x, 0, c.z);
+  mesh.position.set(c.x, mapMode==='sink'?sinkHeight(c.x,c.z):0, c.z);
   mesh.rotation.set(0, c.yaw, 0);
   const ring=mesh.getObjectByName('skill-ring'), phase=movePhase(c);
   if(ring) { ring.material.color.set(phase==='windup'?'#ff784e':phase==='active'?'#ffffff':ring.userData.teamColor); ring.scale.setScalar(phase==='ready'?1:1.6); }
@@ -905,7 +920,7 @@ function softDisconnect(message = "OPPONENT DISCONNECTED - FIND ANOTHER MATCH") 
 async function onGoal(who) {
   const serial = sessionSerial;
   if (locked) return;
-  locked = true;
+  locked = true; drainAnimation=performance.now();
   captureGoalStill(who);
   SFX.goal(); SFX.crowd(who === "A");
   if (who === "A") { scoreA++; toast("P1 GOAL - " + byId(selectedId).name, 1100, "p1"); }
@@ -974,6 +989,7 @@ function simulateMatch(dt) {
       matchChatIdle -= dt;
       if (matchChatIdle <= 0 && matchChat) matchChat.classList.add("idle");
     }
+    if(mapMode==='sink')stepSink(arenaState,[P,B],ball,dt);
     const events = impactStream.emit(solveContacts([P, B], ball, dt));
     consumeImpacts(events);
     simTick++;
@@ -1034,7 +1050,8 @@ function stepGame(dt) {
     repairBall(ball);
     ballMesh.visible = true;
     ballMesh.scale.set(1, 1, 1);
-    ballMesh.position.set(ball.x, ball.y, ball.z);
+    ballMesh.position.set(ball.x, ball.y+(mapMode==='sink'?sinkHeight(ball.x,ball.z):0), ball.z);
+    if(mapMode==='sink'&&locked){const drop=Math.min(1,(performance.now()-drainAnimation)/700);ballMesh.position.y-=drop*3;ballMesh.scale.setScalar(Math.max(.01,1-drop));}
     faceCam.z=online && NET.isGuest() ? -24 : 24;
     camera.position.lerp(faceCam, 1 - Math.pow(0.002, dt));
     camTarget.lerp(faceLook, 1 - Math.pow(0.002, dt));
@@ -1051,11 +1068,12 @@ function stepGame(dt) {
     if (![ballMesh.rotation.x, ballMesh.rotation.y, ballMesh.rotation.z].every(Number.isFinite)) {
       ballMesh.rotation.set(0, 0, 0);
     }
-    ballMesh.position.set(ball.x, ball.y, ball.z);
+    ballMesh.position.set(ball.x, ball.y+(mapMode==='sink'?sinkHeight(ball.x,ball.z):0), ball.z);
+    if(mapMode==='sink'&&locked){const drop=Math.min(1,(performance.now()-drainAnimation)/700);ballMesh.position.y-=drop*3;ballMesh.scale.setScalar(Math.max(.01,1-drop));}
     ballMesh.rotation.x += ball.vz * dt / getBallRadius(); ballMesh.rotation.z -= ball.vx * dt / getBallRadius();
     repairCar(me);
     repairBall(ball);
-    if (!paused) playCamera.update(camTarget, me, ball, getField(), dt, online && NET.isGuest() ? -1 : 1);
+    if (!paused && mapMode!=='sink') playCamera.update(camTarget, me, ball, getField(), dt, online && NET.isGuest() ? -1 : 1);
   }
   if (mode === 'garage' || mode === 'faceoff') {
     playCamera.reset();
@@ -1066,6 +1084,18 @@ function stepGame(dt) {
   }
   // Keep the pitch legible when portrait framing raises the camera.
   if(scene.fog){const m=maps[mapMode],lift=Math.max(0,camera.position.y-18);scene.fog.near=m.fogN+lift;scene.fog.far=m.fogF+lift;}
+  if(mapMode==='sink' && mode!=='garage') {
+    const wide=camera.aspect>1.15;
+    sinkCameraPosition.set(wide?50:0,wide?76:105,wide?30:54);
+    camera.position.lerp(sinkCameraPosition,1-Math.exp(-dt*3));
+    camTarget.lerp(sinkCameraTarget,1-Math.exp(-dt*3));camera.lookAt(camTarget);
+  }
+  sinkScene.update(arenaState);
+  const hazardEl=document.getElementById('hazardNotice'), h=arenaState.hazard;
+  hazardEl.hidden=mapMode!=='sink'||mode!=='play'||locked;
+  const hazardText=h?(h.kind==='meteor'?'METEOR':'LIGHTNING')+(h.fired?' IMPACT!':' - MOVE OUT!'):arenaState.surge>.1?'FAUCET SURGE':'OPPOSING DRAIN = GOAL';
+  if(hazardEl.textContent!==hazardText)hazardEl.textContent=hazardText;
+  if(mapMode==='sink'&&h?.fired&&lastHazardToken!==roundEpoch+':'+h.id){lastHazardToken=roundEpoch+':'+h.id;h.kind==='meteor'?SFX.meteor():SFX.zap();}
   updateBallCue(dt);
   updateImpactMeshes();
   if (!pixelView.isActive()) renderer.render(scene, camera);
@@ -1114,7 +1144,7 @@ function kickoffNow(fromHost = false) {
   startCrowd();
   playBed(mapMode === "night" ? "night" : "day");
   SFX.whistle();
-  toast(gfxMode === "pixel" ? (online && NET.isGuest() ? "YOU ARE CYAN" : "YOU ARE AMBER") : (online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : "KICK OFF"), 1100, online && NET.isGuest() ? "cpu" : "p1");
+  toast(mapMode==='sink'?'LET THAT SINK IN':gfxMode === "pixel" ? (online && NET.isGuest() ? "YOU ARE CYAN" : "YOU ARE AMBER") : (online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : "KICK OFF"), 1100, online && NET.isGuest() ? "cpu" : "p1");
 }
 function startGame(useFsd, config = null) {
   chooseTactic('auto');
@@ -1125,7 +1155,7 @@ function startGame(useFsd, config = null) {
     if (config.gfx === "pixel" || config.gfx === "3d") setGfxMode(config.gfx);
     online = true; setNetPending(false);
     selectedId = config.a; botId = config.b;
-    mapMode = config.map === "night" ? "night" : "day"; applyMap();
+    mapMode = ["night","sink"].includes(config.map) ? config.map : "day"; applyMap();
     remoteInput = { throttle: 0, steer: 0, boost: false };
     lastInput = performance.now(); notePacket();
     netMessage("ONLINE 1v1 CONNECTED");
@@ -1415,7 +1445,7 @@ function beginRematch(config) {
   if (config.nextId) matchId = config.nextId;
   wantRematch = false; peerWantRematch = false;
   syncRematchUI();
-  startGame(fsd, { a: config.a, b: config.b, map: config.map === "night" ? "night" : "day", gfx: config.gfx });
+  startGame(fsd, { a: config.a, b: config.b, map: ["night","sink"].includes(config.map) ? config.map : "day", gfx: config.gfx });
 }
 function maybeStartRematch() {
   if (!online || !NET.isHost() || !wantRematch || !peerWantRematch || mode !== "results") return;
@@ -1475,8 +1505,8 @@ document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
 document.getElementById("again").addEventListener("click", requestRematch);
 document.getElementById("leaveBtn").addEventListener("click", returnToGarage);
 window.render_game_to_text = () => JSON.stringify({
-  mode, gfxMode, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
-  fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: online && NET.isGuest() ? "B" : "P",
+  mode, gfxMode, mapMode, arenaState, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
+  fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: mapMode==='sink'?'arena':online && NET.isGuest() ? "B" : "P",
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
   P, B, ball, scoreA, scoreB, timeLeft, rulesHash, roundEpoch, matchSeed,
   faceoffName: kickoffLayout(matchSeed, Math.max(0,roundEpoch-1)).name,

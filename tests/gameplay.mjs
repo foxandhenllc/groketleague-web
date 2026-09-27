@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 const url = process.env.GAME_URL || 'http://localhost:5173';
 const local = ['localhost', '127.0.0.1'].includes(new URL(url).hostname);
+const arena=process.env.GAME_ARENA||'classic';
 const out = process.env.QA_OUT || 'output/netplay';
 await fs.mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] });
@@ -30,7 +31,7 @@ async function page({ gfx = '3d', car = 'cybertruck', mobile = false } = {}) {
       await r.fulfill({ response, body: await response.text() + `
         window.__scenario = {
           reset: () => { startGame(false); kickoffNow(true); },
-          goal: () => { Object.assign(P, { x: 20, z: 0 }); Object.assign(B, { x: -20, z: 0 }); Object.assign(ball, { x: 0, y: getBallRadius(), z: -33, vx: 0, vy: 0, vz: -18 }); },
+          goal: () => { Object.assign(P, { x: 20, z: 0 }); Object.assign(B, { x: -20, z: 0 }); Object.assign(ball, { x: 0, y: getBallRadius(), z: mapMode === 'sink' ? -23 : -33, vx: 0, vy: 0, vz: -18 }); },
           expire: () => { timeLeft = 0.001; }
         };
       ` });
@@ -39,6 +40,7 @@ async function page({ gfx = '3d', car = 'cybertruck', mobile = false } = {}) {
   await p.goto(url);
   await until(p, () => typeof window.render_game_to_text === 'function');
   await p.locator(`[data-id="${car}"]`).click(); await p.locator('#toMatchup').click();
+  await p.locator('#arenaSelect').selectOption(arena);
   await p.locator(gfx === 'pixel' ? '#gfxPixel' : '#gfx3d').click();
   return p;
 }
@@ -93,10 +95,11 @@ try {
   await guest.locator('#roomCodeIn').fill(code.toLowerCase()); await guest.locator('#netJoin').click();
   await Promise.all([playing(host), playing(guest)]);
   let h = await state(host), g = await state(guest);
-  assert.equal(h.role, 'host'); assert.equal(g.role, 'guest'); assert.equal(g.cameraFollows, 'B');
+  assert.equal(h.role, 'host'); assert.equal(g.role, 'guest'); assert.equal(g.cameraFollows,arena==='sink'?'arena':'B');
   assert.equal(h.matchId, g.matchId); assert.equal(h.B.kind, 'model3');
   assert.equal(h.matchSeed,g.matchSeed); assert.equal(h.faceoffName,g.faceoffName);
   assert.deepEqual(h.P.personality,g.P.personality); assert.deepEqual(h.B.personality,g.B.personality);
+  assert.equal(g.mapMode,arena==='sink'?'sink':'day');
   assert.equal(g.gfxMode, 'pixel'); assert.equal(g.ball.y, h.ball.y);
   assert.equal(await host.locator('#hudP1Who').textContent(), 'YOU');
   assert.equal(await guest.locator('.scorebox.cpu .who').textContent(), 'YOU');
@@ -118,6 +121,12 @@ try {
   await until(host, t => JSON.parse(window.render_game_to_text()).timeLeft < t - .3, beforeMenu);
   assert.equal((await state(guest)).paused, false); await guest.locator('#resumeBtn').click();
   await guest.screenshot({ path: `${out}/pixel-online-guest.png` });
+  if(arena==='sink') {
+    await until(host,()=>!!JSON.parse(window.render_game_to_text()).arenaState.hazard);
+    const hazard=(await state(host)).arenaState.hazard;
+    await until(guest,h=>{const g=JSON.parse(window.render_game_to_text()).arenaState.hazard;return g&&g.id===h.id&&g.x===h.x&&g.z===h.z;},hazard);
+    pass('sink hazard position and identity agree between host and guest');
+  }
   pass('private room: handshake, cars, shared pixel field, guest boost/tactics/signature move, quick chat, live menu');
   if (local) {
     await until(host, () => !JSON.parse(window.render_game_to_text()).locked);

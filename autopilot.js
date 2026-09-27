@@ -19,8 +19,8 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   const travel = (1 - Math.exp(-config.planner.rollingK * lead)) / config.planner.rollingK;
   const bx = clamp(ball.x + ball.vx * travel, -halfW + radius, halfW - radius);
   const bz = clamp(ball.z + ball.vz * travel, -halfL + radius, halfL - radius);
-  const goalZ = attackSign * halfL;
-  const ownDistance = halfL + bz * attackSign;
+  const goalZ = attackSign * (field.drainZ || halfL);
+  const ownDistance = (field.drainZ || halfL) + bz * attackSign;
   // Slightly favour the open half of the net when a defender is in the goal mouth.
   const keeper = foe && Math.abs(foe.z - goalZ) < 8;
   const goalX = keeper ? clamp(-foe.x * .45, -field.GOAL_W * .2, field.GOAL_W * .2) : (personality?.aim || 0);

@@ -1,3 +1,4 @@
+import { SINK, drainGoal } from './sink.js';
 import { updateMove, movePhase } from './skills.js';
 import { updateBoost } from "./boost.js";
 import { createContactSolver } from "./contacts.js";
@@ -20,6 +21,8 @@ function bodyFrom(id, x, z, yaw) {
   const { id: _id, ...stats } = spec;
   return { kind: id, ...byId(id).spec, ...stats, hx:stats.w*config.drive.hitbox.w_factor, hz:stats.l*config.drive.hitbox.l_factor, x, z, yaw, vx: 0, vz: 0, boost: spec.boostMax, boosting: false, _noRehit: 0, _ai: {} };
 }
+let sink = false;
+function setSink(on) { sink=!!on; }
 let pixelTight = mode === 'pixel';
 let fieldW = config.modes[mode].width;
 let fieldL = config.modes[mode].length;
@@ -30,7 +33,7 @@ function setPixelTight(on) {
   fieldW = geometry.width; fieldL = geometry.length;
 }
 function getField() {
-  return { FW: fieldW, FL: fieldL, pixelTight, corner:config.modes[pixelTight ? 'pixel' : '3d'].corner, GOAL_W: goalW(), goalDepth: config.modes[pixelTight ? 'pixel' : '3d'].depth, ballRadius: getBallRadius(), config };
+  return { sink, drainZ:sink?SINK.drainZ:undefined, FW: fieldW, FL: fieldL, pixelTight, corner:config.modes[pixelTight ? 'pixel' : '3d'].corner, GOAL_W: goalW(), goalDepth: config.modes[pixelTight ? 'pixel' : '3d'].depth, ballRadius: getBallRadius(), config };
 }
 function getBallRadius() { return pixelTight ? config.ball.radiusPixel : config.ball.radius3d; }
 function goalW() {
@@ -41,7 +44,7 @@ function clampFieldCar(c) {
   const sin = Math.abs(Math.sin(c.yaw)), cos = Math.abs(Math.cos(c.yaw));
   const extentX = cos * c.hx + sin * c.hz;
   const extentZ = sin * c.hx + cos * c.hz;
-  const inGoal = pixelTight && Math.abs(c.x) + extentX < goalW() / 2;
+  const inGoal = !sink && pixelTight && Math.abs(c.x) + extentX < goalW() / 2;
   const limX = fieldW / 2 - extentX;
   const limZ = fieldL / 2 + (inGoal ? config.modes.pixel.depth : 0) - extentZ;
   if (c.x > limX) { c.x = limX; if (c.vx > 0) c.vx *= -config.drive.boardRestitution; }
@@ -62,6 +65,8 @@ function clampFieldCar(c) {
 }
 
 function drive(c, throttle, steer, wantBoost, dt, command = {}) {
+  c.shock=Math.max(0,(c.shock||0)-dt);
+  if(c.shock>0) { throttle=0; command={...command,safe:false,reason:'ZAPPED',desiredSpeed:0}; }
   const phase = movePhase(c, config), move = config.skills.moves[c.kind];
   if (phase === 'windup' || phase === 'active') steer *= move.turn;
   if (phase === 'recovery') command = {...command, safe:false, reason:'RECOVERING', desiredSpeed:Math.min(command.desiredSpeed ?? c.max, c.max*.55)};
@@ -100,7 +105,7 @@ function drive(c, throttle, steer, wantBoost, dt, command = {}) {
   const longitudinal = c.vx * fwdX + c.vz * fwdZ;
   const reverse = Math.abs(longitudinal) > .3 ? Math.sign(longitudinal) : (throttle < 0 ? -1 : 1);
   if (Math.abs(throttle) > .05 || sp > 1) c.yaw += steer * c.turn * speedFactor * heavySlow * reverse * dt;
-  if (phase === 'active') {
+  if (phase === 'active' && c.shock<=0) {
     if (c.kind === 'semi') { const stop=Math.exp(-12*dt); c.vx*=stop; c.vz*=stop; }
     else if (c.kind === 'cybercab') { c.vx += rightX*c.move.side*move.push*dt; c.vz += rightZ*c.move.side*move.push*dt; }
     else if (u < c.max*1.35) { c.vx += fwdX*move.push*dt; c.vz += fwdZ*move.push*dt; }
@@ -227,7 +232,8 @@ function stepBall(ball, dt) {
       if (outward > 0) { ball.vx -= (1 + config.ball.wall_restitution) * outward * corner.nx; ball.vz -= (1 + config.ball.wall_restitution) * outward * corner.nz; }
     }
   }
-  const inMouth = Math.abs(ball.x) + radius < goalW() / 2 && (pixelTight || ball.y + radius < config.modes['3d'].goalHeight);
+  if(sink) { const goal=drainGoal(ball,radius); if(goal)return goal; }
+  const inMouth = !sink && Math.abs(ball.x) + radius < goalW() / 2 && (pixelTight || ball.y + radius < config.modes['3d'].goalHeight);
   if (inMouth && ball.z + radius <= -halfZ) return "A";
   if (inMouth && ball.z - radius >= halfZ) return "B";
   if (!inMouth) {
@@ -249,7 +255,7 @@ function botAI(me, foe, ball, dt, attackSign = 1, boostIntent, controls = {}) {
   drive(me, input.throttle, input.steer, input.boost, dt, input);
 }
 
-return { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts };
+return { setSink, bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts };
 }
 const defaultSimulation = createSimulation();
-export const { bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts } = defaultSimulation;
+export const { setSink, bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts } = defaultSimulation;

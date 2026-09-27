@@ -39,6 +39,7 @@ export const simulationConfig = deepFreeze(validateConfig({
       model3:{name:'Flanker',setup:5,wide:3,defend:23,commit:.33,boostRange:17},
       cybercab:{name:'Counter',setup:4.5,wide:2,defend:27,commit:.31,boostRange:14},
       semi:{name:'Anchor',setup:4.5,wide:1.8,defend:26,commit:.35,boostRange:12}}},
+  sink:{drainZ:23,drainRadius:4,warning:1.5,interval:8,radius:6},
   skills:{timingWindow:.24, timingRestitution:.38, sustainAfter:.55, sustainDrain:1.35,
     moves:{
       cybertruck:{name:'CHARGE',windup:.28,duration:.65,recovery:.4,cooldown:7,push:25,turn:.25},
