@@ -4,6 +4,7 @@ node_modules
 output
 progress.md
 tests
+docs
 *.test.mjs
 
 .env*

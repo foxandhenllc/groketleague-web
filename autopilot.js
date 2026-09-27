@@ -30,27 +30,35 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   if (ownDistance < reach + 1) {
     ux = -Math.sign(bx || me.x || 1) * .75; uz = attackSign * .66;
   }
-  // A pass up the boards is reachable; aiming directly at goal from here asks
-  // the car to approach from outside the arena.
-  if (Math.abs(bx) > halfW - reach - 1 && Math.abs(bz) < halfL - reach - 2) {
-    ux = -Math.sign(bx) * .12; uz = attackSign * .993;
-  }
   // Approach a board ball from the field and bank it along the boundary. Trying
   // to hit it directly inward asks the car to start outside the playable area.
   const sideBoard=Math.abs(bx)>halfW-reach-1;
   const endBoard=Math.abs(bz)>halfL-reach-1 && Math.abs(bx)>field.GOAL_W/2-radius;
+  // Moving wall rallies can loop without ever triggering the stationary-ball timer.
+  // Commit to a steeper rebound after a prolonged exchange with the opponent.
+  ai.boardTime=sideBoard||endBoard?(ai.boardTime||0)+dt:Math.max(0,(ai.boardTime||0)-dt*3);
+  if(foe && ai.boardTime>6 && Math.hypot(ball.vx,ball.vz)>2){ai.bankExitUntil=ai.time+4;ai.boardTime=0;ai.bankAxis=null;}
+  const bankExit=ai.time<(ai.bankExitUntil||0);
   if(sideBoard || endBoard){
     const choices=[];
-    if(sideBoard)choices.push({axis:'side',x:Math.sign(bx)*.45,z:attackSign*.893});
-    if(endBoard)choices.push({axis:'end',x:-Math.sign(bx)*.893,z:Math.sign(bz)*.45});
+    // Prefer a shot back into play once its behind-ball setup actually fits.
+    // Remember a failed route briefly rather than retrying it every frame.
+    const shotYaw=Math.atan2(-ux,-uz), shotX=bx-ux*(reach+1.5),shotZ=bz-uz*(reach+1.5);
+    const shotSetup=reachableTarget(shotX,shotZ,me,field,shotYaw);
+    if(!bankExit && !endBoard && Math.hypot(shotSetup.x-shotX,shotSetup.z-shotZ)<.35)
+      choices.push({axis:'shot',x:ux,z:uz});
+    if(sideBoard)choices.push({axis:'side',x:Math.sign(bx)*(bankExit ? .95 : .8),z:attackSign*(bankExit ? .312 : .6)});
+    if(endBoard)choices.push({axis:'end',x:-Math.sign(bx)*(bankExit ? .312 : .893),z:Math.sign(bz)*(bankExit ? .95 : .45)});
     const setupDistance=reach+3;
     for(const choice of choices){
       const x=bx-choice.x*setupDistance,z=bz-choice.z*setupDistance;
       const target=reachableTarget(x,z,me,field);
-      choice.cost=Math.hypot(me.x-target.x,me.z-target.z)+3*Math.hypot(target.x-x,target.z-z);
+      choice.cost=Math.hypot(me.x-target.x,me.z-target.z)+3*Math.hypot(target.x-x,target.z-z)
+        -(choice.axis==='shot'?8:0)+(choice.axis===ai.failedBank && ai.time<ai.failedUntil?20:0);
     }
     choices.sort((a,b)=>a.cost-b.cost);
-    const chosen=choices.find(c=>c.axis===ai.bankAxis)||choices[0];
+    const previous=choices.find(c=>c.axis===ai.bankAxis);
+    const chosen=previous && previous.cost<choices[0].cost+3?previous:choices[0];
     ai.bankAxis=chosen.axis;ux=chosen.x;uz=chosen.z;
   }else ai.bankAxis=null;
   const px = -uz, pz = ux;
@@ -61,20 +69,33 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   let tx, tz, state;
   const foeDistance=foe?Math.hypot(foe.x-ball.x,foe.z-ball.z):Infinity;
   const foeHeading=foe?Math.abs(angle(Math.atan2(-(ball.x-foe.x),-(ball.z-foe.z))-foe.yaw)):Math.PI;
-  const windingUp=foe && (foeDistance+1.5<distance || foe.boosting) && (foe.z-ball.z)*attackSign>0 && foeDistance<foe.l/2+radius+10 && foeHeading<.4;
+  const windingUp=foe && (foeDistance+1.5<distance || foe.boosting) && (foe.z-ball.z)*attackSign>0 && foeDistance<foe.l/2+radius+10 && foeHeading<.4
+    && (Math.hypot(foe.vx,foe.vz)>1 || foe.boosting || foeDistance<foe.l/2+radius+2);
   const incoming=ball.vz*attackSign < -5;
   const defendRange=halfL+8+(personality?.defend ?? 23)-23;
   const threat = (incoming && ownDistance<defendRange) || (windingUp && ownDistance<defendRange-3);
   const goalSide = (me.z - bz) * attackSign < -1;
-  if (threat && distance > reach + 1 && (!goalSide || windingUp || incoming)) {
+  if (threat && distance > reach + 1) {
     state = 'defend';
     // Meet the shot goal-side. Do not race all the way to the goal line first.
     const interceptZ=goalSide?me.z:bz-attackSign*Math.min(10,Math.max(4,ownDistance*.45));
     const interceptTime=incoming?clamp((interceptZ-ball.z)/ball.vz,0,.9):.3;
     tx = clamp(ball.x+ball.vx*interceptTime, -halfW+reach,halfW-reach);
     tz = interceptZ;
+    if(incoming && goalSide){
+      // Choose the first blocking point we can reach after turning and accelerating.
+      // Staying on our current depth can demand an impossible sideways sprint.
+      for(let t=.1;t<=1.6;t+=.1){
+        const x=clamp(ball.x+ball.vx*t,-halfW+reach,halfW-reach),z=ball.z+ball.vz*t;
+        if(halfL+z*attackSign<reach)break;
+        const dx=x-me.x,dz=z-me.z,d=Math.max(0,Math.hypot(dx,dz)-reach);
+        const turnTime=Math.abs(angle(Math.atan2(-dx,-dz)-me.yaw))/me.turn;
+        const travelTime=Math.max(d/me.max,(Math.sqrt(speed*speed+2*me.accel*d)-speed)/me.accel);
+        if(turnTime+travelTime<=t){tx=x;tz=z;break;}
+      }
+    }
     // Pass beside the ball while retreating, not through it toward our own net.
-    if (Math.abs(me.x - bx) < reach + 1 && Math.abs(me.z - bz) < 10) tx = bx + (me.x < bx ? -1 : 1) * (reach + 3);
+    if (!goalSide && Math.abs(me.x - bx) < reach + 1 && Math.abs(me.z - bz) < 10) tx = bx + (me.x < bx ? -1 : 1) * (reach + 3);
   } else if (behind > reach * .2 && Math.abs(lateral) < Math.max(1.35, behind * (personality?.commit ?? .35), ai.mode === 'strike' ? reach + 1.8 : 0)) {
     state = 'strike'; tx = bx + ux * .5; tz = bz + uz * .5;
   } else {
@@ -93,7 +114,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
     ai.ballX = ball.x; ai.ballZ = ball.z; ai.staleTime = 0; ai.clearing = false;
   } else ai.staleTime += dt;
   if (ai.staleTime > 2.5) ai.clearing = true;
-  if (ai.clearing) {
+  if (ai.clearing && !bankExit && (distance<=reach+1 || !threat)) {
     state = 'clear'; tx = ball.x; tz = ball.z;
     // Never solve a stalemate by driving the ball straight into our own net.
     if (ownDistance < 8 && Math.abs(bx) < field.GOAL_W / 2 + 1 && !goalSide) {
@@ -141,7 +162,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   if (ai.stuckTime >= .8 && ai.recovery === 0) {
     ai.recovery = 1.15; ai.stuckTime = 0;
     ai.detour=-(ai.detour || personality?.side || 1);
-    ai.bankAxis=null;
+    ai.failedBank=ai.bankAxis;ai.failedUntil=ai.time+8;ai.bankAxis=null;
     const inwardLength=Math.hypot(me.x,me.z)||1;
     ai.escape=reachableTarget(me.x-me.x/inwardLength*7,me.z-me.z/inwardLength*7,me,field);
     ai.escapeUntil=ai.time+4;

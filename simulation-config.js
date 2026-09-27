@@ -27,12 +27,12 @@ export const simulationConfig = deepFreeze(validateConfig({
   drive:{...CHARACTERS.drive, carRestitution:.25, boardRestitution:.18, startThreshold:.18,
     rearmSeconds:.12, rechargeDelay:.25, safetyHeading:.9, controlSeconds:.25, reverseMax:5,
     reverseEntry:.5, invalidSpeed:80, accelerationTaper:.15},
-  planner:{rollingK:.846, revision:'reachable-bank-intercept-1', aimWidth:1.25,
+  planner:{rollingK:.846, revision:'shoot-block-frame-2', aimWidth:1.25,
     kickoffs:[
-      {name:'Centre rush',x:0,offset:0,distance:14},
+      {name:'Offset rush',x:0,offset:4,distance:14},
       {name:'Diagonal duel',x:0,offset:6,distance:12},
-      {name:'Wide faceoff',x:5,offset:0,distance:13},
-      {name:'Crossfield',x:-4,offset:3,distance:14},
+      {name:'Wide faceoff',x:5,offset:-5,distance:13},
+      {name:'Crossfield',x:-4,offset:5,distance:14},
       {name:'Long approach',x:2,offset:-5,distance:16}],
     personalities:{
       cybertruck:{name:'Pressure',setup:4,wide:1.5,defend:22,commit:.38,boostRange:15},

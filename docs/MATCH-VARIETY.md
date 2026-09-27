@@ -6,7 +6,7 @@ planner and restarts, without changing vehicle physical stats or boost controls.
 
 ## Behavior
 
-- Five shuffled faceoffs: central, diagonal, wide, crossfield and longer approach.
+- Five shuffled faceoffs: offset, diagonal, wide, crossfield and longer approach.
   Each appears once before the rotation repeats. Both cars face a stationary
   ball on the halfway line, at equal travel distances. Scoring no longer supplies
   the same directional ball velocity at every restart.
@@ -21,7 +21,7 @@ planner and restarts, without changing vehicle physical stats or boost controls.
 - Human boost remains explicit. Online simulation remains host-authoritative.
   Both peers derive the seed from the match ID; local games use a fresh UUID.
   Whole-body snapshots carry the driver's personality. Rematches get new seeds.
-  Config hashing and simulation version `fsd-reachable-4` reject incompatible peers.
+  Config hashing and simulation version `fsd-tactics-5` reject incompatible peers.
 
 ## Validation
 

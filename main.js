@@ -2,7 +2,7 @@ import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_M
 import { createEventStream } from './sim-events.js';
 import { boostLabel } from './boost.js';
 import { kickoffLayout, driverPersonality } from './match-variety.js';
-import { constrainChase } from './chase-camera.js';
+import { constrainChase, framePlay } from './chase-camera.js';
 let matchSeed = '';
 const rulesHash = await configHash();
 diagnostics.enabled = location.hash === "#diagnostics";
@@ -1029,6 +1029,8 @@ function stepGame(dt) {
   }
   if(mode !== 'garage' && mode !== 'faceoff') constrainChase(camera.position, getField().FW/2, getField().FL/2);
   camera.lookAt(camTarget);
+  if(mode !== 'garage' && mode !== 'faceoff' && !pixelView.isActive())
+    framePlay(camera,camTarget,me,ball,getBallRadius(),p=>new THREE.Vector3(p.x,p.y,p.z).project(camera));
   updateImpactMeshes();
   if (!pixelView.isActive()) renderer.render(scene, camera);
   paintPixelFrame();
