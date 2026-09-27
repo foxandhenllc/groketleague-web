@@ -3,7 +3,7 @@
 ## Model
 
 - **Host** runs authoritative sim + clock.
-- **Guest** sends controls; renders host state; camera follows guest car.
+- **Guest** sends controls and renders host state. Classic 3D follows the guest car; Kitchen Sink uses a shared arena/soap composition.
 - Offline: local sim + bot AI in `sim.js`.
 
 ## Code
@@ -26,6 +26,8 @@
 Protocol 2 exchanges a simulation version and SHA-256 hash of canonical simulation settings before starting. Mode is confirmed in setup/ready. Incompatible peers see a refresh-both-players message. Connected rematches keep PeerJS but receive a new match ID.
 
 Host impact records carry pair, point, normal, impulse, tick and an event ID. A bounded 64-event resend window is acknowledged by explicit IDs; the guest deduplicates by round epoch and ID. Kickoff/rematch/disconnect clears effects. This is minimal feedback delivery: guest interpolation, narrow state records, fresh-input sequences and transport impairment work remain T08. Current state/input cadence remains 20 Hz and stale input cutoff remains 500 ms.
+
+3D Kitchen Sink uses compatibility version `soap-arcade-9`. `ball.soap` carries authoritative world height, airborne state, orientation and motion counters. Goal snapshots include a stable ID, swept entry transform/velocity, team, age, duration and winning flag. The host alone advances the 2.65-second goal clock, coasts cars and resets the round or shows results. Guests smooth the live soap transform over roughly 50ms and advance only the displayed goal age, at most 100ms ahead of the latest snapshot. This is visual interpolation, not client physics prediction. Classic cars remain on the previous snapshot path.
 
 ## Testing
 

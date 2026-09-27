@@ -59,6 +59,8 @@ export function carManifold(a, b) {
 
 /** All normals point from the actor toward static geometry. */
 function boards(body, isBall, field, config) {
+  // The 3D soap rides the curved lip instead of being pinned against flat board planes.
+  if(isBall && field.sink && !field.pixelTight)return [];
   const r = field.ballRadius, halfW = field.FW / 2, halfL = field.FL / 2;
   const ex = isBall ? r : extent(body, { x: 1, z: 0 });
   const ez = isBall ? r : extent(body, { x: 0, z: 1 });
@@ -93,6 +95,7 @@ export function createContactSolver(config, diagnostics) {
       const surfaceOffset = field.sink ? sinkHeight(ball.x,ball.z,config.sink)-sinkHeight(c.x,c.z,config.sink) : 0;
       if (field.pixelTight || ball.y + surfaceOffset - field.ballRadius < config.ball.carHeight) {
         const m = ballManifold(c, ball, field.ballRadius, cache.get(id));
+        if(m && ball.soap && field.sink && !field.pixelTight)ball.soap.contactT=.3;
         const front = m && (-Math.sin(c.yaw)*m.nx-Math.cos(c.yaw)*m.nz)>.7;
         const timed = front && c.boosting && c._boost?.pressAge <= config.skills.timingWindow && !c._boost.timedUsed;
         add(id, c, ball, m, config.ball.contact_restitution * (heavy ? config.ball.pancake_mult : 1) + (timed ? config.skills.timingRestitution : 0), 'ballHit', heavy);
@@ -156,7 +159,8 @@ export function createContactSolver(config, diagnostics) {
         const cooldown = cooldowns.get(c.id) || 0;
         const freshPeak = closing > (old?.closing || 0) + 1;
         if (c.type === 'ballHit' && c.fresh && closing >= 1 && c.lambda > 0 && !field.pixelTight)
-          ball.vy = Math.max(ball.vy, Math.min(c.heavyBoost ? config.ball.liftHeavy : config.ball.liftOrdinary, closing * config.ball.lift));
+          ball.vy = Math.max(ball.vy, field.sink ? (c.timed?Math.min(3,closing*.1):0)
+            : Math.min(c.heavyBoost ? config.ball.liftHeavy : config.ball.liftOrdinary, closing * config.ball.lift));
         if ((c.fresh || freshPeak) && closing >= 1 && c.lambda > 0 && cooldown === 0) {
           cooldowns.set(c.id,config.ball.no_rehit_s);
           const sign = c.a.attackSign || (cars.indexOf(c.a)===0 ? -1 : 1);

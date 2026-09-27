@@ -1,4 +1,5 @@
 import { SINK, drainGoal, sinkSurface, sinkHeight } from './sink.js';
+import { stepSoap } from './soap-physics.js';
 import { updateMove, movePhase } from './skills.js';
 import { updateBoost } from "./boost.js";
 import { createContactSolver } from "./contacts.js";
@@ -35,7 +36,7 @@ function setPixelTight(on) {
 function getField() {
   return { sink, drainZ:sink?SINK.drainZ:undefined, FW: fieldW, FL: fieldL, pixelTight, corner:config.modes[pixelTight ? 'pixel' : '3d'].corner, GOAL_W: goalW(), goalDepth: config.modes[pixelTight ? 'pixel' : '3d'].depth, ballRadius: getBallRadius(), config };
 }
-function getBallRadius() { return pixelTight ? config.ball.radiusPixel : config.ball.radius3d; }
+function getBallRadius() { return pixelTight ? config.ball.radiusPixel : sink ? config.sink.soap.radius : config.ball.radius3d; }
 function goalW() {
   return config.modes[pixelTight ? 'pixel' : '3d'].goalWidth;
 }
@@ -192,6 +193,16 @@ function carCar(P, B) {
   B.vx -= nx * impulse * invB; B.vz -= nz * impulse * invB;
   return closing < -2;
 }
+function coastCars(cars,dt) {
+  const decay=Math.exp(-config.sink.soap.coastDrag*dt);
+  for(const car of cars) {
+    car.boosting=false;car.vx*=decay;car.vz*=decay;
+    car.x+=car.vx*dt;car.z+=car.vz*dt;clampFieldCar(car);
+  }
+  // Preserve passive vehicle contact during the goal shot. carCar clamps both bodies
+  // again after separation; the captured soap and autonomous planner are untouched.
+  if(cars.length===2)carCar(cars[0],cars[1]);
+}
 function stepBall(ball, dt) {
   const radius = getBallRadius();
   // Hard caps so a sticky contact can never send transforms to Infinity
@@ -204,6 +215,7 @@ function stepBall(ball, dt) {
   if (ball.vy > config.ball.maxUp) ball.vy = config.ball.maxUp;
   if (ball.vy < config.ball.maxDown) ball.vy = config.ball.maxDown;
   if (ball.y > config.ball.maxHeight) { ball.y = config.ball.maxHeight; ball.vy = Math.min(ball.vy, 0); }
+  if(sink && !pixelTight)return stepSoap(ball,dt,getField(),config);
   if (pixelTight) { ball.y = radius; ball.vy = 0; }
   const rolling = pixelTight || (ball.y <= radius + 1e-6 && ball.vy <= 0);
   if (rolling) {
@@ -259,7 +271,7 @@ function botAI(me, foe, ball, dt, attackSign = 1, boostIntent, controls = {}) {
   drive(me, input.throttle, input.steer, input.boost, dt, input);
 }
 
-return { setSink, bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts };
+return { setSink, bodyFrom, botAI, carBall, carCar, coastCars, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts };
 }
 const defaultSimulation = createSimulation();
-export const { setSink, bodyFrom, botAI, carBall, carCar, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts } = defaultSimulation;
+export const { setSink, bodyFrom, botAI, carBall, carCar, coastCars, drive, forwardXZ, stepBall, getField, getBallRadius, setPixelTight, diagnostics, solveContacts, resetContacts } = defaultSimulation;

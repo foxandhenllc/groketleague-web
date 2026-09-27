@@ -1,5 +1,7 @@
 # Kitchen Sink: readable physics and presentation
 
+Historical baseline: the later [3D soap arcade pass](SOAP-ARCADE-2026-09-27.md) supersedes the 3D ball drag, whole-ball drain scoring, goal animation, camera and protocol details below. The 2D mechanics remain as described here.
+
 The original sink had a global invisible current, subtle banks, generic hazard instructions, and a camera that let phone controls cover a drain. This pass makes the environment explain its rules while keeping the autonomous soccer loop.
 
 ## What to look for

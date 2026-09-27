@@ -9,6 +9,7 @@
   - **3D Arena** - Three.js field + extruded cars (`field.js`, `vehicles.js`).
   - **Arcade 2D** - CIRCUIT top-down stadium, procedural cars and a separate match HUD (`pixel.js`, `arena.css`). Internal mode ID remains `pixel`.
 - **Kitchen Sink** is an alternate arena in either view: colored drain goals, visible curved banks, a slippery wet lane with localized faucet flow, meteors and lightning. Warnings precede force changes and the environmental cycle continues across goals. The host selects the arena for online play. See the [surface and presentation report](KITCHEN-SINK-READABILITY-2026-09-27.md).
+- **3D Kitchen Sink** now plays with a glossy bar of soap: low-friction slides, bank launches, tumbling flight and sliding landings. Goals spiral into the drain and burst into team-colored bubbles while the camera eases closer and returns. See the [soap arcade report](SOAP-ARCADE-2026-09-27.md). New sink work targets 3D; 2D keeps its existing ball mechanics.
 - Online **1v1** via **PeerJS** (host-authoritative physics) - quick match + 4-character private rooms.
 - Optional **Sign in with X** (OAuth PKCE) for handles / presence flavor.
 
@@ -42,4 +43,4 @@ Garage (pick car, gfx 3D/PIXEL, day/night map) -> Faceoff -> Match -> Results ->
 Online: host simulates; guest sends inputs; both render. Menus offline pause; online menus leave the match running.
 
 Host graphics mode also selects the shared field and ball geometry. PIXEL has a flat rolling ball;
-3D has vertical bounce. The simulation runs at 120 Hz independently of display refresh rate.
+Classic 3D has vertical bounce; 3D Kitchen Sink has soap flight above the curved basin. The simulation runs at 120 Hz independently of display refresh rate.

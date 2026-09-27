@@ -168,6 +168,11 @@ function stopCrowd() {
   crowdNode = null;
 }
 const _SFX_RAW = {
+  soapCatch: () => { beep(470,.2,'sine',.07,-240); noise(.2,.04,1900); },
+  soapAir: () => { noise(.23,.045,2100); beep(250,.2,'sine',.045,190); },
+  soapLand: () => { noise(.16,.075,900); beep(130,.12,'triangle',.05,-60); },
+  soapSlip: () => { beep(580,.12,'sine',.04,220); },
+  bubbles: () => { for(let i=0;i<4;i++)setTimeout(()=>beep(440+i*130,.11,'sine',.055,150),i*80); },
   hazardWarning: () => { beep(520,.13,'triangle',.05,160); },
   tapWarning: () => { beep(380,.14,'sine',.05,190); },
   water: () => { noise(.65,.06,2200); },

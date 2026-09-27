@@ -171,7 +171,7 @@ export function makeSinkScene(scene) {
       const points = [[-.5, 6.1], [0, 5.6], [.5, 6.1]].map(([x, r]) => [Math.cos(a) * r - Math.sin(a) * x, .035, Math.sin(a) * r + Math.cos(a) * x]);
       tube(points, .085, pullInk, pullTicks, 4);
     }
-    drains.push({swirl, pullTicks, pullMat, swirlMat, z});
+    drains.push({swirl, pullTicks, pullMat, swirlMat, z, color});
   }
 
   // A swan-neck faucet and hot/cold handles anchor the water to an obvious physical source.
@@ -286,6 +286,16 @@ export function makeSinkScene(scene) {
     merged.setIndex(indices); add(merged, material);
   }
 
+  // A goal plays out at its actual drain: a stronger vortex, then a brief fountain of suds.
+  const goalFX = new THREE.Group(); goalFX.name = 'drain-celebration'; goalFX.visible = false; root.add(goalFX);
+  const goalRingMat = basic('#ffda91', .55);
+  const goalRings = Array.from({length: 3}, () => ring(3.8, 4.05, 0, .1, 0, goalRingMat.clone(), goalFX));
+  const goalBubbleMat = basic('#daf8ff', .43);
+  const goalBubbles = instancePool(new THREE.SphereGeometry(1, 10, 7), goalBubbleMat, 36, goalFX);
+  const goalGlints = instancePool(new THREE.SphereGeometry(1, 6, 4), basic('#ffffff', .8), 36, goalFX);
+  const goalFoamMat = basic('#defaff', .44);
+  const goalFoam = ring(1.6, 3.1, 0, .12, 0, goalFoamMat, goalFX);
+
   // Fixed-size effect pools: no geometry, materials or particles are allocated during a frame.
   const hazard = new THREE.Group(); root.add(hazard);
   const warningMat = basic('#ff8a54', .78), countdownMat = basic('#ffd494', .8), diskMat = basic('#e46b32', .12);
@@ -329,7 +339,7 @@ export function makeSinkScene(scene) {
   scorches.forEach(s => {s.mesh.visible = false; s.mesh.material = scorchMat.clone();});
   let lastImpact = '', previousTime = 0, nextScorch = 0;
 
-  return {root, update(state, {cars = [], ball = null, reducedMotion = false} = {}) {
+  return {root, update(state, {cars = [], ball = null, reducedMotion = false, goal = null} = {}) {
     if (!root.visible) return;
     const time = state?.time || 0, motion = reducedMotion ? 0 : time;
     const phase = state?.faucet || faucetPhase(time), strength = state?.surge || 0;
@@ -370,13 +380,46 @@ export function makeSinkScene(scene) {
       wake.rotation.y = Math.atan2(body.vx, body.vz);
       wake.scale.set(i === 2 ? 1.5 : 3, 1, i === 2 ? 1.8 : 4);
     });
+    const goalColor = goal?.team === 'B' ? '#77eaff' : '#ffd17e';
     for (const drain of drains) {
       const near = ball ? clamp(1 - Math.hypot(ball.x, ball.z - drain.z) / 9) : 0;
-      drain.swirl.rotation.y = -motion * .8;
-      drain.pullMat.opacity = .055 + near * .045;
-      drain.swirlMat.opacity = .42 + near * .32;
+      const celebrating = goal && Math.abs(goal.z - drain.z) < 1;
+      const catchPhase = celebrating ? clamp(goal.age / .7) : 0;
+      drain.swirl.rotation.y = -motion * .8 - (celebrating && !reducedMotion ? goal.age * 5 : 0);
+      drain.pullTicks.rotation.y = celebrating && !reducedMotion ? -goal.age * 1.2 : 0;
+      drain.pullMat.opacity = celebrating ? .09 + Math.sin(Math.min(goal.age, 2.65) / 2.65 * Math.PI) * .08 : .055 + near * .045;
+      drain.swirlMat.opacity = celebrating ? .72 + catchPhase * .2 : .42 + near * .32;
+      drain.swirlMat.color.set(celebrating ? goalColor : drain.color);
+      drain.pullMat.color.set(celebrating ? goalColor : drain.color);
     }
-    const h = state?.hazard;
+    goalFX.visible = !!goal;
+    if (goal) {
+      const age = Math.max(0, goal.age), burst = age - 1.15;
+      goalFX.position.set(goal.x, sinkHeight(goal.x, goal.z), goal.z);
+      goalFoam.visible = age >= .5 && age < 2.4;
+      goalFoam.scale.setScalar(reducedMotion ? 1 : 1 + Math.sin(clamp((age - .5) / 1.9) * Math.PI) * .2);
+      goalFoam.material.opacity = .36 * Math.sin(clamp((age - .5) / 1.9) * Math.PI);
+      for (let i = 0; i < goalRings.length; i++) {
+        const ringAge = age - .65 - i * .24, progress = clamp(ringAge / 1.15), active = ringAge >= 0 && ringAge < 1.15;
+        const ripple = goalRings[i]; ripple.visible = active;
+        ripple.material.color.set(goalColor);
+        ripple.material.opacity = (reducedMotion ? .3 : .6) * Math.sin(progress * Math.PI);
+        ripple.scale.setScalar(reducedMotion ? 1 + i * .16 : .75 + progress * .8);
+      }
+      goalBubbles.mesh.visible = goalGlints.mesh.visible = burst >= 0 && burst < 1.3 && !reducedMotion;
+      goalBubbleMat.color.set(goal.team === 'B' ? '#b1efff' : '#fff0c5');
+      goalBubbles.parts.forEach((bubble, i) => {
+        const life = (burst - (i % 12) * .024) / .94, active = life >= 0 && life <= 1, t = clamp(life);
+        const angle = i * 2.39996, distance = (.4 + i % 7 * .25) * (.4 + t * .9);
+        const scale = active ? (.2 + (i % 5) * .095) * Math.pow(Math.sin(t * Math.PI), .45) : 0;
+        bubble.position.set(Math.cos(angle) * distance, .15 + 7 * t - 2 * t * t, Math.sin(angle) * distance);
+        bubble.scale.setScalar(scale);
+        const glint = goalGlints.parts[i]; glint.position.copy(bubble.position); glint.position.x -= scale * .32; glint.position.y += scale * .4;
+        glint.scale.setScalar(scale * .16);
+      });
+      goalBubbles.sync(); goalGlints.sync();
+    }
+    const h = goal ? null : state?.hazard;
     hazard.visible = !!h;
     for (const s of scorches) {
       const age = time - s.at;

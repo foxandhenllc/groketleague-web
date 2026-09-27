@@ -2,7 +2,10 @@ import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_M
 import { createEventStream } from './sim-events.js';
 import { makeArenaState, stepSink, resetSinkRound, sinkHeight, sinkSurface, SINK } from './sink.js';
 import { makeSinkScene } from './sink-scene.js';
-import { sinkCameraFrame } from './sink-camera.js';
+import { sinkCameraFrame, createSinkDirector } from './sink-camera.js';
+import { makeSinkGoal, advanceSinkGoal } from './sink-goal.js';
+import { makeSoap, updateSoap } from './soap-scene.js';
+import { initSoap } from './soap-physics.js';
 import { sinkFeedback } from './sink-feedback.js';
 import { movePhase, timingCue, moveDescriptions } from './skills.js';
 import { simulationConfig } from './simulation-config.js';
@@ -42,7 +45,7 @@ import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMu
 import { bindInput, bindTouch, readControls, setQaKeys, clearInput, chooseTactic, triggerSpecial } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
-import { setSink, bodyFrom, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius, getField, solveContacts, resetContacts, diagnostics } from "./sim.js";
+import { setSink, bodyFrom, stepBall, coastCars, botAI, forwardXZ, setPixelTight, getBallRadius, getField, solveContacts, resetContacts, diagnostics } from "./sim.js";
 import { createPhysicsClock } from "./physics-clock.js";
 import { createPixelView } from "./pixel.js";
 import { initXAuth, loginWithX, logoutX, getXUser, onAuthChange } from "./x-auth.js";
@@ -101,29 +104,32 @@ const cuePoint=new THREE.Vector3(),cueEdge=new THREE.Vector3(),cueDirection=new 
 const cueRay=new THREE.Raycaster();
 let cueOccluded=false,cueAge=1;
 function updateBallCue(dt){
-  if(mode!=='play'||pixelView.isActive()||paused||!pauseLayer.classList.contains('hidden')){ballCue.hidden=true;return;}
+  if(mode!=='play'||pixelView.isActive()||paused||goalCelebration||!pauseLayer.classList.contains('hidden')){ballCue.hidden=true;return;}
   camera.updateMatrixWorld();
   const floor=mapMode==='sink'?sinkHeight(ball.x,ball.z):0;
-  cuePoint.set(ball.x,ball.y+floor,ball.z).project(camera);
-  cueEdge.set(ball.x+getBallRadius(),ball.y+floor,ball.z).project(camera);
+  const visual=soapMode()?soapMesh.userData.body.position:{x:ball.x,y:ball.y+floor,z:ball.z};
+  cuePoint.set(visual.x,visual.y,visual.z).project(camera);
+  cueEdge.set(visual.x+getBallRadius(),visual.y,visual.z).project(camera);
   const x=(cuePoint.x+1)*innerWidth/2,y=(1-cuePoint.y)*innerHeight/2;
-  const top=mapMode==='sink'?(innerHeight<500?24:122):innerHeight<500?132:150,bottom=innerHeight-(mapMode==='sink'?(innerHeight<500?24:182):100);
+  const top=soapMode()?sinkFrame.rect.top+8:mapMode==='sink'?(innerHeight<500?24:122):innerHeight<500?132:150;
+  const bottom=soapMode()?sinkFrame.rect.bottom-8:innerHeight-(mapMode==='sink'?(innerHeight<500?24:182):100);
+  const left=soapMode()?sinkFrame.rect.left+8:24,right=soapMode()?sinkFrame.rect.right-8:innerWidth-24;
   const behind=cuePoint.z>1||cuePoint.z< -1;
-  const edge=behind||x<24||x>innerWidth-24||y<top||y>bottom;
+  const edge=behind||x<left||x>right||y<top||y>bottom;
   cueAge+=dt;
-  if(cueAge>=.1){
+  if(!soapMode()&&cueAge>=.1){
     cueAge=0;scene.updateMatrixWorld(true);
-    cueDirection.set(ball.x,ball.y+floor,ball.z).sub(camera.position);
+    cueDirection.set(visual.x,visual.y,visual.z).sub(camera.position);
     cueRay.set(camera.position,cueDirection.clone().normalize());
     cueRay.far=Math.max(0,cueDirection.length()-getBallRadius()*.8);
     cueOccluded=cueRay.intersectObjects([playerMesh,botMesh,mapMode==='sink'?sinkScene.root:fieldRoot],true).length>0;
   }
   const tiny=Math.abs(cueEdge.x-cuePoint.x)*innerWidth<14;
-  ballCue.hidden=!(edge||cueOccluded||tiny);
+  ballCue.hidden=soapMode()?!edge:!(edge||cueOccluded||tiny);
   if(ballCue.hidden)return;
   ballCue.classList.toggle('edge',edge);
   ballCue.textContent='';
-  ballCue.style.left=Math.max(24,Math.min(innerWidth-24,behind?innerWidth-x:x))+'px';
+  ballCue.style.left=Math.max(left,Math.min(right,behind?innerWidth-x:x))+'px';
   ballCue.style.top=Math.max(top,Math.min(bottom,behind?innerHeight-y:y))+'px';
   const angle=Math.atan2(y-innerHeight/2,x-innerWidth/2)+(behind?Math.PI:0);
   ballCue.style.transform=`translate(-50%,-50%) rotate(${edge?angle:0}rad)`;
@@ -143,6 +149,10 @@ const nightExtra = new THREE.Group();
 scene.add(fieldRoot, nightExtra);
 makeField(scene, fieldRoot, nightExtra);
 const sinkScene=makeSinkScene(scene);
+let goalCelebration=null, goalPresentation=null, goalViewId='', goalViewAge=0, goalSoundId='', goalSoundPhase=-1, goalCaptureId='';
+const goalCaption=document.getElementById('sinkGoalCaption');
+const sinkDirector=createSinkDirector();
+let lastSoapLaunch=0,lastSoapLanding=0,lastSoapRelease=0;
 let arenaState=makeArenaState(), drainAnimation=0, lastHazardToken='', lastSinkWarning='', lastFaucetCue='';
 const sinkCameraPosition=new THREE.Vector3(),sinkCameraTarget=new THREE.Vector3();
 let sinkFrame=sinkCameraFrame(innerWidth,innerHeight),sinkViewKey='';
@@ -150,7 +160,8 @@ const sinkUp=new THREE.Vector3(),sinkTilt=new THREE.Quaternion(),sinkYaw=new THR
 let playerMesh = makeVehicle("cybertruck");
 let botMesh = makeVehicle("model3");
 const ballMesh = makeBall();
-scene.add(playerMesh, botMesh, ballMesh);
+const soapMesh=makeSoap();soapMesh.visible=false;
+scene.add(playerMesh, botMesh, ballMesh,soapMesh);
 playerMesh.frustumCulled = false;
 botMesh.frustumCulled = false;
 ballMesh.frustumCulled = false;
@@ -178,6 +189,7 @@ function setGfxMode(g) {
   setPixelTight(gfxMode === "pixel");
   try { localStorage.setItem("gl_gfx", gfxMode); } catch {}
   syncGfxUI();
+  syncArenaDescription();
   mapTag.textContent = mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT 01") : maps[mapMode].label;
   mapBtn.textContent = "MAP: " + (mapMode === "sink" ? "KITCHEN SINK" : gfxMode === "pixel" ? (mapMode === "night" ? "AFTER HOURS" : "CIRCUIT DAY") : maps[mapMode].label);
   syncPixelVisibility();
@@ -210,6 +222,7 @@ let reconnectTimer = 0, reconnecting = false;
 let lastGoalCard = null, bestGoalCard = null, lastGoalBy = null;
 const opponentName = () => online ? "P2" : "GROK";
 const localBody = () => online && NET.isGuest() ? B : P;
+const soapMode = () => mapMode==='sink'&&gfxMode==='3d';
 const validCar = id => CATALOG.some(v => v.id === id);
 const netStatus = document.getElementById("netStatus");
 const roomCodeOut = document.getElementById("roomCodeOut");
@@ -487,16 +500,19 @@ NET.setHandlers({
     consumeImpacts(delivered.events);
     NET.send({t:'eventAck',id:matchId,epoch:roundEpoch,ids:delivered.ack});
     if(msg.arenaState)arenaState=msg.arenaState;
+    goalCelebration=msg.goalCelebration||null;
     Object.assign(P, msg.P); Object.assign(B, msg.B); Object.assign(ball, msg.ball);
     if (msg.scoreA > scoreA || msg.scoreB > scoreB) {
       drainAnimation=performance.now();
-      SFX.goal(); if(mapMode==='sink')SFX.drain(); SFX.crowd(msg.scoreB > scoreB);
-      toast(msg.scoreA > scoreA ? "P1 GOAL" : "P2 GOAL", 1100, msg.scoreA > scoreA ? "p1" : "cpu");
+      if(!soapMode()) {
+        SFX.goal(); if(mapMode==='sink')SFX.drain(); SFX.crowd(msg.scoreB > scoreB);
+        toast(msg.scoreA > scoreA ? "P1 GOAL" : "P2 GOAL", 1100, msg.scoreA > scoreA ? "p1" : "cpu");
+      }
     }
     scoreA = msg.scoreA; scoreB = msg.scoreB; timeLeft = msg.timeLeft; locked = msg.locked;
     faceoffT = msg.faceoffT;
     scoreAEl.textContent = String(scoreA); scoreBEl.textContent = String(scoreB);
-    if (msg.mode === "play" && mode === "faceoff") kickoffNow(true);
+    if (msg.mode === "play" && mode === "faceoff") {kickoffNow(true);locked=msg.locked;}
     if (msg.mode === "results" && mode !== "results") finishMatch();
   },
   onChat(msg) {
@@ -519,7 +535,7 @@ NET.setHandlers({
   onError: err => disconnected(err.message || "Connection lost. Try again.")
 });
 function sendSnapshot() {
-  NET.send({ t: "st", id: matchId, ...impactStream.packet(), P, B, ball, arenaState, scoreA, scoreB, timeLeft, locked, mode, faceoffT, fsdA: fsd, fsdB: peerFsd });
+  NET.send({ t: "st", id: matchId, ...impactStream.packet(), P, B, ball, arenaState, goalCelebration, scoreA, scoreB, timeLeft, locked, mode, faceoffT, fsdA: fsd, fsdB: peerFsd });
 }
 setInterval(() => {
   if (!NET.isOnline()) return;
@@ -533,10 +549,15 @@ setInterval(() => {
   else NET.send({ t: "in", id: matchId, fsd, ...(mode === "play" && pauseLayer.classList.contains("hidden") ? readControls() : { throttle: 0, steer: 0, boost: false }) });
 }, 50);
 window.addEventListener("pagehide", () => NET.destroy());
+function syncArenaDescription() {
+  document.getElementById('arenaDescription').textContent=mapMode!=='sink'?'Car soccer on the stadium pitch.':gfxMode==='3d'
+    ?'Slide a bar of soap into the opposing drain. Ride the curved banks for airtime, then skid back into play. Blue wet steel is extra slippery; faucet arrows show the current. Watch the marked meteor and lightning warnings.'
+    :'Sink the ball into the opposing drain. Curved banks roll downhill; blue wet steel is slippery. The faucet pushes along its arrows. Marked meteors blast outward; lightning briefly stuns cars.';
+}
 function applyMap() {
   const sink=mapMode==='sink';mapBtn.hidden=sink;document.body.classList.toggle('sink-mode',sink);setSink(sink);fieldRoot.visible=!sink;sinkScene.root.visible=sink;
   document.getElementById('arenaSelect').value=sink?'sink':'classic';
-  document.getElementById('arenaDescription').textContent=sink?'Sink the ball into the opposing drain. Curved banks roll downhill; blue wet steel is slippery. The faucet pushes along its arrows. Marked meteors blast outward; lightning briefly stuns cars.':'Car soccer on the stadium pitch.';
+  syncArenaDescription();
   fitRenderer(sink);
   const m = maps[mapMode];
   scene.background = new THREE.Color(m.bg);
@@ -721,6 +742,8 @@ function setMatchMode(mode) {
 rebuildGarage();
 setInspect("cybertruck");
 function resetKick() {
+  goalCelebration=null;goalPresentation=null;goalViewId='';goalViewAge=0;
+  lastSoapLaunch=0;lastSoapLanding=0;lastSoapRelease=0;
   clearInput(); resetContacts(); impactMarks.length = 0;
   impactStream.reset(++roundEpoch);
   arenaState=mapMode==='sink'&&roundEpoch>1?resetSinkRound(arenaState):makeArenaState(matchSeed+roundEpoch);
@@ -731,6 +754,7 @@ function resetKick() {
   P.personality = driverPersonality(selectedId, matchSeed, round, 'P');
   B.personality = driverPersonality(botId, matchSeed, round, 'B');
   ball = { ...layout.ball, y: getBallRadius(), vx: 0, vy: gfxMode === "pixel" ? 0 : 6, vz: 0, flat: 0 };
+  if(soapMode())initSoap(ball);
 }
 function markTeam(mesh, color) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.45, 20), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
@@ -819,13 +843,18 @@ function finishMatch() {
   showResults(title, me + " " + scoreA + " - " + scoreB + " " + opponentName(), winner);
 }
 
-function makeShareCard(line) {
+function makeShareCard(line, currentFrame=false) {
   const card = document.createElement("canvas");
   card.width = 1200; card.height = 630;
   const ctx = card.getContext("2d");
   ctx.fillStyle = "#14305a"; ctx.fillRect(0, 0, 1200, 630);
   try {
-    if (gfxMode === "pixel") {
+    if(currentFrame) {
+      // Reuse the frame just rendered instead of blocking drain entry with a second render/readback.
+      const source=renderer.domElement,fit=Math.min(1200/source.width,630/source.height);
+      ctx.imageSmoothingEnabled=true;
+      ctx.drawImage(source,(1200-source.width*fit)/2,(630-source.height*fit)/2,source.width*fit,source.height*fit);
+    } else if (gfxMode === "pixel") {
       paintPixelFrame();
       const source = pixelView.canvas;
       const fit = Math.min(1200 / source.width, 630 / source.height);
@@ -879,11 +908,11 @@ function makeShareCard(line) {
   ctx.fillText(line, 36, 102);
   return card;
 }
-function captureGoalStill(who) {
+function captureGoalStill(who, currentFrame=false) {
   try {
     const scorer = who === "A" ? (playerLabel() + " " + byId(selectedId).name) : (opponentName() + " " + byId(botId).name);
     const line = scorer + " GOAL - " + scoreA + "-" + scoreB + " - GROKET LEAGUE";
-    const card = makeShareCard(line);
+    const card = makeShareCard(line,currentFrame);
     lastGoalCard = card;
     lastGoalBy = who;
     // Prefer a P1 goal as "best"; otherwise keep latest
@@ -935,12 +964,18 @@ async function onGoal(who) {
   const serial = sessionSerial;
   if (locked) return;
   locked = true; drainAnimation=performance.now();
-  captureGoalStill(who);
-  SFX.goal(); if(mapMode==='sink')SFX.drain(); SFX.crowd(who === "A");
-  if (who === "A") { scoreA++; toast("P1 GOAL - " + byId(selectedId).name, 1100, "p1"); }
-  else { scoreB++; toast(opponentName() + " GOAL - " + byId(botId).name, 1100, "cpu"); }
+  if(!soapMode())captureGoalStill(who);
+  if(!soapMode()){SFX.goal(); if(mapMode==='sink')SFX.drain(); SFX.crowd(who === "A");}
+  if (who === "A") { scoreA++; if(!soapMode())toast("P1 GOAL - " + byId(selectedId).name, 1100, "p1"); }
+  else { scoreB++; if(!soapMode())toast(opponentName() + " GOAL - " + byId(botId).name, 1100, "cpu"); }
   scoreAEl.textContent = String(scoreA);
   scoreBEl.textContent = String(scoreB);
+  if(soapMode()) {
+    goalCelebration=makeSinkGoal(ball,who,matchSeed+':'+roundEpoch,scoreA>=3||scoreB>=3);
+    toastEl.classList.remove('show');
+    clearInput();
+    return;
+  }
   if (scoreA >= 3 || scoreB >= 3) {
     setTimeout(() => {
       if (serial !== sessionSerial) return;
@@ -982,6 +1017,14 @@ function tick(now) {
   stepGame(dt);
 }
 function simulateMatch(dt) {
+  if(playing&&locked&&goalCelebration&&!paused&&!(online&&NET.isGuest())) {
+    coastCars([P,B],dt);
+    if(advanceSinkGoal(goalCelebration,dt)) {
+      if(goalCelebration.winning){finishMatch();locked=false;}
+      else {resetKick();locked=false;SFX.whistle();}
+    }
+    return;
+  }
   if (playing && !locked && !paused && !(online && NET.isGuest())) {
     timeLeft -= dt;
     if (timeLeft <= 0) {
@@ -1029,9 +1072,40 @@ function updateImpactMeshes() {
     line.geometry.attributes.position.needsUpdate=true;
   });
 }
+function updateGoalPresentation(dt) {
+  const goal=soapMode()?goalCelebration:null;
+  toastEl.hidden=!!goal;
+  if(goal) {
+    if(goalViewId!==goal.id){goalViewId=goal.id;goalViewAge=goal.age;}
+    else if(online&&NET.isGuest())goalViewAge=Math.min(goal.duration,goal.age+.1,Math.max(goal.age,goalViewAge+dt));
+    else goalViewAge=goal.age;
+    goalPresentation={...goal,age:goalViewAge};
+    if(!paused&&mode==='play') {
+      const phase=goalViewAge<.75?0:goalViewAge<1.25?1:2;
+      if(goalSoundId!==goal.id||goalSoundPhase!==phase) {
+        goalSoundId=goal.id;goalSoundPhase=phase;
+        if(phase===0)SFX.soapCatch();
+        else if(phase===1)SFX.drain();
+        else {SFX.goal();SFX.bubbles();SFX.crowd(goal.team===(online&&NET.isGuest()?'B':'A'));}
+      }
+    }
+  } else {goalPresentation=null;goalViewId='';goalViewAge=0;}
+  goalCaption.hidden=!goal||mode!=='play'||paused;
+  if(!goalCaption.hidden&&goalCaption.dataset.goal!==goal.id) {
+    goalCaption.dataset.goal=goal.id;goalCaption.dataset.team=goal.team;
+    goalCaption.querySelector('strong').textContent=goal.team==='A'?'AMBER SCORES!':'CYAN SCORES!';
+    goalCaption.querySelector('span').textContent=goal.winning?'SQUEAKY CLEAN VICTORY!':['DOWN THE DRAIN!','SOAP, THERE IT IS!','A CLEAN FINISH!'][roundEpoch%3];
+  }
+  if(soapMode()&&!paused&&!goal&&mode==='play'&&ball.soap) {
+    if(ball.soap.launches>lastSoapLaunch)SFX.soapAir();
+    if(ball.soap.landings>lastSoapLanding)SFX.soapLand();
+    if(ball.soap.releaseT>lastSoapRelease+.25)SFX.soapSlip();
+    lastSoapLaunch=ball.soap.launches;lastSoapLanding=ball.soap.landings;lastSoapRelease=ball.soap.releaseT;
+  }
+}
 function stepGame(dt) {
   try {
-  if (playing && !locked && !paused && !(online && NET.isGuest())) physicsClock.advance(dt);
+  if (playing && (!locked||goalCelebration) && !paused && !(online && NET.isGuest())) physicsClock.advance(dt);
   else physicsClock.reset();
   const me = localBody();
   if (me.boosting && !lastBoostActive) SFX.boost();
@@ -1101,17 +1175,30 @@ function stepGame(dt) {
   }
   // Keep the pitch legible when portrait framing raises the camera.
   if(scene.fog){const m=maps[mapMode],lift=Math.max(0,camera.position.y-18);scene.fog.near=m.fogN+lift;scene.fog.far=m.fogF+lift;}
+  updateGoalPresentation(dt);
+  soapMesh.visible=soapMode()&&mode!=='garage';
+  if(soapMesh.visible) {
+    ballMesh.visible=false;
+    updateSoap(soapMesh,ball,{time:arenaState.time,dt,reducedMotion:reducedMotion.matches,goal:goalPresentation,interpolate:online&&NET.isGuest()});
+  }
   if(mapMode==='sink' && mode!=='garage') {
     const viewKey=innerWidth+':'+innerHeight;
     if(sinkViewKey!==viewKey) {
       sinkFrame=sinkCameraFrame(innerWidth,innerHeight,camera.fov);sinkViewKey=viewKey;
       camera.setViewOffset(innerWidth,innerHeight,sinkFrame.offsetX,sinkFrame.offsetY,innerWidth,innerHeight);
     }
-    sinkCameraPosition.fromArray(sinkFrame.position);
-    camera.position.lerp(sinkCameraPosition,reducedMotion.matches?1:1-Math.exp(-dt*5));
-    camTarget.lerp(sinkCameraTarget,reducedMotion.matches?1:1-Math.exp(-dt*5));camera.lookAt(camTarget);
-  } else if(sinkViewKey) {camera.clearViewOffset();sinkViewKey='';}
-  if(mapMode==='sink'&&!pixelView.isActive())sinkScene.update(arenaState,{cars:[P,B],ball,reducedMotion:reducedMotion.matches});
+    if(soapMode()) {
+      const p=soapMesh.userData.body.position;
+      const framing=sinkDirector.update(sinkFrame,{x:p.x,y:p.y,z:p.z,vx:ball.vx,vz:ball.vz},goalPresentation,paused?0:dt,reducedMotion.matches);
+      camera.position.fromArray(framing.position);camTarget.fromArray(framing.target);
+    } else {
+      sinkCameraPosition.fromArray(sinkFrame.position);
+      camera.position.lerp(sinkCameraPosition,reducedMotion.matches?1:1-Math.exp(-dt*5));
+      camTarget.lerp(sinkCameraTarget,reducedMotion.matches?1:1-Math.exp(-dt*5));
+    }
+    camera.lookAt(camTarget);
+  } else {sinkDirector.reset();if(sinkViewKey){camera.clearViewOffset();sinkViewKey='';}}
+  if(mapMode==='sink'&&!pixelView.isActive())sinkScene.update(arenaState,{cars:[P,B],ball,reducedMotion:reducedMotion.matches,goal:goalPresentation});
   const hazardEl=document.getElementById('hazardNotice'), h=arenaState.hazard;
   hazardEl.hidden=mapMode!=='sink'||mode!=='play'||locked;
   if(!hazardEl.hidden) {
@@ -1129,6 +1216,9 @@ function stepGame(dt) {
   updateBallCue(dt);
   updateImpactMeshes();
   if (!pixelView.isActive()) renderer.render(scene, camera);
+  if(soapMode()&&mode==='play'&&!paused&&goalPresentation?.age>=.35&&goalCaptureId!==goalPresentation.id) {
+    goalCaptureId=goalPresentation.id;captureGoalStill(goalPresentation.team,true);
+  }
   paintPixelFrame();
   } catch (err) {
     console.error("[groket tick]", err);
@@ -1500,6 +1590,7 @@ function returnToGarage() {
   sessionSerial++;
   wantRematch = false; peerWantRematch = false;
   paused = false; playing = false; mode = "garage";
+  goalCelebration=null;goalPresentation=null;
   stopCrowd(); playBed("garage");
   pauseLayer.classList.add("hidden"); faceLayer.classList.add("hidden");
   syncMenuUI();
@@ -1535,8 +1626,8 @@ document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
 document.getElementById("again").addEventListener("click", requestRematch);
 document.getElementById("leaveBtn").addEventListener("click", returnToGarage);
 window.render_game_to_text = () => JSON.stringify({
-  mode, gfxMode, mapMode, arenaState, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
-  fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: mapMode==='sink'?'arena':online && NET.isGuest() ? "B" : "P",
+  mode, gfxMode, mapMode, arenaState, goalCelebration, goalPresentation, online, role: online ? (NET.isHost() ? "host" : "guest") : null,
+  fsd, peerFsd, paused, menuOpen: !pauseLayer.classList.contains("hidden"), locked, matchId, cameraFollows: soapMode()?'soap-director':mapMode==='sink'?'arena':online && NET.isGuest() ? "B" : "P",
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
   P, B, ball, scoreA, scoreB, timeLeft, rulesHash, roundEpoch, matchSeed,
   faceoffName: kickoffLayout(matchSeed, Math.max(0,roundEpoch-1)).name,

@@ -47,7 +47,12 @@ export const simulationConfig = deepFreeze(validateConfig({
     currentAcceleration:8,currentCarScale:.4,drainPullRadius:7.5,drainPullAcceleration:3.5,
     surfaceBallMaxHeight:1.1,carMaxSpeed:38,ballMaxSpeed:42,
     firstHazard:5,kickoffHazardGrace:2.5,afterImpact:.9,meteorCarImpulse:18,meteorBallImpulse:27,meteorLift:5,
-    lightningCarImpulse:10,lightningBallImpulse:18,lightningShock:.6},
+    lightningCarImpulse:10,lightningBallImpulse:18,lightningShock:.6,
+    soap:{radius:1,goalSeconds:2.65,groundDrag:.16,wetDrag:.07,airDrag:.025,gravity:22,
+      bankSlope:.55,bankLaunchSpeed:5,launchScale:1.05,launchLift:3,maxLaunch:16,bankReturn:.55,launchCooldown:.65,
+      lipWidth:2.2,lipSpring:20,lipDamping:.65,lipRestitution:.78,landingSlide:.18,
+      drainCaptureRadius:3.75,drainCaptureHeight:2.4,stallWindow:.6,stallDistance:.35,stallSeconds:1.2,
+      releaseSpeed:5,releaseLift:4,releaseSeconds:.8,coastDrag:2.2}},
   skills:{timingWindow:.24, timingRestitution:.38, sustainAfter:.55, sustainDrain:1.35,
     moves:{
       cybertruck:{name:'CHARGE',windup:.28,duration:.65,recovery:.4,cooldown:7,push:25,turn:.25},

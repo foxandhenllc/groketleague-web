@@ -20,6 +20,10 @@
 | `pixel_sim.js` | Reference PIXEL-native sim (not always the live path) |
 | `field.js` | 3D pitch |
 | `vehicles.js` | 3D cars + ball |
+| `sink.js` / `sink-scene.js` | Shared basin surfaces/events and the 3D kitchen |
+| `soap-physics.js` / `soap-scene.js` | 3D sink soap dynamics and presentation |
+| `sink-goal.js` / `sink-camera.js` | Host goal timeline and smooth sink camera composition |
+| `sink-feedback.js` / `sink.css` | Contextual sink explanations and compact HUD |
 | `input.js` | Keys / touch / boost |
 | `net.js` | PeerJS netplay |
 | `audio.js` | Beds + SFX + mute |
@@ -60,6 +64,10 @@
 `arena-ui.mjs` - responsive day/night/all-car layout and screenshot checks.
 
 `netplay.mjs` - compatibility entry point for `gameplay.mjs`, the Playwright offline/PeerJS/mobile suite.
+
+`soap.test.mjs` / `soap-presentation.test.mjs` - 3D soap dynamics, eight match soaks, goal clock and camera checks.
+
+`soap-browser.mjs` - local-only 3D sink flight, goal, pause, winning celebration and responsive screenshot audit.
 
 ## Docs / notes
 

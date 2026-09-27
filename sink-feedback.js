@@ -13,10 +13,12 @@ export function sinkFeedback(state,car,ball) {
   if(faucet.phase==='flow')return {kind:'water',text:'FAUCET FLOW · arrows show the push'};
   if(faucet.phase==='ebb')return {kind:'water',text:'FLOW EASING · wet steel stays slippery'};
   if(car?.shock>0)return {kind:'lightning',text:'SHORT CIRCUIT · drive power returns soon'};
+  if(ball?.soap?.airborne&&ball.y>2.5)return {kind:'water',text:'BIG AIR · watch the landing'};
+  if(ball?.soap?.releaseT>0)return {kind:'water',text:'SQUIRT! · the soap slips free'};
   const c=car&&sinkSurface(car.x,car.z,state),b=ball&&(ball.y||0)<=SINK.surfaceBallMaxHeight&&sinkSurface(ball.x,ball.z,state);
   if(c?.wet>.25)return {kind:'water',text:'WET TIRES · less grip, wider turns'};
-  if(b&&Math.hypot(b.drainPullX,b.drainPullZ)>.18)return {kind:'drain',text:'DRAIN PULL · ball curves toward the hole'};
-  if(b&&Math.hypot(b.slopeX,b.slopeZ)>.15)return {kind:'bank',text:'BALL ON BANK · gravity rolls it downhill'};
+  if(b&&Math.hypot(b.drainPullX,b.drainPullZ)>.18)return {kind:'drain',text:ball.soap?'DRAIN PULL · soap spirals toward the hole':'DRAIN PULL · ball curves toward the hole'};
+  if(b&&Math.hypot(b.slopeX,b.slopeZ)>.15)return {kind:'bank',text:ball.soap?'BANK RIDE · speed turns into air':'BALL ON BANK · gravity rolls it downhill'};
   if(c&&Math.hypot(c.slopeX,c.slopeZ)>.15)return {kind:'bank',text:'BANKED STEEL · gravity pulls downhill'};
   return {kind:'quiet',text:'SINK IT · shoot into the opposing drain'};
 }

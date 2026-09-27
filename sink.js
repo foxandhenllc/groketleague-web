@@ -67,9 +67,9 @@ export function stepSink(state,cars,ball,dt) {
   for(const b of [...cars,ball]) {
     // High airborne balls clear surface effects; impacts still work in the air.
     const isBall=b===ball;
-    if(isBall && (b.y||0)>SINK.surfaceBallMaxHeight)continue;
+    if(isBall && (b.soap?.airborne || (b.y||0)>SINK.surfaceBallMaxHeight))continue;
     const s=sinkSurface(b.x,b.z,state),slopeScale=SINK.slopeGravity/(1+s.slopeX*s.slopeX+s.slopeZ*s.slopeZ)
-      *(isBall?1:SINK.carSlopeScale),currentScale=isBall?1:SINK.currentCarScale;
+      *(isBall?(b.soap?0:1):SINK.carSlopeScale),currentScale=isBall?1:SINK.currentCarScale;
     b.vx+=(-s.slopeX*slopeScale+s.currentX*currentScale+(isBall?s.drainPullX:0))*dt;
     b.vz+=(-s.slopeZ*slopeScale+s.currentZ*currentScale+(isBall?s.drainPullZ:0))*dt;
     limitSpeed(b,isBall?SINK.ballMaxSpeed:SINK.carMaxSpeed);
