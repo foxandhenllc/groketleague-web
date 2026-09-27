@@ -17,6 +17,10 @@ without stretching the arena. 3D retains vertical bounce.
 Offline menus pause the match, while online menus leave it running.
 Leaving a match returns the other player to the garage. Online rematches reuse the connection.
 
+Quick chat: press **1-4** to open a category, then its displayed message number (**1-7**).
+Number keys follow the current folder; numpad works too. **0 / Backspace** goes back,
+**Esc** closes, and clicking/tapping the numbered buttons does the same thing.
+
 ## Local development and checks
 
 Serve the repository with `python3 -m http.server 5173`.
@@ -24,6 +28,8 @@ Run the dependency-free physics checks with `node --experimental-default-type=mo
 Install Playwright locally with `npm install --prefix . --no-save --package-lock=false playwright` and, if needed,
 `npx playwright install chromium`. Run `node tests/netplay.mjs` and `node tests/arena-ui.mjs`.
 The 2D UI suite defaults to port 5174; set `GAME_URL` for your local server.
+Run `node tests/quick-chat.mjs` for all 19 message shortcuts, menu navigation, input guards,
+phone/landscape layout and host/guest chat delivery. It defaults to port 5198 and also accepts `GAME_URL`.
 The suite opens separate browser contexts and uses real PeerJS signaling / WebRTC.
 It covers both graphics modes, boost, pause, scoring, rematches, shared online geometry,
 quick match, disconnect, and mobile layout. `tests/netplay.mjs` runs `tests/gameplay.mjs`.

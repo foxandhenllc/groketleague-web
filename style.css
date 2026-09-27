@@ -432,8 +432,10 @@ body.playing #matchChat { display: flex; }
   pointer-events: none;
 }
 body.playing #touch { display: flex; }
+#touch:has(#qcMenu:not(.hidden)) { z-index: 13; }
 
 #qcDock {
+  position: relative;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
@@ -456,13 +458,25 @@ body.playing #touch { display: flex; }
   background: #2a1c08ee;
 }
 #qcMenu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 100%;
+  width: min(280px, calc(100vw - 32px));
+  max-height: min(520px, calc(100dvh - 110px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid #abc7d344;
+  border-radius: 8px;
+  background: #102431f5;
 }
 #qcMenu.hidden { display: none; }
 #qcMenu .qc {
+  flex-shrink: 0;
+  max-width: none;
   pointer-events: auto;
   font-family: "Bebas Neue", Impact, sans-serif;
   font-size: 14px;

@@ -39,7 +39,7 @@ See [04-PIXEL-MODE.md](./04-PIXEL-MODE.md). The current renderer is procedural:
 - Markup: `index.html`
 - Styles: `style.css` for garage/3D; `arena.css` for 2D match overrides
 - Behavior / wiring: `main.js`
-- Quick chat strings: search quick-chat / qc in `main.js` - prefer **ASCII** (` - `, `< BACK`) to avoid mojibake
+- Quick chat strings: `CHAT_CATS` in `main.js`; numeric shortcuts activate the current menu's `data-qc-key` buttons. Keep the displayed numbers and keys together. Prefer **ASCII** (` - `, `0 - BACK`) to avoid mojibake. Run `tests/quick-chat.mjs` after changes.
 
 ## Change audio
 

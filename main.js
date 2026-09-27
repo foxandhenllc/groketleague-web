@@ -1291,6 +1291,7 @@ function kickoffNow(fromHost = false) {
   toast(mapMode==='sink'?'LET THAT SINK IN':gfxMode === "pixel" ? (online && NET.isGuest() ? "YOU ARE CYAN" : "YOU ARE AMBER") : (online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : "KICK OFF"), 1100, online && NET.isGuest() ? "cpu" : "p1");
 }
 function startGame(useFsd, config = null) {
+  closeQcMenu();
   chooseTactic('auto');
   lastGoalCard = null; bestGoalCard = null; lastGoalBy = null;
   clearReconnect();
@@ -1371,6 +1372,7 @@ const qcMenu = document.getElementById("qcMenu");
 let qcView = "root"; // root | cat:<id>
 function closeQcMenu() {
   if (!qcMenu || !qcToggle) return;
+  if(qcMenu.contains(document.activeElement))qcToggle.focus({preventScroll:true});
   qcMenu.classList.add("hidden");
   qcToggle.setAttribute("aria-expanded", "false");
   qcView = "root";
@@ -1382,25 +1384,41 @@ function openQcMenu() {
   qcMenu.classList.remove("hidden");
   qcToggle.setAttribute("aria-expanded", "true");
 }
+function backQcMenu() {
+  if(qcView==='root')closeQcMenu();
+  else {qcView='root';renderQcMenu();}
+  SFX.tick();
+}
+function selectQcNumber(number) {
+  if(qcMenu.classList.contains('hidden')) {
+    if(number<1||number>CHAT_CATS.length)return;
+    openQcMenu();
+  }
+  // Activate the same numbered choice as a click, using the current folder.
+  qcMenu.querySelector(`[data-qc-key="${number}"]`)?.click();
+}
 function renderQcMenu() {
   if (!qcMenu) return;
   qcMenu.innerHTML = "";
   if (qcView === "root") {
-    for (const cat of CHAT_CATS) {
+    CHAT_CATS.forEach((cat,i) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "qc cat";
-      b.textContent = cat.label;
+      b.textContent = (i+1)+' - '+cat.label;
+      b.dataset.qcKey = String(i+1);
       b.dataset.cat = cat.id;
       qcMenu.appendChild(b);
-    }
+    });
   } else {
     const catId = qcView.slice(4);
     const cat = CHAT_CATS.find((c) => c.id === catId);
     const back = document.createElement("button");
     back.type = "button";
     back.className = "qc back";
-    back.textContent = "< BACK";
+    back.textContent = "0 - BACK";
+    back.title = "Back to categories (0 or Backspace)";
+    back.dataset.qcKey = '0';
     back.dataset.back = "1";
     qcMenu.appendChild(back);
     if (cat) {
@@ -1410,6 +1428,7 @@ function renderQcMenu() {
         b.type = "button";
         b.className = "qc line";
         b.textContent = (i + 1) + " - " + line;
+        b.dataset.qcKey = String(i+1);
         b.dataset.chat = String(base + i);
         qcMenu.appendChild(b);
       });
@@ -1419,7 +1438,7 @@ function renderQcMenu() {
 if (qcToggle) {
   qcToggle.addEventListener("click", (e) => {
     e.preventDefault();
-    if (!playing || paused) return;
+    if (!playing || paused || !pauseLayer.classList.contains('hidden')) return;
     if (qcMenu && !qcMenu.classList.contains("hidden")) closeQcMenu();
     else openQcMenu();
     SFX.tick();
@@ -1427,12 +1446,11 @@ if (qcToggle) {
 }
 if (qcMenu) {
   qcMenu.addEventListener("click", (e) => {
+    if(!playing||paused||!pauseLayer.classList.contains('hidden'))return;
     const btn = e.target.closest("button.qc");
     if (!btn) return;
     if (btn.dataset.back) {
-      qcView = "root";
-      renderQcMenu();
-      SFX.tick();
+      backQcMenu();
       return;
     }
     if (btn.dataset.cat) {
@@ -1445,6 +1463,8 @@ if (qcMenu) {
   });
 }
 window.addEventListener("keydown", (e) => {
+  if(e.defaultPrevented||e.repeat||e.isComposing||e.ctrlKey||e.altKey||e.metaKey)return;
+  if(e.target?.isContentEditable||e.target?.closest?.('input, textarea, select, [role="textbox"]'))return;
   if (e.code === "Escape" || e.code === "KeyP") {
     if (mode === "play") {
       e.preventDefault();
@@ -1453,11 +1473,13 @@ window.addEventListener("keydown", (e) => {
     }
     return;
   }
-  if (!playing || paused) return;
-  if (e.code === "Digit1") sayChat(0);
-  if (e.code === "Digit2") sayChat(1);
-  if (e.code === "Digit3") sayChat(2);
-  if (e.code === "Digit4") sayChat(3);
+  if (!playing || paused || !pauseLayer.classList.contains('hidden')) return;
+  const number=/^(?:Digit|Numpad)([0-9])$/.exec(e.code)?.[1];
+  if(e.code==='Backspace'||number==='0') {
+    if(!qcMenu.classList.contains('hidden')){e.preventDefault();backQcMenu();}
+    return;
+  }
+  if(number){e.preventDefault();selectQcNumber(Number(number));}
 });
 function syncFsdUI() {
   syncTeamLabels();
@@ -1483,6 +1505,7 @@ function syncMenuUI() {
 function togglePause(force) {
   clearInput();
   if (mode !== "play") return;
+  closeQcMenu();
   if (online) {
     pauseLayer.classList.toggle("hidden", force === false ? true : !pauseLayer.classList.contains("hidden"));
     document.getElementById("pauseScore").textContent = "P1 " + scoreA + " ' " + scoreB + " P2 - MATCH CONTINUES";
