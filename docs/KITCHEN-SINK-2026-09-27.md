@@ -1,5 +1,7 @@
 # Kitchen Sink arena - September 27, 2026
 
+This is the first-release record (`b5fd37e`). The subsequent [readable physics and graphics pass](KITCHEN-SINK-READABILITY-2026-09-27.md) supersedes its surface forces, event cycle and camera details.
+
 Select **Continue -> Arena -> Kitchen Sink - chaos soccer**. Both Arcade 2D and 3D support the arena, offline matches, private rooms and host-selected quick matches. Rematches retain the arena. Racing was deferred in favor of this arena at the user's request.
 
 ## Rules

@@ -1,4 +1,4 @@
-import { SINK, drainGoal } from './sink.js';
+import { SINK, drainGoal, sinkSurface, sinkHeight } from './sink.js';
 import { updateMove, movePhase } from './skills.js';
 import { updateBoost } from "./boost.js";
 import { createContactSolver } from "./contacts.js";
@@ -94,7 +94,9 @@ function drive(c, throttle, steer, wantBoost, dt, command = {}) {
   c.vx += fwdX * applied; c.vz += fwdZ * applied;
   const rightX = Math.cos(c.yaw), rightZ = -Math.sin(c.yaw);
   const lat = c.vx * rightX + c.vz * rightZ;
-  const damping = 1 - Math.exp(-c.grip * d.grip_lat_factor * dt);
+  const wet = sink ? sinkSurface(c.x,c.z,undefined,config.sink).wet : 0;
+  const surfaceGrip = 1-wet*(1-config.sink.wetGripScale);
+  const damping = 1 - Math.exp(-c.grip * surfaceGrip * d.grip_lat_factor * dt);
   c.vx -= rightX * lat * damping; c.vz -= rightZ * lat * damping;
   const decay = Math.exp(-drag * dt); c.vx *= decay; c.vz *= decay;
   const sp = Math.hypot(c.vx, c.vz);
@@ -116,7 +118,8 @@ function drive(c, throttle, steer, wantBoost, dt, command = {}) {
 }
 function carBall(c, ball) {
   const radius = getBallRadius();
-  if (!pixelTight && ball.y - radius >= config.ball.carHeight) return null;
+  const surfaceOffset = sink ? sinkHeight(ball.x,ball.z,config.sink)-sinkHeight(c.x,c.z,config.sink) : 0;
+  if (!pixelTight && ball.y + surfaceOffset - radius >= config.ball.carHeight) return null;
   const dx = ball.x - c.x;
   const dz = ball.z - c.z;
   const { x: fwdX, z: fwdZ } = forwardXZ(c.yaw);
@@ -205,7 +208,8 @@ function stepBall(ball, dt) {
   const rolling = pixelTight || (ball.y <= radius + 1e-6 && ball.vy <= 0);
   if (rolling) {
     // The old 0.986-per-frame drag is calibrated at 60 Hz. Integrate it in seconds.
-    const drag = -Math.log(CHARACTERS.ball.ground_friction) * 60;
+    const wet = sink ? sinkSurface(ball.x,ball.z,undefined,config.sink).wet : 0;
+    const drag = -Math.log(CHARACTERS.ball.ground_friction) * 60 * (1-wet*(1-config.sink.wetBallDragScale));
     const decay = Math.exp(-drag * dt);
     const travel = (1 - decay) / drag;
     ball.x += ball.vx * travel; ball.z += ball.vz * travel;

@@ -1,7 +1,9 @@
 import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_MESSAGE } from './net-protocol.js';
 import { createEventStream } from './sim-events.js';
-import { makeArenaState, stepSink, sinkHeight, SINK } from './sink.js';
+import { makeArenaState, stepSink, resetSinkRound, sinkHeight, sinkSurface, SINK } from './sink.js';
 import { makeSinkScene } from './sink-scene.js';
+import { sinkCameraFrame } from './sink-camera.js';
+import { sinkFeedback } from './sink-feedback.js';
 import { movePhase, timingCue, moveDescriptions } from './skills.js';
 import { simulationConfig } from './simulation-config.js';
 import { boostLabel } from './boost.js';
@@ -64,19 +66,21 @@ const matchChat = document.getElementById("matchChat");
 let matchChatIdle = 0;
 const resWho = document.getElementById("resWho");
 const PIX = 2.4;
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance", preserveDrawingBuffer: false });
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false });
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.BasicShadowMap;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-function fitRenderer() {
-  const w = Math.max(320, Math.floor(innerWidth / PIX));
-  const h = Math.max(180, Math.floor(innerHeight / PIX));
+function fitRenderer(sink = false) {
+  const divisor = sink ? Math.max(1,innerWidth/1600,innerHeight/1000) : PIX;
+  const w = Math.max(320, Math.floor(innerWidth / divisor));
+  const h = Math.max(180, Math.floor(innerHeight / divisor));
   renderer.setSize(w, h, false);
   renderer.domElement.style.width = "100%";
   renderer.domElement.style.height = "100%";
-  renderer.domElement.style.imageRendering = "pixelated";
+  renderer.domElement.style.imageRendering = sink ? "auto" : "pixelated";
 }
 fitRenderer();
 document.body.prepend(renderer.domElement);
@@ -99,19 +103,20 @@ let cueOccluded=false,cueAge=1;
 function updateBallCue(dt){
   if(mode!=='play'||pixelView.isActive()||paused||!pauseLayer.classList.contains('hidden')){ballCue.hidden=true;return;}
   camera.updateMatrixWorld();
-  cuePoint.set(ball.x,ball.y,ball.z).project(camera);
-  cueEdge.set(ball.x+getBallRadius(),ball.y,ball.z).project(camera);
+  const floor=mapMode==='sink'?sinkHeight(ball.x,ball.z):0;
+  cuePoint.set(ball.x,ball.y+floor,ball.z).project(camera);
+  cueEdge.set(ball.x+getBallRadius(),ball.y+floor,ball.z).project(camera);
   const x=(cuePoint.x+1)*innerWidth/2,y=(1-cuePoint.y)*innerHeight/2;
-  const top=innerHeight<500?132:150,bottom=innerHeight-100;
+  const top=mapMode==='sink'?(innerHeight<500?24:122):innerHeight<500?132:150,bottom=innerHeight-(mapMode==='sink'?(innerHeight<500?24:182):100);
   const behind=cuePoint.z>1||cuePoint.z< -1;
   const edge=behind||x<24||x>innerWidth-24||y<top||y>bottom;
   cueAge+=dt;
   if(cueAge>=.1){
     cueAge=0;scene.updateMatrixWorld(true);
-    cueDirection.set(ball.x,ball.y,ball.z).sub(camera.position);
+    cueDirection.set(ball.x,ball.y+floor,ball.z).sub(camera.position);
     cueRay.set(camera.position,cueDirection.clone().normalize());
     cueRay.far=Math.max(0,cueDirection.length()-getBallRadius()*.8);
-    cueOccluded=cueRay.intersectObjects([playerMesh,botMesh,fieldRoot],true).length>0;
+    cueOccluded=cueRay.intersectObjects([playerMesh,botMesh,mapMode==='sink'?sinkScene.root:fieldRoot],true).length>0;
   }
   const tiny=Math.abs(cueEdge.x-cuePoint.x)*innerWidth<14;
   ballCue.hidden=!(edge||cueOccluded||tiny);
@@ -138,8 +143,10 @@ const nightExtra = new THREE.Group();
 scene.add(fieldRoot, nightExtra);
 makeField(scene, fieldRoot, nightExtra);
 const sinkScene=makeSinkScene(scene);
-let arenaState=makeArenaState(), drainAnimation=0, lastHazardToken='';
+let arenaState=makeArenaState(), drainAnimation=0, lastHazardToken='', lastSinkWarning='', lastFaucetCue='';
 const sinkCameraPosition=new THREE.Vector3(),sinkCameraTarget=new THREE.Vector3();
+let sinkFrame=sinkCameraFrame(innerWidth,innerHeight),sinkViewKey='';
+const sinkUp=new THREE.Vector3(),sinkTilt=new THREE.Quaternion(),sinkYaw=new THREE.Quaternion(),worldUp=new THREE.Vector3(0,1,0);
 let playerMesh = makeVehicle("cybertruck");
 let botMesh = makeVehicle("model3");
 const ballMesh = makeBall();
@@ -475,7 +482,7 @@ NET.setHandlers({
     notePacket();
     if (peerFsd !== (msg.fsdA === true)) { peerFsd = msg.fsdA === true; syncFsdUI(); }
     if (!Number.isInteger(msg.epoch) || msg.epoch < roundEpoch) return;
-    if (msg.epoch > roundEpoch) { roundEpoch = msg.epoch; lastHazardToken=''; impactStream.reset(roundEpoch); impactMarks.length = 0; }
+    if (msg.epoch > roundEpoch) { roundEpoch = msg.epoch; lastHazardToken=''; lastSinkWarning=''; lastFaucetCue=''; impactStream.reset(roundEpoch); impactMarks.length = 0; }
     const delivered = impactStream.receive(roundEpoch, msg.events);
     consumeImpacts(delivered.events);
     NET.send({t:'eventAck',id:matchId,epoch:roundEpoch,ids:delivered.ack});
@@ -483,7 +490,7 @@ NET.setHandlers({
     Object.assign(P, msg.P); Object.assign(B, msg.B); Object.assign(ball, msg.ball);
     if (msg.scoreA > scoreA || msg.scoreB > scoreB) {
       drainAnimation=performance.now();
-      SFX.goal(); SFX.crowd(msg.scoreB > scoreB);
+      SFX.goal(); if(mapMode==='sink')SFX.drain(); SFX.crowd(msg.scoreB > scoreB);
       toast(msg.scoreA > scoreA ? "P1 GOAL" : "P2 GOAL", 1100, msg.scoreA > scoreA ? "p1" : "cpu");
     }
     scoreA = msg.scoreA; scoreB = msg.scoreB; timeLeft = msg.timeLeft; locked = msg.locked;
@@ -529,7 +536,8 @@ window.addEventListener("pagehide", () => NET.destroy());
 function applyMap() {
   const sink=mapMode==='sink';mapBtn.hidden=sink;document.body.classList.toggle('sink-mode',sink);setSink(sink);fieldRoot.visible=!sink;sinkScene.root.visible=sink;
   document.getElementById('arenaSelect').value=sink?'sink':'classic';
-  document.getElementById('arenaDescription').textContent=sink?'Drain the ball into the opposing colored goal. Dodge marked meteor and lightning zones; faucet surges push everyone sideways.':'Car soccer on the stadium pitch.';
+  document.getElementById('arenaDescription').textContent=sink?'Sink the ball into the opposing drain. Curved banks roll downhill; blue wet steel is slippery. The faucet pushes along its arrows. Marked meteors blast outward; lightning briefly stuns cars.':'Car soccer on the stadium pitch.';
+  fitRenderer(sink);
   const m = maps[mapMode];
   scene.background = new THREE.Color(m.bg);
   scene.fog = new THREE.Fog(m.bg, m.fogN, m.fogF);
@@ -715,7 +723,8 @@ setInspect("cybertruck");
 function resetKick() {
   clearInput(); resetContacts(); impactMarks.length = 0;
   impactStream.reset(++roundEpoch);
-  arenaState=makeArenaState(matchSeed+roundEpoch); lastHazardToken='';
+  arenaState=mapMode==='sink'&&roundEpoch>1?resetSinkRound(arenaState):makeArenaState(matchSeed+roundEpoch);
+  lastHazardToken=''; lastSinkWarning=''; lastFaucetCue='';
   const round = roundEpoch - 1, layout = kickoffLayout(matchSeed, round);
   P = bodyFrom(selectedId, layout.P.x, layout.P.z, layout.P.yaw);
   B = bodyFrom(botId, layout.B.x, layout.B.z, layout.B.yaw);
@@ -789,7 +798,12 @@ function syncMesh(mesh, c) {
   mesh.visible = true;
   mesh.scale.set(1, 1, 1);
   mesh.position.set(c.x, mapMode==='sink'?sinkHeight(c.x,c.z):0, c.z);
-  mesh.rotation.set(0, c.yaw, 0);
+  if(mapMode==='sink') {
+    const surface=sinkSurface(c.x,c.z,arenaState);
+    sinkUp.set(-surface.slopeX,1,-surface.slopeZ).normalize();
+    sinkTilt.setFromUnitVectors(worldUp,sinkUp);sinkYaw.setFromAxisAngle(worldUp,c.yaw);
+    mesh.quaternion.copy(sinkTilt).multiply(sinkYaw);
+  } else mesh.rotation.set(0, c.yaw, 0);
   const ring=mesh.getObjectByName('skill-ring'), phase=movePhase(c);
   if(ring) { ring.material.color.set(phase==='windup'?'#ff784e':phase==='active'?'#ffffff':ring.userData.teamColor); ring.scale.setScalar(phase==='ready'?1:1.6); }
   mesh.children.filter(child => child.name === "boost-exhaust").forEach(child => { child.visible = !!c.boosting; });
@@ -922,7 +936,7 @@ async function onGoal(who) {
   if (locked) return;
   locked = true; drainAnimation=performance.now();
   captureGoalStill(who);
-  SFX.goal(); SFX.crowd(who === "A");
+  SFX.goal(); if(mapMode==='sink')SFX.drain(); SFX.crowd(who === "A");
   if (who === "A") { scoreA++; toast("P1 GOAL - " + byId(selectedId).name, 1100, "p1"); }
   else { scoreB++; toast(opponentName() + " GOAL - " + byId(botId).name, 1100, "cpu"); }
   scoreAEl.textContent = String(scoreA);
@@ -1009,8 +1023,9 @@ function updateImpactMeshes() {
   impactLines.forEach((line,i)=>{
     const e=active[i]; line.visible=!!e && !pixelView.isActive(); if(!e)return;
     const length=.35+Math.min(1,e.closing/25)*.55;
-    line.geometry.attributes.position.array.set([e.x-e.nz*.3,e.y,e.z+e.nx*.3,e.x+e.nz*.3,e.y,e.z-e.nx*.3,
-      e.x,e.y,e.z,e.x+e.nx*length,e.y,e.z+e.nz*length]);
+    const y=e.y+(mapMode==='sink'?sinkHeight(e.x,e.z):0);
+    line.geometry.attributes.position.array.set([e.x-e.nz*.3,y,e.z+e.nx*.3,e.x+e.nz*.3,y,e.z-e.nx*.3,
+      e.x,y,e.z,e.x+e.nx*length,y,e.z+e.nz*length]);
     line.geometry.attributes.position.needsUpdate=true;
   });
 }
@@ -1053,8 +1068,10 @@ function stepGame(dt) {
     ballMesh.position.set(ball.x, ball.y+(mapMode==='sink'?sinkHeight(ball.x,ball.z):0), ball.z);
     if(mapMode==='sink'&&locked){const drop=Math.min(1,(performance.now()-drainAnimation)/700);ballMesh.position.y-=drop*3;ballMesh.scale.setScalar(Math.max(.01,1-drop));}
     faceCam.z=online && NET.isGuest() ? -24 : 24;
-    camera.position.lerp(faceCam, 1 - Math.pow(0.002, dt));
-    camTarget.lerp(faceLook, 1 - Math.pow(0.002, dt));
+    if(mapMode!=='sink') {
+      camera.position.lerp(faceCam, 1 - Math.pow(0.002, dt));
+      camTarget.lerp(faceLook, 1 - Math.pow(0.002, dt));
+    }
     if (!(online && NET.isGuest())) faceoffT -= dt;
     const sub = document.getElementById("faceSub");
     if (sub) sub.textContent = (online ? "ONLINE 1v1" : fsd ? "FSD" : "MANUAL") + " - " + Math.max(1, Math.ceil(faceoffT)) + (online ? "" : " - TAP TO SKIP");
@@ -1085,17 +1102,30 @@ function stepGame(dt) {
   // Keep the pitch legible when portrait framing raises the camera.
   if(scene.fog){const m=maps[mapMode],lift=Math.max(0,camera.position.y-18);scene.fog.near=m.fogN+lift;scene.fog.far=m.fogF+lift;}
   if(mapMode==='sink' && mode!=='garage') {
-    const wide=camera.aspect>1.15;
-    sinkCameraPosition.set(wide?50:0,wide?76:105,wide?30:54);
-    camera.position.lerp(sinkCameraPosition,1-Math.exp(-dt*3));
-    camTarget.lerp(sinkCameraTarget,1-Math.exp(-dt*3));camera.lookAt(camTarget);
-  }
-  sinkScene.update(arenaState);
+    const viewKey=innerWidth+':'+innerHeight;
+    if(sinkViewKey!==viewKey) {
+      sinkFrame=sinkCameraFrame(innerWidth,innerHeight,camera.fov);sinkViewKey=viewKey;
+      camera.setViewOffset(innerWidth,innerHeight,sinkFrame.offsetX,sinkFrame.offsetY,innerWidth,innerHeight);
+    }
+    sinkCameraPosition.fromArray(sinkFrame.position);
+    camera.position.lerp(sinkCameraPosition,reducedMotion.matches?1:1-Math.exp(-dt*5));
+    camTarget.lerp(sinkCameraTarget,reducedMotion.matches?1:1-Math.exp(-dt*5));camera.lookAt(camTarget);
+  } else if(sinkViewKey) {camera.clearViewOffset();sinkViewKey='';}
+  if(mapMode==='sink'&&!pixelView.isActive())sinkScene.update(arenaState,{cars:[P,B],ball,reducedMotion:reducedMotion.matches});
   const hazardEl=document.getElementById('hazardNotice'), h=arenaState.hazard;
   hazardEl.hidden=mapMode!=='sink'||mode!=='play'||locked;
-  const hazardText=h?(h.kind==='meteor'?'METEOR':'LIGHTNING')+(h.fired?' IMPACT!':' - MOVE OUT!'):arenaState.surge>.1?'FAUCET SURGE':'OPPOSING DRAIN = GOAL';
-  if(hazardEl.textContent!==hazardText)hazardEl.textContent=hazardText;
-  if(mapMode==='sink'&&h?.fired&&lastHazardToken!==roundEpoch+':'+h.id){lastHazardToken=roundEpoch+':'+h.id;h.kind==='meteor'?SFX.meteor():SFX.zap();}
+  if(!hazardEl.hidden) {
+    const feedback=sinkFeedback(arenaState,me,ball);
+    if(hazardEl.textContent!==feedback.text)hazardEl.textContent=feedback.text;
+    hazardEl.dataset.kind=feedback.kind;
+    if(!paused) {
+      const hazardToken=roundEpoch+':'+h?.id;
+      if(h&&!h.fired&&lastSinkWarning!==hazardToken){lastSinkWarning=hazardToken;SFX.hazardWarning();}
+      if(h?.fired&&lastHazardToken!==hazardToken){lastHazardToken=hazardToken;h.kind==='meteor'?SFX.meteor():SFX.zap();}
+      const phase=arenaState.faucet?.phase,token=roundEpoch+':'+Math.floor(arenaState.time/SINK.faucetCycle)+':'+phase;
+      if(lastFaucetCue!==token){lastFaucetCue=token;if(phase==='warning')SFX.tapWarning();else if(phase==='flow')SFX.water();}
+    }
+  }
   updateBallCue(dt);
   updateImpactMeshes();
   if (!pixelView.isActive()) renderer.render(scene, camera);
@@ -1603,7 +1633,8 @@ initXAuth().then((result) => {
 window.addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  fitRenderer();
+  fitRenderer(mapMode==='sink');
+  sinkViewKey='';
 });
 
 

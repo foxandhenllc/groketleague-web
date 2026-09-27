@@ -1,4 +1,4 @@
-import { SINK } from './sink.js';
+import { paintSinkBackground, paintSinkEffects } from './sink-pixel.js';
 import { movePhase } from './skills.js';
 /** CIRCUIT: procedural top-down stadium. All shapes use the simulation's world units. */
 import { pixelFieldSize, ballRadius, GOAL_W, FW } from './catalog.js';
@@ -164,46 +164,6 @@ function vehicle(ctx, car, team, local, clock, reducedMotion) {
   ctx.restore();
 }
 
-function kitchen(ctx,width,height,layout) {
-  ctx.fillStyle='#101b24';ctx.fillRect(0,0,width,height);
-  ctx.save();world(ctx,layout);
-  rounded(ctx,-W/2-4,-L/2-4,W+8,L+8,5,'#b49b80','#e2c7a5',.3);
-  rounded(ctx,-W/2-1,-L/2-1,W+2,L+2,7,'#d3e3e6','#f0f7ed',.3);
-  const steel=ctx.createLinearGradient(-W/2,0,W/2,0);
-  steel.addColorStop(0,'#526e7d');steel.addColorStop(.14,'#a9c2ce');steel.addColorStop(.5,'#7395a6');steel.addColorStop(.86,'#aac6d1');steel.addColorStop(1,'#526e7d');
-  rounded(ctx,-W/2,-L/2,W,L,7,steel,'#daeef1',.25);
-  rounded(ctx,-17,-29,34,58,5,'#7899a980','#c3dbe14d',.12);
-  for(const sign of [-1,1]) {
-    const z=sign*SINK.drainZ,color=sign>0?AMBER:CYAN;
-    circle(ctx,0,z,4.85,null,color,.25);circle(ctx,0,z,4.4,'#ccdae0');circle(ctx,0,z,4,'#091821');
-    for(const r of [1.2,2.5])circle(ctx,0,z,r,null,'#8ea8b6',.13);
-    for(let i=0;i<8;i++){const a=i*Math.PI/4;path(ctx,[[Math.sin(a)*4,z+Math.cos(a)*4],[0,z]],'#8ea8b6',.12);}
-    ctx.font='bold 1.1px Arial';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(sign>0?'AMBER DRAIN':'CYAN DRAIN',0,z-sign*6);
-  }
-  path(ctx,[[-24,-4],[-24,0],[-9,0]],'#edf6f5',1.4);
-  circle(ctx,-24,-4,1.8,'#8da9b9','#f2f7f1',.2);
-  rounded(ctx,-25.5,-27,3,6,.3,'#e8ce49','#777c44',.15);
-  ctx.restore();
-}
-function sinkWeather(ctx,state,clock) {
-  if(state?.surge>.05) {
-    ctx.globalAlpha=state.surge*.3;
-    for(let z=-14;z<=14;z+=4)path(ctx,[[-9,z],[0,z+1],[9,z],[16,z+1]],'#d2f8ff',.35);
-    ctx.globalAlpha=1;
-  }
-  const h=state?.hazard;if(!h)return;
-  const hit=h.age>=SINK.warning,color=h.kind==='meteor'?'#ff7544':'#a4f1ff';
-  if(hit){ctx.globalAlpha=Math.max(0,1-(h.age-SINK.warning)/.9);circle(ctx,h.x,h.z,SINK.radius*(1+(h.age-SINK.warning)*2),null,color,.35);ctx.globalAlpha=1;}
-  else {
-    circle(ctx,h.x,h.z,SINK.radius,color+'18',color,.22);
-    path(ctx,[[h.x-1,h.z],[h.x+1,h.z]],color,.2);path(ctx,[[h.x,h.z-1],[h.x,h.z+1]],color,.2);
-    ctx.font='bold 1.3px Arial';ctx.fillStyle=color;ctx.textAlign='center';ctx.fillText(h.kind.toUpperCase(),h.x,h.z-SINK.radius-1);
-  }
-  if(h.kind==='meteor'&&hit){const t=h.age-SINK.warning;for(let i=0;i<12;i++){const a=i*Math.PI/6;circle(ctx,h.x+Math.cos(a)*t*9,h.z+Math.sin(a)*t*9,.18,'#ffc77a');}}
-  if(h.kind==='meteor'&&!hit){const fall=(SINK.warning-h.age)*8;circle(ctx,h.x+fall*.3,h.z-fall,1.2,'#ce663c','#ffcf6d',.2);}
-  if(h.kind==='lightning'&&hit&&h.age<SINK.warning+.3)path(ctx,[[h.x+2,h.z-7],[h.x-1,h.z-2],[h.x+1,h.z-2],[h.x,h.z]],color,.6);
-}
-
 export function createPixelView() {
   const canvas = document.createElement('canvas'); canvas.id = 'pixelView';
   canvas.setAttribute('aria-label', 'Top-down football arena. Your car is marked with a chevron. Hold Space or Shift to boost.');
@@ -221,7 +181,7 @@ export function createPixelView() {
     canvas.width = background.width = Math.round(width * ratio);
     canvas.height = background.height = Math.round(height * ratio);
     layout = arenaLayout(width, height, W, L);
-    bg.setTransform(ratio, 0, 0, ratio, 0, 0); (sink?kitchen:stadium)(bg, width, height, layout, night);
+    bg.setTransform(ratio, 0, 0, ratio, 0, 0); (sink?paintSinkBackground:stadium)(bg, width, height, layout, night);
     dirty = false;
   }
   return {
@@ -252,13 +212,15 @@ export function createPixelView() {
         }
         ctx.globalAlpha = 1;
       }
-      if(sink)sinkWeather(ctx,arenaState,clock);
+      if(sink)paintSinkEffects(ctx,arenaState,layout,reducedMotion,[player,bot],ball);
       vehicle(ctx, player, AMBER, !localIsBot, clock, reducedMotion);
       vehicle(ctx, bot, CYAN, localIsBot, clock, reducedMotion);
       if (ball) {
         circle(ctx, ball.x + .15, ball.z + .25, R, '#050f1480');
-        circle(ctx, ball.x, ball.z, R*(1-drainProgress), '#f4f7e9', '#142d32', .12);
-        ctx.save(); ctx.translate(ball.x, ball.z); ctx.scale(1-drainProgress,1-drainProgress); ctx.rotate((ball.x + ball.z) * .55);
+        const lift=sink?Math.min(8,Math.max(0,ball.y-R))*.7:0;
+        const bx=ball.x-(layout.landscape?lift:0),bz=ball.z-(layout.landscape?0:lift);
+        circle(ctx, bx, bz, R*(1-drainProgress), '#f4f7e9', '#142d32', .12);
+        ctx.save(); ctx.translate(bx, bz); ctx.scale(1-drainProgress,1-drainProgress); ctx.rotate((ball.x + ball.z) * .55);
         const pentagon = Array.from({ length: 5 }, (_, i) => [Math.cos(i * Math.PI * 2 / 5) * R * .37, Math.sin(i * Math.PI * 2 / 5) * R * .37]);
         path(ctx, pentagon, '#27414a', 0, true, true);
         for (let i = 0; i < 5; i++) {

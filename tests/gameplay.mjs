@@ -134,9 +134,16 @@ try {
     await guest.locator('[data-tactic=defend]').click();
     await until(host, () => JSON.parse(window.render_game_to_text()).B.tactic === 'defend');
     const expectedScore = (await state(host)).scoreA + 1;
+    const environmentBeforeGoal = (await state(host)).arenaState;
     await host.evaluate(() => window.__scenario.goal());
     await until(guest, score => JSON.parse(window.render_game_to_text()).scoreA === score, expectedScore);
     await until(host, () => !JSON.parse(window.render_game_to_text()).locked);
+    if (arena === 'sink') {
+      const environmentAfterGoal = (await state(host)).arenaState;
+      assert.equal(environmentAfterGoal.seed, environmentBeforeGoal.seed);
+      assert.ok(environmentAfterGoal.time >= environmentBeforeGoal.time, 'Scoring must not restart the faucet clock');
+      assert.ok(environmentAfterGoal.index >= environmentBeforeGoal.index, 'Scoring must not restart hazard alternation');
+    }
     await until(host, () => { const s=JSON.parse(window.render_game_to_text()); return s.P.tactic==='attack' && s.B.tactic==='defend'; });
     await host.evaluate(() => window.__scenario.expire());
     await Promise.all([host, guest].map(p => until(p, () => JSON.parse(window.render_game_to_text()).mode === 'results')));

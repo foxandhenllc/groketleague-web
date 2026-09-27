@@ -1,5 +1,6 @@
 import { movePhase } from './skills.js';
 import { cornerContact } from './arena-geometry.js';
+import { sinkHeight } from './sink.js';
 
 const dot = (a, b) => a.x * b.x + a.z * b.z;
 const basis = c => [{ x: Math.cos(c.yaw), z: -Math.sin(c.yaw) }, { x: -Math.sin(c.yaw), z: -Math.cos(c.yaw) }];
@@ -89,7 +90,8 @@ export function createContactSolver(config, diagnostics) {
     };
     cars.forEach((c, i) => {
       const id = `${i ? 'B' : 'P'}:ball`, heavy = c.mass > 3 && c.boosting;
-      if (field.pixelTight || ball.y - field.ballRadius < config.ball.carHeight) {
+      const surfaceOffset = field.sink ? sinkHeight(ball.x,ball.z,config.sink)-sinkHeight(c.x,c.z,config.sink) : 0;
+      if (field.pixelTight || ball.y + surfaceOffset - field.ballRadius < config.ball.carHeight) {
         const m = ballManifold(c, ball, field.ballRadius, cache.get(id));
         const front = m && (-Math.sin(c.yaw)*m.nx-Math.cos(c.yaw)*m.nz)>.7;
         const timed = front && c.boosting && c._boost?.pressAge <= config.skills.timingWindow && !c._boost.timedUsed;

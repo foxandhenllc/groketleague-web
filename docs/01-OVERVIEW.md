@@ -8,7 +8,7 @@
 - Two presentation modes:
   - **3D Arena** - Three.js field + extruded cars (`field.js`, `vehicles.js`).
   - **Arcade 2D** - CIRCUIT top-down stadium, procedural cars and a separate match HUD (`pixel.js`, `arena.css`). Internal mode ID remains `pixel`.
-- **Kitchen Sink** is an alternate arena in either view: colored drain goals, basin slopes, faucet surges, meteors and lightning. The host selects the arena for online play.
+- **Kitchen Sink** is an alternate arena in either view: colored drain goals, visible curved banks, a slippery wet lane with localized faucet flow, meteors and lightning. Warnings precede force changes and the environmental cycle continues across goals. The host selects the arena for online play. See the [surface and presentation report](KITCHEN-SINK-READABILITY-2026-09-27.md).
 - Online **1v1** via **PeerJS** (host-authoritative physics) - quick match + 4-character private rooms.
 - Optional **Sign in with X** (OAuth PKCE) for handles / presence flavor.
 

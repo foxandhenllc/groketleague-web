@@ -168,6 +168,10 @@ function stopCrowd() {
   crowdNode = null;
 }
 const _SFX_RAW = {
+  hazardWarning: () => { beep(520,.13,'triangle',.05,160); },
+  tapWarning: () => { beep(380,.14,'sine',.05,190); },
+  water: () => { noise(.65,.06,2200); },
+  drain: () => { noise(.45,.07,520); beep(210,.4,'sine',.07,-145); },
   meteor: () => { noise(.35,.14,350); beep(70,.25,'triangle',.12,-45); },
   zap: () => { noise(.16,.1,4200); beep(800,.15,'sawtooth',.07,-600); },
   perfect: () => { beep(660,.1,'sine',.09); setTimeout(()=>beep(990,.12,'sine',.09),65); },
