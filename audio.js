@@ -168,6 +168,8 @@ function stopCrowd() {
   crowdNode = null;
 }
 const _SFX_RAW = {
+  perfect: () => { beep(660,.1,'sine',.09); setTimeout(()=>beep(990,.12,'sine',.09),65); },
+  save: () => { beep(440,.18,'triangle',.12,220); },
   boost: () => {
     beep(140, 0.22, "sawtooth", 0.09, 260);
     noise(0.2, 0.09, 1200);

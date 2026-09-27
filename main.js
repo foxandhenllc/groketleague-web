@@ -1,5 +1,7 @@
 import { configHash, compatibilityFields, compatible, compatibleSetup, VERSION_MESSAGE } from './net-protocol.js';
 import { createEventStream } from './sim-events.js';
+import { movePhase, timingCue, moveDescriptions } from './skills.js';
+import { simulationConfig } from './simulation-config.js';
 import { boostLabel } from './boost.js';
 import { kickoffLayout, driverPersonality } from './match-variety.js';
 import { createPlayCamera } from './chase-camera.js';
@@ -16,7 +18,12 @@ let lastBoostActive = false;
 function consumeImpacts(events) {
   const now = performance.now();
   for (const e of events.sort((a,b)=>b.impulse-a.impulse)) {
-    impactMarks.push({ ...e, until: now + 140 });
+    impactMarks.push({ ...e, until: now + (e.timed || e.save ? 300 : 140) });
+    if(e.timed || e.save) {
+      const who=e.pair.startsWith('P:')?'p1':'cpu';
+      toast(e.save ? 'SAVE!' : 'PERFECT TOUCH!', 700, who);
+      e.save ? SFX.save() : SFX.perfect();
+    }
     while (impactMarks.length > 2) impactMarks.shift();
     impactSoundTimes = impactSoundTimes.filter(t=>now-t<1000);
     if (impactSoundTimes.length < 4 && e.closing >= (e.type === 'carHit' ? 2 : 1)) {
@@ -28,7 +35,7 @@ import * as THREE from "three";
 import * as NET from "./net.js";
 import { CATALOG, byId } from "./catalog.js";
 import { ensureAudio, SFX, startCrowd, stopCrowd, playBed, isMusicMuted, isSfxMuted, setMusicMuted, setSfxMuted } from "./audio.js";
-import { bindInput, bindTouch, readControls, setQaKeys, clearInput } from "./input.js";
+import { bindInput, bindTouch, readControls, setQaKeys, clearInput, chooseTactic, triggerSpecial } from "./input.js";
 import { makeVehicle, makeBall } from "./vehicles.js";
 import { makeField, lamps } from "./field.js";
 import { bodyFrom, stepBall, botAI, forwardXZ, setPixelTight, getBallRadius, getField, solveContacts, resetContacts, diagnostics } from "./sim.js";
@@ -450,7 +457,7 @@ NET.setHandlers({
   onInput(msg) {
     if (!online || !NET.isHost() || msg.id !== matchId) return;
     const clamp = n => Number.isFinite(n) ? Math.max(-1, Math.min(1, n)) : 0;
-    remoteInput = { throttle: clamp(msg.throttle), steer: clamp(msg.steer), boost: msg.boost === true, fsd: msg.fsd === true };
+    remoteInput = { throttle: clamp(msg.throttle), steer: clamp(msg.steer), boost: msg.boost === true, tactic: ['attack','defend'].includes(msg.tactic)?msg.tactic:'auto', special:msg.special===true, fsd: msg.fsd === true };
     if (peerFsd !== remoteInput.fsd) { peerFsd = remoteInput.fsd; syncFsdUI(); }
     lastInput = performance.now(); notePacket();
   },
@@ -631,7 +638,7 @@ function setInspect(id) {
   document.getElementById("inspStats").innerHTML = '<dl>' + [
     ['Mass', spec.mass], ['Top speed', spec.max + ' units/s'],
     ['Acceleration', spec.accel + ' units/s squared'], ['Turn rate', spec.turn + ' rad/s'],
-    ['Grip', spec.grip], ['Boost reserve', spec.boostMax], ['Size', spec.w + ' x ' + spec.l + ' units']
+    ['Grip', spec.grip], ['Boost reserve', spec.boostMax], ['Size', spec.w + ' x ' + spec.l + ' units'], ['Signature move', moveDescriptions[id]]
   ].map(([label,value])=>`<div><dt>${label}</dt><dd>${value}</dd></div>`).join('') + '</dl>';
   document.getElementById("inspName").style.color = "";
   if (hoverId !== id) {
@@ -703,6 +710,7 @@ function resetKick() {
 }
 function markTeam(mesh, color) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.45, 20), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }));
+  ring.name='skill-ring'; ring.userData.teamColor=color;
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.06; ring.userData.decoration = true;
   mesh.add(ring);
@@ -767,6 +775,8 @@ function syncMesh(mesh, c) {
   mesh.scale.set(1, 1, 1);
   mesh.position.set(c.x, 0, c.z);
   mesh.rotation.set(0, c.yaw, 0);
+  const ring=mesh.getObjectByName('skill-ring'), phase=movePhase(c);
+  if(ring) { ring.material.color.set(phase==='windup'?'#ff784e':phase==='active'?'#ffffff':ring.userData.teamColor); ring.scale.setScalar(phase==='ready'?1:1.6); }
   mesh.children.filter(child => child.name === "boost-exhaust").forEach(child => { child.visible = !!c.boosting; });
   if (![mesh.position.x, mesh.position.y, mesh.position.z].every(Number.isFinite)) {
     mesh.position.set(0, 0, 0);
@@ -910,7 +920,7 @@ async function onGoal(who) {
     }, 1100);
     return;
   }
-  await new Promise((r) => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 700));
   if (serial !== sessionSerial) return;
   resetKick();
   SFX.whistle(); locked = false;
@@ -954,11 +964,11 @@ function simulateMatch(dt) {
     const s = Math.floor(timeLeft % 60).toString().padStart(2, "0");
     clockEl.textContent = m + ":" + s;
     const ctl = online && pauseLayer && !pauseLayer.classList.contains("hidden") ? { throttle: 0, steer: 0, boost: false } : readControls();
-    // FSD always drives; human only holds Ludicrous (boost-as-intent)
-    botAI(P, B, ball, dt, -1, !!ctl.boost);
+    // FSD steers; human chooses boost timing, tactics and signature moves.
+    botAI(P, B, ball, dt, -1, !!ctl.boost, ctl);
     if (online) {
       const input = performance.now() - lastInput < 500 ? remoteInput : { throttle: 0, steer: 0, boost: false };
-      botAI(B, P, ball, dt, 1, !!input.boost);
+      botAI(B, P, ball, dt, 1, !!input.boost, input);
     } else botAI(B, P, ball, dt, 1);
     if (matchChatIdle > 0) {
       matchChatIdle -= dt;
@@ -999,6 +1009,17 @@ function stepGame(dt) {
   if (boostFill && me.boostMax) boostFill.style.transform = "scaleX(" + Math.max(0, Math.min(1, me.boost / me.boostMax)) + ")";
   if (boostLab) boostLab.textContent = boostLabel(me);
   const boostButton = document.getElementById('boostBtn');
+  const controls = readControls(), phase = movePhase(me), move = simulationConfig.skills.moves[me.kind];
+  for(const b of document.querySelectorAll('[data-tactic]')) b.setAttribute('aria-pressed',String(controls.tactic===b.dataset.tactic));
+  const specialButton=document.getElementById('specialBtn');
+  const cooling=(me.move?.cooldown||0)>0;
+  specialButton.textContent=move.name + (cooling ? ' '+Math.ceil(me.move.cooldown)+'s' : ' [E]');
+  specialButton.title=moveDescriptions[me.kind]+' Press E or tap.';
+  specialButton.disabled=cooling || locked || paused;
+  specialButton.dataset.phase=phase;
+  const cue=playing && !locked && !paused && timingCue(me,ball,getBallRadius());
+  boostButton?.classList.toggle('timing',cue);
+  if(cue && !me.boosting && boostLab) boostLab.textContent='BURST NOW';
   const pressed = mode === 'play' && !paused && pauseLayer.classList.contains('hidden') && readControls().boost;
   boostButton?.classList.toggle('hot', !!pressed);
   boostButton?.setAttribute('aria-pressed', String(!!pressed));
@@ -1096,6 +1117,7 @@ function kickoffNow(fromHost = false) {
   toast(gfxMode === "pixel" ? (online && NET.isGuest() ? "YOU ARE CYAN" : "YOU ARE AMBER") : (online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : "KICK OFF"), 1100, online && NET.isGuest() ? "cpu" : "p1");
 }
 function startGame(useFsd, config = null) {
+  chooseTactic('auto');
   lastGoalCard = null; bestGoalCard = null; lastGoalBy = null;
   clearReconnect();
   if (config) {
@@ -1133,7 +1155,7 @@ function startGame(useFsd, config = null) {
   roundEpoch = 0; simTick = 0; diagnostics.reset();
   matchSeed = online ? matchId : crypto.randomUUID();
   timeLeft = 90; resetKick();
-  playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 3.2;
+  playing = false; locked = false; paused = false; mode = "faceoff"; faceoffT = 1.6;
   syncPixelVisibility();
   ensureHostSimPump(!!online);
   applyIdentityUI();
@@ -1447,6 +1469,8 @@ document.getElementById("howGotIt")?.addEventListener("click", dismissHow);
 document.getElementById("howLayer")?.addEventListener("click", (e) => { if (e.target.id === "howLayer") dismissHow(); });
 maybeShowHow();
 
+for (const b of document.querySelectorAll('[data-tactic]')) b.addEventListener('click',()=>chooseTactic(b.dataset.tactic));
+document.getElementById('specialBtn').addEventListener('click',triggerSpecial);
 document.getElementById("newGameBtn").addEventListener("click", returnToGarage);
 document.getElementById("again").addEventListener("click", requestRematch);
 document.getElementById("leaveBtn").addEventListener("click", returnToGarage);

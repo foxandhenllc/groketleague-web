@@ -77,7 +77,7 @@ try{
    replace('function tick(now) {','function tick(now) { return;');
    replace('function pickBot() {','function pickBot() { if(window.__captureBot)return window.__captureBot;');
    replace('matchSeed = online ? matchId : crypto.randomUUID();','matchSeed = online ? matchId : window.__captureSeed || crypto.randomUUID();');
-   replace('await new Promise((r) => setTimeout(r, 1000));','await captureWait(1000);');
+   replace('await new Promise((r) => setTimeout(r, 700));','await captureWait(700);');
    replace('setTimeout(() => {\n      if (serial !== sessionSerial) return;\n      finishMatch();','captureDelay(() => {\n      if (serial !== sessionSerial) return;\n      finishMatch();');
    await r.fulfill({response,body:source+'\n'+hooks});
   });

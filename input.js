@@ -1,12 +1,15 @@
 const keys = Object.create(null);
 const stick = { boost: false };
 let qaKeys = null;
+let tactic = 'auto', specialUntil = 0;
+export function chooseTactic(value) { tactic = ['attack','defend'].includes(value) ? value : 'auto'; }
+export function triggerSpecial() { specialUntil = performance.now()+180; }
 function setQaKeys(codes) {
   qaKeys = codes;
 }
 export function clearInput() {
   for (const k of Object.keys(keys)) keys[k] = false;
-  stick.boost = false;
+  stick.boost = false; specialUntil = 0;
   document.getElementById('boostBtn')?.classList.remove('hot');
 }
 function bindInput(onN) {
@@ -14,6 +17,9 @@ function bindInput(onN) {
     if (e.repeat) return;
     if (e.target.closest("input, textarea, [contenteditable]")) return;
     keys[e.code] = true;
+    if(e.code==='KeyA') chooseTactic('attack');
+    if(e.code==='KeyD') chooseTactic('defend');
+    if(e.code==='KeyS') chooseTactic('auto');
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight"].includes(e.code)) {
       e.preventDefault();
     }
@@ -63,9 +69,10 @@ function held(code) {
   if (qaKeys) return qaKeys.includes(code);
   return !!keys[code];
 }
-/** Player never steers. Only Ludicrous/boost is human. */
+/** Player calls tactics and skills; steering stays autonomous. */
 function readControls() {
   return {
+    tactic, special: held('KeyE') || performance.now()<specialUntil,
     throttle: 0,
     steer: 0,
     boost: !!(held("ShiftLeft") || held("ShiftRight") || held("Space") || stick.boost)

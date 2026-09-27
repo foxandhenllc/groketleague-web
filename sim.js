@@ -1,3 +1,4 @@
+import { updateMove, movePhase } from './skills.js';
 import { updateBoost } from "./boost.js";
 import { createContactSolver } from "./contacts.js";
 import { byId } from "./catalog.js";
@@ -61,6 +62,10 @@ function clampFieldCar(c) {
 }
 
 function drive(c, throttle, steer, wantBoost, dt, command = {}) {
+  const phase = movePhase(c, config), move = config.skills.moves[c.kind];
+  if (phase === 'windup' || phase === 'active') steer *= move.turn;
+  if (phase === 'recovery') command = {...command, safe:false, reason:'RECOVERING', desiredSpeed:Math.min(command.desiredSpeed ?? c.max, c.max*.55)};
+  if (phase === 'active' && c.kind === 'semi') { throttle = 0; command = {...command, safe:false, reason:'BRACING', desiredSpeed:0}; }
   const d = config.drive, heavy = c.mass > d.heavy_mass_threshold;
   const { x: fwdX, z: fwdZ } = forwardXZ(c.yaw);
   const u = c.vx * fwdX + c.vz * fwdZ;
@@ -95,6 +100,11 @@ function drive(c, throttle, steer, wantBoost, dt, command = {}) {
   const longitudinal = c.vx * fwdX + c.vz * fwdZ;
   const reverse = Math.abs(longitudinal) > .3 ? Math.sign(longitudinal) : (throttle < 0 ? -1 : 1);
   if (Math.abs(throttle) > .05 || sp > 1) c.yaw += steer * c.turn * speedFactor * heavySlow * reverse * dt;
+  if (phase === 'active') {
+    if (c.kind === 'semi') { const stop=Math.exp(-12*dt); c.vx*=stop; c.vz*=stop; }
+    else if (c.kind === 'cybercab') { c.vx += rightX*c.move.side*move.push*dt; c.vz += rightZ*c.move.side*move.push*dt; }
+    else if (u < c.max*1.35) { c.vx += fwdX*move.push*dt; c.vz += fwdZ*move.push*dt; }
+  }
   c.x += c.vx * dt; c.z += c.vz * dt;
   if (c._noRehit > 0) c._noRehit = Math.max(0, c._noRehit - dt);
   clampFieldCar(c);
@@ -227,7 +237,14 @@ function stepBall(ball, dt) {
   }
   return null;
 }
-function botAI(me, foe, ball, dt, attackSign = 1, boostIntent) {
+function botAI(me, foe, ball, dt, attackSign = 1, boostIntent, controls = {}) {
+  me.attackSign = attackSign;
+  me.tactic = ['attack','defend'].includes(controls.tactic) ? controls.tactic : 'auto';
+  const distance = Math.hypot(ball.x-me.x,ball.z-me.z);
+  const cpuMove = boostIntent === undefined && (me.kind === 'semi'
+    ? ball.vz*attackSign < -5 && distance < me.l/2+7 && (me.z-ball.z)*attackSign < 0
+    : me._ai?.mode === 'strike' && distance < me.l/2+7 && distance > me.l/2+1);
+  updateMove(me, ball, dt, controls.special === true || cpuMove, config);
   const input = planDrive(me, foe, ball, dt, attackSign, getField(), boostIntent);
   drive(me, input.throttle, input.steer, input.boost, dt, input);
 }

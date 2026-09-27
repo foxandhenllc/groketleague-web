@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/arena.css" />
   <link rel="stylesheet" href="/garage.css" />
+  <link rel="stylesheet" href="/skills.css" />
   <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
   <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -55,6 +56,12 @@
   <div id="boostHud" class="hidden"><div class="lab" id="boostLab">BOOST READY</div><div id="boostBar"><div id="boostFill"></div></div></div>
   <div id="toast" class="from-p1"></div>
   <div id="matchChat" class="idle" aria-live="polite"></div>
+  <div id="skillControls" aria-label="Driving tactics and signature move">
+    <button type="button" data-tactic="attack" aria-pressed="false" title="Attack (A)">Attack</button>
+    <button type="button" data-tactic="auto" aria-pressed="true" title="Auto (S)">Auto</button>
+    <button type="button" data-tactic="defend" aria-pressed="false" title="Defend (D)">Defend</button>
+    <button type="button" id="specialBtn" title="Signature move (E)">Move [E]</button>
+  </div>
   <div id="touch">
     <div id="qcDock">
       <button type="button" id="qcToggle" aria-expanded="false">QUICK CHAT</button>
@@ -91,7 +98,8 @@
       <h2 id="howTitle">HOW TO PLAY</h2>
       <ul>
         <li><strong>FSD</strong> steers and lines up shots. Your car has a chevron. Time your boost to win the ball.</li>
-        <li><strong>HOLD BOOST</strong> (SHIFT / SPACE / BOOST button) to accelerate when your car is lined up.</li>
+        <li><strong>TIME YOUR BOOST</strong> (SPACE / SHIFT). Burst just before contact for a Perfect Touch. Long holds use more reserve.</li>
+        <li><strong>CALL THE PLAY</strong> A: Attack, S: Auto, D: Defend. E activates your vehicle's signature move. Touch buttons do the same.</li>
         <li><strong>QUICK CHAT</strong> bottom-left - categories -> lines</li>
         <li><strong>QUICK MATCH</strong> find a 1v1 - <strong>CREATE / JOIN</strong> private room code</li>
         <li>Share invite link after CREATE - Rematch keeps the same opponent</li>
@@ -118,7 +126,7 @@
       <div id="inspect">
         <div class="name" id="inspName">CYBERT RUCKER</div>
         <div class="meme" id="inspMeme">Bulletproof dumpster that learned Rocket League.</div>
-        <details id="vehicleSpecs"><summary>Vehicle specs</summary><div id="inspStats"></div><p class="specNote">Simulation values, not ratings. FSD drives; you control boost. Heavy vehicles get stronger boosted ball contact, not a separate special button.</p></details>
+        <details id="vehicleSpecs"><summary>Vehicle specs</summary><div id="inspStats"></div><p class="specNote">Simulation values, not ratings. FSD drives; you control boost. Heavy vehicles get stronger boosted ball contact. E activates your signature move; its cooldown appears during play.</p></details>
       </div>
       <div id="garage"></div>
       <div class="row stepActions">
@@ -195,7 +203,7 @@
       </div>
     </div>
 
-    <p class="garageControlHint">FSD drives. Hold Space, Shift or BOOST to accelerate.</p>
+    <p class="garageControlHint">FSD drives. Time BOOST for stronger touches. A/S/D call tactics; E uses your signature move.</p>
     <details id="garageSettings"><summary>Audio &amp; account</summary>
     <div class="chromeRow">
       <div class="row garageAudio">

@@ -104,6 +104,12 @@ try {
   await guest.keyboard.down('Space');
   await until(host, () => JSON.parse(window.render_game_to_text()).B.boosting);
   await guest.keyboard.up('Space');
+  await guest.locator('[data-tactic="defend"]').click();
+  await until(host, () => JSON.parse(window.render_game_to_text()).B.tactic === 'defend');
+  await guest.locator('#specialBtn').click();
+  await until(host, () => JSON.parse(window.render_game_to_text()).B.move?.cooldown > 0);
+  await until(guest, () => JSON.parse(window.render_game_to_text()).B.move?.cooldown > 0);
+  await guest.locator('[data-tactic="auto"]').click();
   await guest.locator('#qcToggle').click(); await guest.locator('#qcMenu [data-cat]').first().click();
   await guest.locator('#qcMenu [data-chat="0"]').click();
   await until(host, () => document.querySelector('#matchChat').textContent.length > 0);
@@ -112,13 +118,17 @@ try {
   await until(host, t => JSON.parse(window.render_game_to_text()).timeLeft < t - .3, beforeMenu);
   assert.equal((await state(guest)).paused, false); await guest.locator('#resumeBtn').click();
   await guest.screenshot({ path: `${out}/pixel-online-guest.png` });
-  pass('private room: handshake, cars, shared pixel field, guest boost, quick chat, live menu');
+  pass('private room: handshake, cars, shared pixel field, guest boost/tactics/signature move, quick chat, live menu');
   if (local) {
     await until(host, () => !JSON.parse(window.render_game_to_text()).locked);
+    await host.locator('[data-tactic=attack]').click();
+    await guest.locator('[data-tactic=defend]').click();
+    await until(host, () => JSON.parse(window.render_game_to_text()).B.tactic === 'defend');
     const expectedScore = (await state(host)).scoreA + 1;
     await host.evaluate(() => window.__scenario.goal());
     await until(guest, score => JSON.parse(window.render_game_to_text()).scoreA === score, expectedScore);
     await until(host, () => !JSON.parse(window.render_game_to_text()).locked);
+    await until(host, () => { const s=JSON.parse(window.render_game_to_text()); return s.P.tactic==='attack' && s.B.tactic==='defend'; });
     await host.evaluate(() => window.__scenario.expire());
     await Promise.all([host, guest].map(p => until(p, () => JSON.parse(window.render_game_to_text()).mode === 'results')));
     await host.locator('#again').click(); await guest.locator('#again').click();

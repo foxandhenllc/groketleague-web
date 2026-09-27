@@ -5,6 +5,12 @@ export function updateBoost(car, held, safe, dt, config = simulationConfig, reas
   const d = config.drive;
   car._boost ||= { released: d.rearmSeconds, sinceActive: d.rechargeDelay, depleted: false };
   const state = car._boost;
+  const wasHeld = !!state.held;
+  if (held && !wasHeld && state.released >= d.rearmSeconds) {
+    state.pressAge = 0; state.timedUsed = false;
+  } else state.pressAge = (state.pressAge ?? 99) + dt;
+  state.held = !!held;
+  state.heldTime = held ? (wasHeld ? (state.heldTime || 0) + dt : 0) : 0;
   state.sinceActive += dt;
   car.boosting = false; car.boostReason = '';
   if (!held) {
@@ -23,7 +29,7 @@ export function updateBoost(car, held, safe, dt, config = simulationConfig, reas
   if (!safe) {
     state.active = false; car.boostState = 'waiting'; car.boostReason = reason; return 0;
   }
-  const drain = car.mass > d.heavy_mass_threshold ? d.boost_drain_heavy : d.boost_drain_light;
+  const drain = (car.mass > d.heavy_mass_threshold ? d.boost_drain_heavy : d.boost_drain_light) * (state.heldTime > config.skills.sustainAfter ? config.skills.sustainDrain : 1);
   const activeSeconds = Math.min(dt, car.boost / drain);
   car.boost = Math.max(0, car.boost - drain * activeSeconds);
   if (car.boost < 1e-10) car.boost = 0;

@@ -1,3 +1,4 @@
+import { movePhase } from './skills.js';
 /** CIRCUIT: procedural top-down stadium. All shapes use the simulation's world units. */
 import { pixelFieldSize, ballRadius, GOAL_W, FW } from './catalog.js';
 import { arenaLayout } from './arena-layout.js';
@@ -114,6 +115,11 @@ function vehicle(ctx, car, team, local, clock, reducedMotion) {
   if (!car) return;
   ctx.save(); ctx.translate(car.x, car.z); ctx.rotate(-car.yaw);
   const w = car.w, l = car.l;
+  const phase=movePhase(car);
+  if(phase==='windup'||phase==='active') {
+    ctx.strokeStyle=phase==='windup'?'#ff784e':'#ffffff'; ctx.lineWidth=.18;
+    ctx.strokeRect(-w/2-.4,-l/2-.4,w+.8,l+.8);
+  }
   // The painted body and tyres fit the same oriented rectangle used by contacts.
   rounded(ctx, -w * .55 + .12, -l / 2 + .22, w * 1.1, l, .4, '#050c1170');
   if (car.boosting) {

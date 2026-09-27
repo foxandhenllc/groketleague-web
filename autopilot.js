@@ -73,7 +73,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
     && (Math.hypot(foe.vx,foe.vz)>1 || foe.boosting || foeDistance<foe.l/2+radius+2);
   const incoming=ball.vz*attackSign < -5;
   const defendRange=halfL+8+(personality?.defend ?? 23)-23;
-  const threat = (incoming && ownDistance<defendRange) || (windingUp && ownDistance<defendRange-3);
+  const threat = (me.tactic !== 'attack' || ownDistance < 12) && ((incoming && ownDistance<defendRange) || (windingUp && ownDistance<defendRange-3));
   const goalSide = (me.z - bz) * attackSign < -1;
   if (threat && distance > reach + 1) {
     state = 'defend';
@@ -139,6 +139,11 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
   if(ai.escape && ai.time<ai.escapeUntil && !threat){
     state='escape';tx=ai.escape.x;tz=ai.escape.z;
     if(Math.hypot(me.x-tx,me.z-tz)<2)ai.escape=null;
+  }
+  if (me.tactic === 'defend' && !incoming && distance > reach + 1) {
+    state = 'guard';
+    tx = clamp(bx*.65, -field.GOAL_W/2, field.GOAL_W/2);
+    tz = -attackSign*(halfL-7);
   }
   // Targets remain reachable with the entire vehicle inside the boards.
   const contactRoute=state==='strike'||state==='clear'||state==='defend';

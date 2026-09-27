@@ -1,0 +1,30 @@
+/* One compact match control strip; no camera shake or zoom effects. */
+#skillControls { display:none; position:fixed; z-index:8; bottom:92px; left:50%; transform:translateX(-50%); gap:4px; padding:5px; border:1px solid #ffffff26; border-radius:10px; background:#101a23ed; }
+body.playing #skillControls { display:flex; }
+#skillControls button { min-height:44px; padding:8px 12px; border:1px solid transparent; border-radius:6px; background:transparent; color:#c6d2db; font:600 12px/1.2 'Segoe UI',Arial,sans-serif; cursor:pointer; touch-action:manipulation; }
+#skillControls button[aria-pressed=true] { background:#ffd43b; color:#17212c; }
+#skillControls #specialBtn { border-color:#ffffff40; min-width:106px; color:#fff; }
+#skillControls #specialBtn:disabled { color:#9ba8b6; cursor:default; }
+#skillControls #specialBtn[data-phase=windup] { border-color:#ff784e; }
+#skillControls #specialBtn[data-phase=active] { border-color:#fff; }
+#skillControls button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+#boostBtn.timing { outline:3px solid #fff; outline-offset:3px; }
+body.pixel-mode { --arena-bottom:156px; }
+@media(max-width:600px) {
+  body.pixel-mode { --arena-bottom:182px; }
+  #skillControls { bottom:122px; width:calc(100% - 24px); box-sizing:border-box; }
+  #skillControls button { flex:1; padding:7px 5px; font-size:11px; }
+  #skillControls #specialBtn { min-width:92px; }
+}
+@media(max-height:500px) and (min-width:601px) {
+  #skillControls { left:auto; right:16px; bottom:140px; transform:none; width:124px; box-sizing:border-box; display:none; grid-template-columns:1fr 1fr; }
+  body.playing #skillControls { display:grid; }
+  #skillControls button { padding:5px 2px; font-size:10px; min-width:0; }
+  #skillControls #specialBtn { min-width:0; }
+}
+@media(max-height:500px) and (min-width:601px) {
+  body:not(.pixel-mode) #skillControls { left:50%; right:auto; bottom:80px; transform:translateX(-50%); width:auto; display:none; }
+  body.playing:not(.pixel-mode) #skillControls { display:flex; }
+  body:not(.pixel-mode) #skillControls button { padding:7px 12px; }
+  body:not(.pixel-mode) #skillControls #specialBtn { min-width:96px; }
+}

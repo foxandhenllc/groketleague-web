@@ -4,7 +4,7 @@
 
 **GROKET LEAGUE** is parody FSD car-soccer:
 
-- You hold **boost / Ludicrous**; **FSD always drives** each car. There is no manual steering or FSD toggle.
+- **FSD always steers**. Players time boost bursts, choose Attack/Auto/Defend (A/S/D), and activate a signature move (E). Matching touch buttons are available. A front contact within 240ms of a fresh boost press earns Perfect Touch; sustained holds spend more reserve.
 - Two presentation modes:
   - **3D Arena** - Three.js field + extruded cars (`field.js`, `vehicles.js`).
   - **Arcade 2D** - CIRCUIT top-down stadium, procedural cars and a separate match HUD (`pixel.js`, `arena.css`). Internal mode ID remains `pixel`.

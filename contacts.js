@@ -1,3 +1,4 @@
+import { movePhase } from './skills.js';
 import { cornerContact } from './arena-geometry.js';
 
 const dot = (a, b) => a.x * b.x + a.z * b.z;
@@ -84,12 +85,17 @@ export function createContactSolver(config, diagnostics) {
   function gather(cars, ball, field) {
     const list = [];
     const add = (id, a, b, m, e, type, heavyBoost = false) => {
-      if (m) list.push({ id, a, b, ...m, wa: a === ball ? 1 / config.ball.mass : 1 / a.mass, wb: b ? (b === ball ? 1 / config.ball.mass : 1 / b.mass) : 0, e, type, heavyBoost });
+      if (m) list.push({ id, a, b, ...m, wa: a === ball ? 1 / config.ball.mass : 1 / (a.mass * (movePhase(a,config)==='active' && a.kind==='semi' ? 3 : 1)), wb: b ? (b === ball ? 1 / config.ball.mass : 1 / (b.mass * (movePhase(b,config)==='active' && b.kind==='semi' ? 3 : 1))) : 0, e, type, heavyBoost });
     };
     cars.forEach((c, i) => {
       const id = `${i ? 'B' : 'P'}:ball`, heavy = c.mass > 3 && c.boosting;
-      if (field.pixelTight || ball.y - field.ballRadius < config.ball.carHeight)
-        add(id, c, ball, ballManifold(c, ball, field.ballRadius, cache.get(id)), config.ball.contact_restitution * (heavy ? config.ball.pancake_mult : 1), 'ballHit', heavy);
+      if (field.pixelTight || ball.y - field.ballRadius < config.ball.carHeight) {
+        const m = ballManifold(c, ball, field.ballRadius, cache.get(id));
+        const front = m && (-Math.sin(c.yaw)*m.nx-Math.cos(c.yaw)*m.nz)>.7;
+        const timed = front && c.boosting && c._boost?.pressAge <= config.skills.timingWindow && !c._boost.timedUsed;
+        add(id, c, ball, m, config.ball.contact_restitution * (heavy ? config.ball.pancake_mult : 1) + (timed ? config.skills.timingRestitution : 0), 'ballHit', heavy);
+        if(m) list[list.length-1].timed = !!timed;
+      }
     });
     if (cars.length === 2) add('P:B', cars[0], cars[1], carManifold(...cars), config.drive.carRestitution, 'carHit');
     [...cars, ball].forEach((body, i) => {
@@ -101,6 +107,7 @@ export function createContactSolver(config, diagnostics) {
     reset() { cache.clear(); cooldowns.clear(); tick = 0; },
     solve(cars, ball, field, dt = 1 / 120) {
       for (const [id,time] of cooldowns) { const left = time - dt; if (left <= 1e-9) cooldowns.delete(id); else cooldowns.set(id,left); }
+      const incomingBall = {x:ball.x,z:ball.z,vx:ball.vx,vz:ball.vz};
       const list = gather(cars, ball, field), seen = new Set(), events = [];
       for (const c of list) {
         seen.add(c.id); const old = cache.get(c.id);
@@ -150,7 +157,14 @@ export function createContactSolver(config, diagnostics) {
           ball.vy = Math.max(ball.vy, Math.min(c.heavyBoost ? config.ball.liftHeavy : config.ball.liftOrdinary, closing * config.ball.lift));
         if ((c.fresh || freshPeak) && closing >= 1 && c.lambda > 0 && cooldown === 0) {
           cooldowns.set(c.id,config.ball.no_rehit_s);
-          events.push({ type: c.type, pair: c.id, tick, x: c.x, y: c.type === 'ballHit' ? ball.y : .4, z: c.z, nx: c.nx, ny: 0, nz: c.nz, closing, impulse: c.lambda, heavyBoost: c.heavyBoost });
+          const sign = c.a.attackSign || (cars.indexOf(c.a)===0 ? -1 : 1);
+          const t = (-sign*field.FL/2-incomingBall.z)/incomingBall.vz;
+          const save = c.type==='ballHit' && incomingBall.vz*sign < -3 && t>0 && t<1.5
+            && Math.abs(incomingBall.x+incomingBall.vx*t)<field.GOAL_W/2
+            && ball.vz*sign>incomingBall.vz*sign+3;
+          const timed = !!c.timed && c.fresh && c.bounce>0;
+          if(timed) c.a._boost.timedUsed = true;
+          events.push({ timed, save, type: c.type, pair: c.id, tick, x: c.x, y: c.type === 'ballHit' ? ball.y : .4, z: c.z, nx: c.nx, ny: 0, nz: c.nz, closing, impulse: c.lambda, heavyBoost: c.heavyBoost });
         }
         cache.set(c.id, { nx: c.nx, nz: c.nz, closing });
       }
