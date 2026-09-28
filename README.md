@@ -6,6 +6,12 @@
 Static car soccer with Three.js and a procedural Arcade 2D stadium, PeerJS online 1v1,
 private four-character rooms, quick match, and offline CPU matches.
 
+**Moon Grand Prix** is a separate 3D race at [`/moon.html`](./moon.html), also linked from
+the home screen. Pick one of four original teams, watch eight autonomous racers, or
+time your lead driver's boost through a three-heat, two-lap cup. Both teammates score.
+This first race release is a solo bot event; soccer retains the existing online modes.
+See [Moon race design and validation](./docs/MOON-GRAND-PRIX-2026-09-27.md).
+
 Choose a car before finding a match. The host controls physics and the match clock;
 the guest sends controls and follows the cyan car in 2D (blue in 3D). Online menus keep the match live.
 FSD always drives; hold Space, Shift, or the touch BOOST button for Ludicrous Mode.
@@ -35,6 +41,13 @@ It covers both graphics modes, boost, pause, scoring, rematches, shared online g
 quick match, disconnect, and mobile layout. `tests/netplay.mjs` runs `tests/gameplay.mjs`.
 For repeatable scoring checks only, localhost tests inject controlled ball trajectories;
 no scenario controls are included in the deployed game.
+
+Moon checks: `node --experimental-default-type=module --test tests/moon-physics.test.mjs`
+and `node tests/moon-race.mjs`. The browser suite defaults to port 5198, runs eight
+three-heat cups across desktop, phone, landscape, reduced motion and manual boost,
+and writes evidence to `output/playwright/moon`. Against a public `GAME_URL` it runs
+one natural, unaccelerated heat with no state injection. Local tests advance the real
+simulation and camera using code injected only into the intercepted module response.
 
 Use `GAME_URL=https://www.groketleague.com QA_OUT=output/production node tests/netplay.mjs`
 for production smoke checks. Screenshots and JSON results are written under `output/`.

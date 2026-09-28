@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Moon Grand Prix — Groket League</title>
+  <meta name="description" content="Pick your team for a low-gravity lunar race. Eight autonomous racers, four original teams, one Moon Cup. A Groket League arcade game.">
+  <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/moon.css">
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"}}</script>
+</head>
+<body>
+  <canvas id="moonCanvas" aria-label="3D lunar race course"></canvas>
+  <main id="raceSetup" class="setupPanel">
+    <a class="back" href="/">← Soccer garage</a>
+    <div class="eyebrow">GROKET LEAGUE PRESENTS</div>
+    <h1>MOON<br><span>GRAND PRIX</span></h1>
+    <p class="tagline">Low gravity. High hopes.</p>
+    <div class="raceFacts"><span>8 racers</span><span>4 teams</span><span>3-heat cup</span></div>
+    <h2>Who are you rooting for?</h2>
+    <div id="teams" class="teams" role="group" aria-label="Your team"></div>
+    <div id="teamDescription" class="teamDescription"></div>
+    <div class="controlChoices" role="group" aria-label="Boost control">
+      <button id="watchMode" aria-pressed="true"><strong>Watch &amp; root</strong><span>Drivers do everything</span></button>
+      <button id="boostMode" aria-pressed="false"><strong>Time your boost</strong><span>FSD steers · Space / touch</span></button>
+    </div>
+    <button id="startRace" class="primary" disabled>Preparing the grid…</button>
+    <p class="setupHint">Two laps per heat. Both teammates earn points.<br>Solo cup against bots. Racing lines and hazards decide the result.</p>
+    <p class="parody">Original fictional teams and space facilities. Unaffiliated with NASA, SpaceX or Jelle's Marble Runs.</p>
+    <div id="raceError" role="alert" hidden></div>
+  </main>
+
+  <div id="raceHud" hidden>
+    <header class="broadcastBar">
+      <div><span class="eyebrow">MOON GRAND PRIX</span><strong id="heatLabel">HEAT 1 / 3</strong></div>
+      <div class="raceClock"><b id="raceClock">0:00.0</b><span id="lapLabel">GRID FORMING</span></div>
+      <button id="raceMenu" aria-label="Pause race" aria-controls="racePause">Pause</button>
+    </header>
+    <aside id="standings" aria-label="Race positions"><div class="towerHeading">RUNNING ORDER <span>LIVE</span></div><ol id="positions"></ol><div id="teamStatus"></div></aside>
+    <div id="countdown" aria-live="polite"></div>
+    <div id="raceEvent" aria-live="polite" hidden></div>
+    <footer class="raceBottom">
+      <div id="trackStatus"><strong id="sectorName"></strong><span id="sectorHint"></span></div>
+      <div class="cameraChoices" role="group" aria-label="Camera">
+        <button data-camera="team" aria-pressed="true">Your racer</button><button data-camera="leader" aria-pressed="false">Leader</button><button data-camera="track" aria-pressed="false">Circuit</button>
+      </div>
+      <div class="raceBoost"><span id="boostHint">AUTO BOOST</span><div class="reserve"><i id="raceBoostFill"></i></div><button id="raceBoost" disabled>WATCHING</button></div>
+    </footer>
+  </div>
+
+  <section id="racePause" class="scrim" hidden aria-label="Paused race" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <div class="dialog"><div class="eyebrow">TAKE A BREATHER</div><h2 id="pauseTitle">Moon's not going anywhere.</h2><button id="resumeRace" class="primary">Resume race</button><button id="raceAudio" class="secondary">Sound on</button><button id="changeTeam" class="secondary">Back to teams</button><a class="back" href="/">Soccer garage</a></div>
+  </section>
+
+  <section id="raceResults" class="scrim" hidden role="dialog" aria-modal="true" aria-labelledby="finishTitle">
+    <div class="dialog resultsDialog"><div class="eyebrow" id="finishKicker">CHEQUERED FLAG</div><h2 id="finishTitle"></h2><p id="finishCopy"></p>
+      <div id="cupTable" aria-label="Cup team points"></div><details><summary>Full race classification</summary><ol id="finishOrder"></ol></details>
+      <button id="nextHeat" class="primary">Next heat</button><button id="resultsTeams" class="secondary">Choose another team</button><a class="back" href="/">Soccer garage</a>
+    </div>
+  </section>
+  <script type="module" src="/moon.js"></script>
+</body>
+</html>
