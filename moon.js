@@ -2,7 +2,7 @@ import {createMoonRace,stepMoonRace,raceOrder,raceTeamScores,TEAMS,RACE_LAPS} fr
 import {TRACK_LENGTH,sectorAt,moonHazards,JET_AT,CARGO_AT,trackGap} from './moon-track.js';
 import {createMoonView} from './moon-scene.js';
 import {createPhysicsClock} from './physics-clock.js';
-import {SFX,ensureAudio,playBed,stopBed,isSfxMuted,setSfxMuted,setMusicMuted} from './audio.js';
+import {SFX,ensureAudio,playBed,stopBed,isMusicMuted,isSfxMuted,setSfxMuted,setMusicMuted} from './audio.js';
 
 const $=id=>document.getElementById(id),reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 let team='comet';try{const saved=localStorage.getItem('gl_moon_team');if(TEAMS.some(t=>t.id===saved))team=saved;}catch{}
@@ -37,9 +37,16 @@ function returnToTeams(){mode='setup';paused=false;clearBoost();fixed.reset();$(
 $('startRace').onclick=()=>startHeat(true);
 $('changeTeam').onclick=returnToTeams;$('resultsTeams').onclick=returnToTeams;
 $('nextHeat').onclick=()=>{if(heat>=3)startHeat(true);else{heat++;startHeat();}};
-function pauseRace(value){if(mode!=='racing')return;paused=value;clearBoost();fixed.reset();$('racePause').hidden=!value;if(value){$('raceAudio').textContent=isSfxMuted()?'Sound off':'Sound on';$('resumeRace').focus();SFX.pause();}else $('raceMenu').focus({preventScroll:true});}
+function syncRaceAudio(){
+  for(const [id,on,label] of [['raceMusic',!isMusicMuted(),'Music'],['raceSfx',!isSfxMuted(),'Sound effects']]){
+    $(id).textContent=label+': '+(on?'On':'Off');$(id).setAttribute('aria-pressed',String(on));
+  }
+}
+function pauseRace(value){if(mode!=='racing')return;paused=value;clearBoost();fixed.reset();$('racePause').hidden=!value;if(value){syncRaceAudio();$('resumeRace').focus();SFX.pause();}else $('raceMenu').focus({preventScroll:true});}
 $('raceMenu').onclick=()=>pauseRace(true);$('resumeRace').onclick=()=>pauseRace(false);
-$('raceAudio').onclick=()=>{const mute=!isSfxMuted();setSfxMuted(mute);setMusicMuted(mute);$('raceAudio').textContent=mute?'Sound off':'Sound on';};
+$('raceMusic').onclick=()=>{ensureAudio();setMusicMuted(!isMusicMuted());syncRaceAudio();};
+$('raceSfx').onclick=()=>{ensureAudio();setSfxMuted(!isSfxMuted());syncRaceAudio();SFX.tick();};
+syncRaceAudio();
 function syncCameraButtons(){for(const b of document.querySelectorAll('[data-camera]'))b.setAttribute('aria-pressed',String(b.dataset.camera===cameraMode));}
 for(const b of document.querySelectorAll('[data-camera]'))b.onclick=()=>{cameraMode=b.dataset.camera;syncCameraButtons();};
 $('raceBoost').addEventListener('pointerdown',e=>{if(mode!=='racing'||paused||!manual)return;pointer=e.pointerId;e.preventDefault();$('raceBoost').setPointerCapture?.(pointer);boostHeld=true;});

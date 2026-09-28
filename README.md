@@ -53,6 +53,11 @@ Use `GAME_URL=https://www.groketleague.com QA_OUT=output/production node tests/n
 for production smoke checks. Screenshots and JSON results are written under `output/`.
 `PLAYWRIGHT_MODULE` can point to an existing Playwright installation instead.
 
+Shared audio checks: `node --test tests/audio.test.mjs` and `node tests/audio-browser.mjs`.
+These cover rapid mute/unmute, delayed playback/loading, crossfades, active effects,
+soccer and Moon controls, saved preferences, pause/resume and reload. The browser
+suite uses real media playback and samples the effects output; it accepts `GAME_URL`.
+
 ## Production deployment
 
 Use only the existing Vercel project, without Git integration:
