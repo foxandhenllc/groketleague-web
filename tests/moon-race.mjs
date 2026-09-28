@@ -59,7 +59,7 @@ preview(){view.update(race,{dt:1/60,cameraMode:'showcase',focus:focusId()});retu
     assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     checks.at(-1).final=final;checks.at(-1).cameraSamples=samples;
     assert.ok(samples.every(s=>s.position.every(Number.isFinite)&&s.target.every(Number.isFinite)));
-    console.log('PASS',name,'three-heat cup, controls, cameras, results');await context.close();
+    console.log('PASS',name,local?'three-heat cup, controls, cameras, results':'natural public heat, pause/resume, finish and points');await context.close();
   }
   assert.deepEqual(errors,[]);await fs.writeFile(`${out}/results.json`,JSON.stringify({root,checks,errors},null,2));
 }catch(error){for(const c of browser.contexts())for(const p of c.pages())await p.screenshot({path:`${out}/failure.png`}).catch(()=>{});console.error(errors);throw error;}finally{await browser.close();}

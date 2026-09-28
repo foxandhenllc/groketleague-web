@@ -99,3 +99,13 @@ followed car too close to the standings. Those were corrected before release. A
 test now guards the minimum corner radius. These checks establish functionality
 and a first balance sample; they do not establish perfect balance or guaranteed
 frame rates on every phone.
+
+Release verification: runtime commit `3529a4f` was promoted as Vercel deployment
+`dpl_H3gEhLnS3aGojX8KthVV9YSf6TJq`. All 41 checked runtime assets matched on the
+candidate and both public domains. The unaccelerated public heat finished all eight
+racers in 77.2 seconds of race time, with nine confirmed lead changes, 16 jumps,
+five cargo contacts, no stuck recovery and no page/console errors. Coupon won the
+heat; team points were 16 / 14 / 14 / 14. Local validation passed 46 physics and
+autopilot checks, eight three-heat browser cups, five home-flow layouts and eight
+arena regression cases. Evidence: `output/playwright/moon`, `moon-production`,
+`moon-home` and `moon-arena-regression`.
