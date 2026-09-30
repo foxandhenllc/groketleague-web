@@ -1,5 +1,6 @@
 import { paintSinkBackground, paintSinkEffects } from './sink-pixel.js';
 import { movePhase } from './skills.js';
+import { cosmetic } from './progression.js';
 /** CIRCUIT: procedural top-down stadium. All shapes use the simulation's world units. */
 import { pixelFieldSize, ballRadius, GOAL_W, FW } from './catalog.js';
 import { arenaLayout } from './arena-layout.js';
@@ -154,6 +155,13 @@ function vehicle(ctx, car, team, local, clock, reducedMotion) {
     rounded(ctx, -w * .32, -l * .06, w * .64, l * .17, .08, color);
     path(ctx, [[-w * .26, -l * .2], [w * .24, -l * .13]], '#abcdd360', .1);
     if (car.kind === 'cybercab') rounded(ctx, -w * .25, -.1, w * .5, .24, .05, '#f4c35a');
+  }
+  const decal = cosmetic(car.cosmetic);
+  if (decal.glyph) {
+    const size = w * .52;
+    rounded(ctx, -size / 2, -size / 2, size, size, .07, '#101b29', decal.color, .05);
+    ctx.fillStyle = decal.color; ctx.font = `bold ${size * .78}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(decal.glyph, 0, .04);
   }
   path(ctx, [[-w * .34, -l * .43], [w * .34, -l * .43]], '#f0ffff', .13);
   path(ctx, [[-w * .34, l * .43], [w * .34, l * .43]], '#ff695c', .12);

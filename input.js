@@ -16,7 +16,7 @@ function bindInput(onN) {
   const down = (e) => {
     if (e.repeat) return;
     // Setup buttons retain native Space/arrow behavior instead of triggering boost.
-    if (e.target.closest("#garageShell, #howLayer")) return;
+    if (e.target.closest("#garageShell, #howLayer, #cupLayer, #cupHud")) return;
     if (e.target.closest("input, textarea, [contenteditable]")) return;
     keys[e.code] = true;
     if(e.code==='KeyA') chooseTactic('attack');

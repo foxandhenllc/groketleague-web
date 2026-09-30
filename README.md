@@ -6,6 +6,15 @@
 Static car soccer with Three.js and a procedural Arcade 2D stadium, PeerJS online 1v1,
 private four-character rooms, quick match, and offline CPU matches.
 
+**FSD Cup - Beta** is a local 2D practice cup against a clearly labeled scripted CPU.
+Play three 60-second heats with secret Send It / Safety First / Read the Room picks.
+Each seat gets two interventions per heat, plus one for winning the counter-pick.
+Space/Shift arms a boost and E arms a signature move during offered openings; FSD
+executes when legal. Complete cups to earn Warranty Claims and six roof decals,
+then equip them from the results or Collection. Progress saves on this browser.
+Live model coaching remains the next milestone. See the
+[cup implementation and model roadmap](./docs/LIVE-MODEL-PLAY-2026-09-30.md).
+
 **Moon Grand Prix** is a separate 3D race at [`/moon.html`](./moon.html), also linked from
 the home screen. Pick one of four original teams, watch eight autonomous racers, or
 time your lead driver's boost through a three-heat, two-lap cup. Both teammates score.
@@ -14,7 +23,7 @@ See [Moon race design and validation](./docs/MOON-GRAND-PRIX-2026-09-27.md).
 
 Choose a car before finding a match. The host controls physics and the match clock;
 the guest sends controls and follows the cyan car in 2D (blue in 3D). Online menus keep the match live.
-FSD always drives; hold Space, Shift, or the touch BOOST button for Ludicrous Mode.
+In classic matches FSD always drives; hold Space, Shift, or the touch BOOST button for Ludicrous Mode.
 The host selects the field/graphics mode for both peers so ball and field geometry agree.
 Gameplay advances at 120 Hz independently of rendering. Arcade 2D uses a flat rolling
 ball, rounded boards, and car silhouettes drawn at their collision size. Its scoreboard
@@ -41,6 +50,12 @@ It covers both graphics modes, boost, pause, scoring, rematches, shared online g
 quick match, disconnect, and mobile layout. `tests/netplay.mjs` runs `tests/gameplay.mjs`.
 For repeatable scoring checks only, localhost tests inject controlled ball trajectories;
 no scenario controls are included in the deployed game.
+
+Cup checks: `node --experimental-default-type=module --test tests/cup.test.mjs`,
+`node tests/cup-browser.mjs`, and `node --experimental-default-type=module tests/cup-benchmark.mjs`.
+Set `GAME_URL` to your server. Setting `CUP_NATURAL` to `1` runs a full cup on its
+normal clocks, with no score or time fixtures, including against a public deployment.
+The standard local browser suite covers six layouts, rewards, equipment and reloads.
 
 Moon checks: `node --experimental-default-type=module --test tests/moon-physics.test.mjs`
 and `node tests/moon-race.mjs`. The browser suite defaults to port 5198, runs eight

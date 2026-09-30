@@ -4,7 +4,7 @@ const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 const angle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** Plan a goal-directed route. Human boost is explicit; an undefined intent is the CPU. */
-export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
+export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent, controls = {}) {
   const config = field.config || simulationConfig;
   const halfW = field.FW / 2, halfL = field.FL / 2;
   const radius = field.ballRadius;
@@ -140,7 +140,7 @@ export function planDrive(me, foe, ball, dt, attackSign, field, boostIntent) {
     state='escape';tx=ai.escape.x;tz=ai.escape.z;
     if(Math.hypot(me.x-tx,me.z-tz)<2)ai.escape=null;
   }
-  if (me.tactic === 'defend' && !incoming && distance > reach + 1) {
+  if (me.tactic === 'defend' && !incoming && distance > reach + 1 && !(controls.contestStaleSeconds > 0 && ai.staleTime > controls.contestStaleSeconds)) {
     state = 'guard';
     tx = clamp(bx*.65, -field.GOAL_W/2, field.GOAL_W/2);
     tz = -attackSign*(halfL-7);

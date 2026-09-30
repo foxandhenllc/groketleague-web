@@ -1,0 +1,89 @@
+/* Cup choices and feedback sit outside the 2D playfield. */
+#cupLayer[hidden], #cupHud[hidden] { display:none!important; }
+#cupLayer { position:fixed; inset:0; z-index:22; display:grid; place-items:center; padding:16px; background:#060e19d9; overflow:auto; box-sizing:border-box; color:#eef6f7; font:14px/1.5 'Segoe UI',Arial,sans-serif; }
+#cupPanel { width:min(560px,100%); max-height:calc(100dvh - 32px); overflow:auto; padding:26px; box-sizing:border-box; border:1px solid #ffffff29; border-radius:18px; background:#101b29; box-shadow:0 20px 70px #0006; }
+#cupPanel h2 { margin:0 0 8px; font:800 clamp(26px,6vw,38px)/1.15 'Segoe UI',Arial,sans-serif; color:#fff; letter-spacing:-.7px; }
+#cupPanel p { margin:10px 0; }
+.cupEyebrow { font-size:10px; font-weight:750; letter-spacing:1.8px; color:#79d9e3; }
+.cupMuted,.cupRules { font-size:12px; color:#a7bbcd; }
+.cupTimer { color:#ffd581; font-size:12px; font-variant-numeric:tabular-nums; }
+#cupLayer button,#cupHud button { font:650 13px/1.3 'Segoe UI',Arial,sans-serif; min-height:44px; border:1px solid #ffffff35; border-radius:8px; padding:9px 14px; cursor:pointer; background:#172b3e; color:#eef7ff; touch-action:manipulation; }
+#cupLayer button:focus-visible,#cupHud button:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+#cupLayer button:hover:not(:disabled),#cupHud button:hover:not(:disabled) { border-color:#ffd581; background:#243c50; }
+#cupLayer button:disabled,#cupHud button:disabled { opacity:.48; cursor:default; }
+#cupLayer .cupPrimary { background:#ffd581; border-color:#ffd581; color:#13212d; }
+#cupLayer .cupTextButton { background:transparent; border-color:transparent; color:#b6c9d6; padding-left:0; }
+.directiveChoices { display:grid; gap:8px; margin:18px 0; }
+#cupLayer .directiveChoices button { display:flex; align-items:center; justify-content:space-between; gap:16px; text-align:left; padding:13px 16px; }
+.directiveChoices strong { min-width:110px; color:#ffd581; }
+.directiveChoices span { font-weight:400; color:#bed1de; font-size:12px; }
+.draftReveal { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:22px 0; }
+.draftReveal>div { display:grid; gap:6px; padding:16px; background:#ffd5810a; border:1px solid #ffd5815c; border-radius:10px; }
+.draftReveal>div+div { border-color:#67e1e55c; background:#67e1e50a; }
+.draftReveal span { font-size:10px; color:#bed1de; letter-spacing:1px; }
+.draftReveal strong { font-size:18px; }
+.draftReveal b { color:#ffd581; font-size:13px; }
+.draftReveal>div+div b { color:#67e1e5; }
+.cupCounter { color:#ffd581; }
+.cupStanding { display:flex; align-items:center; gap:12px; color:#bed1de; font-size:12px; }
+.cupStanding strong { color:#fff; font-size:24px; }
+.cupHeatRows { list-style:none; margin:18px 0; padding:0; }
+.cupHeatRows li { display:grid; grid-template-columns:1fr 64px 1.4fr; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid #ffffff1c; font-size:12px; color:#a7bbcd; }
+.cupHeatRows strong { color:#fff; font-size:16px; text-align:center; }
+.cupHeatRows li>span:last-child { text-align:right; }
+.cupReward { display:grid; gap:4px; padding:14px; border:1px solid #ffd5814a; border-radius:10px; background:#ffd5810a; color:#ffd581; }
+.cupReward span { font-size:11px; color:#bcd0dd; }
+.cupUnlock { display:flex; align-items:center; gap:12px; padding:12px 0; }
+.cupUnlock>span:not(.decalPreview) { flex:1; }
+.cupUnlock small { display:block; color:#79d9e3; font-size:9px; letter-spacing:1px; }
+.cupUnlock strong { display:block; font-size:14px; }
+.decalPreview { display:inline-grid; place-items:center; flex:none; width:34px; height:34px; border:2px solid var(--decal); border-radius:5px; color:var(--decal); background:#0b1522; font:800 21px/1 'Segoe UI',Arial,sans-serif; }
+.cupButtonRow { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+#cupHud { position:fixed; z-index:8; left:50%; bottom:14px; transform:translateX(-50%); width:min(620px,calc(100% - 32px)); box-sizing:border-box; padding:12px 16px; border:1px solid #ffffff26; border-radius:12px; background:#101b29; color:#eef7ff; font:12px/1.4 'Segoe UI',Arial,sans-serif; }
+.cupHudLine { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.cupHudLine small { color:#9eb4c7; font-size:10px; }
+#cupCharges { color:#ffd581; font-size:14px; }
+#cupOfferTitle { margin:6px 0 4px; font-size:13px; font-weight:700; color:#79d9e3; font-variant-numeric:tabular-nums; }
+#cupActions { display:flex; gap:6px; }
+#cupActions button { flex:1; padding:8px; }
+#cupActions kbd { font:400 10px 'Segoe UI',Arial,sans-serif; opacity:.7; margin-left:4px; }
+#cupActionStatus { margin-top:6px; color:#9eb4c7; font-size:11px; min-height:15px; }
+#cupHud[data-status=armed] #cupActionStatus,#cupHud[data-status=activated] #cupActionStatus { color:#ffd581; }
+body.cup-mode.pixel-mode { --arena-bottom:200px; }
+body.cup-mode #skillControls,body.cup-mode #touch,body.cup-mode #boostHud,body.cup-mode #matchChat { display:none!important; }
+body.cup-mode #brand::after { content:'FSD CUP / CPU PRACTICE'; }
+body.cup-mode #cupHeatLabel { color:#79d9e3; font-size:10px; font-weight:700; letter-spacing:.6px; }
+body.cup-mode #toast { font-size:clamp(22px,4vw,42px); }
+#garageShell .cupEntry { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:58px; margin-top:8px; padding:10px 12px; border:1px solid #ffd58170; border-radius:10px; background:#ffd58109; text-align:left; color:#f2f5f7; grid-column:1/-1; cursor:pointer; }
+.cupEntry strong { display:block; font-size:14px; color:#ffd581; }
+.cupEntry small { display:block; font-size:10px; color:#b6c9d6; font-weight:400; margin-top:3px; }
+.cupEntry b { color:#ffd581; font-size:22px; }
+#garageShell .collectionGrid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+#garageShell .collectionItem { display:grid; grid-template-columns:34px 1fr; gap:5px 9px; align-items:center; text-align:left; padding:10px; border:1px solid #ffffff26; border-radius:8px; background:#ffffff04; color:#dce9ed; cursor:pointer; }
+.collectionItem .decalPreview { grid-row:1/3; }
+#garageShell .collectionItem strong { font-size:11px; }
+#garageShell .collectionItem>span:last-child { font-size:10px; color:#9eb4c7; font-weight:400; }
+#garageShell .collectionItem:disabled { opacity:.48; cursor:default; }
+#garageShell .collectionItem[aria-pressed=true] { border-color:#ffd581; }
+#collectionSummary { color:#9eb4c7; font-size:10px; margin:6px 0; }
+@media(max-width:600px) { #cupPanel { padding:20px; } body.cup-mode.pixel-mode { --arena-bottom:204px; } #cupHud { bottom:10px; width:calc(100% - 24px); padding:10px; } #cupActions kbd { display:none; } #cupLayer .directiveChoices button { display:block; } .directiveChoices strong,.directiveChoices span { display:block; } .directiveChoices span { margin-top:4px; } .draftReveal>div { padding:12px; } .draftReveal strong { font-size:16px; } }
+@media(max-height:500px) { #cupPanel { padding:18px; } .directiveChoices { margin:10px 0; } .cupButtonRow { margin-top:12px; } }
+@media(max-height:500px) and (min-width:740px) { body.cup-mode.pixel-mode { --arena-bottom:0; } body.cup-mode #pixelView { left:150px; width:calc(100% - 354px); } #cupHud { left:auto; right:10px; bottom:10px; top:72px; transform:none; width:180px; padding:10px; } #cupActions { flex-direction:column; } #cupActions button { flex:none; } #cupActions kbd { display:none; } .cupHudLine { flex-wrap:wrap; } body.cup-mode #menuBtn { width:180px; right:10px!important; } }
+@media(max-height:500px) and (min-width:501px) and (max-width:739px) {
+  body.cup-mode #pixelView { left:134px; top:0; width:calc(100% - 322px); height:100%; }
+  body.cup-mode #topbar { left:12px; top:12px; width:112px; grid-template-columns:1fr; }
+  body.cup-mode .scorebox { padding:8px; }
+  body.cup-mode #clockwrap { border-inline:0; border-block:1px solid var(--arena-line); }
+  body.cup-mode #menuBtn { top:12px!important; right:10px!important; width:160px; }
+  #cupHud { left:auto; right:10px; top:64px; bottom:10px; transform:none; width:160px; padding:9px; font-size:11px; }
+  .cupHudLine { flex-wrap:wrap; }
+  #cupCharges { font-size:12px; }
+  #cupHud>.cupHudLine:nth-child(2) { display:none; }
+  #cupActions { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+  #cupActions button { padding:6px; font-size:11px; }
+  #cupActions button:last-child { grid-column:1/-1; }
+  #cupActions kbd { display:none; }
+  #cupOfferTitle { font-size:11px; }
+  #cupActionStatus { font-size:10px; }
+}
+@media(prefers-reduced-motion:reduce) { #cupLayer *,#cupHud * { animation:none!important; transition:none!important; } }

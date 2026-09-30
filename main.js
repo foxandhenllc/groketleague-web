@@ -8,6 +8,12 @@ import { makeSoap, updateSoap } from './soap-scene.js';
 import { initSoap } from './soap-physics.js';
 import { sinkFeedback } from './sink-feedback.js';
 import { movePhase, timingCue, moveDescriptions } from './skills.js';
+import { createCup, createCupPacing, CUP_RULES } from './cup.js';
+import { createCoach } from './coach-controller.js';
+import { createProgression } from './progression.js';
+import { createCupUI } from './cup-ui.js';
+import { paintRoofDecal } from './cosmetic-art.js';
+import { coachObservation } from './agent-observation.js';
 import { simulationConfig } from './simulation-config.js';
 import { boostLabel } from './boost.js';
 import { kickoffLayout, driverPersonality } from './match-variety.js';
@@ -196,7 +202,7 @@ function setGfxMode(g) {
   syncPixelVisibility();
 }
 function syncPixelVisibility() {
-  const want = gfxMode === "pixel" && (mode === "play" || mode === "faceoff" || mode === "results");
+  const want = gfxMode === "pixel" && (mode === "play" || mode === "faceoff" || mode === "results" || mode.startsWith('cup-'));
   pixelView.setActive(want);
   pixelView.setNight(mapMode === "night");
   if (renderer?.domElement) renderer.domElement.style.visibility = want ? "hidden" : "visible";
@@ -216,12 +222,15 @@ function paintPixelFrame() {
 }
 let mode = "garage";
 let online = false, netPending = false, matchId = "", sessionSerial = 0;
+let cup = null, cupCoaches = null, cupReward = null, cupSaves = 0, cupPacing = null;
+let guestStorage; try { guestStorage = localStorage; } catch {}
+const progression = createProgression(guestStorage);
 let wantRematch = false, peerWantRematch = false;
 let localChoice = "cybertruck", remoteInput = { throttle: 0, steer: 0, boost: false };
 let lastPacket = 0, lastInput = 0;
 let reconnectTimer = 0, reconnecting = false;
 let lastGoalCard = null, bestGoalCard = null, lastGoalBy = null;
-const opponentName = () => online ? "P2" : "GROK";
+const opponentName = () => online ? "P2" : cup ? "CPU RIVAL" : "GROK";
 const localBody = () => online && NET.isGuest() ? B : P;
 const soapMode = () => mapMode==='sink'&&gfxMode==='3d';
 const validCar = id => CATALOG.some(v => v.id === id);
@@ -246,7 +255,7 @@ function validRoomCode(code) {
 function netMessage(text) { netStatus.textContent = text; }
 function setNetPending(value) {
   netPending = value;
-  for (const id of ["netQuick", "netCreate", "netJoin", "roomCodeIn", "toMatchup", "backVehicle", "modeLocal", "modeQuick", "modePrivate", "go", "playNow", "mapBtn", "gfx3d", "gfxPixel", "specsToggle", "settingsToggle", "howOpen"]) {
+  for (const id of ["netQuick", "netCreate", "netJoin", "roomCodeIn", "toMatchup", "backVehicle", "modeLocal", "modeQuick", "modePrivate", "go", "playNow", "cupLaunch", "mapBtn", "gfx3d", "gfxPixel", "specsToggle", "settingsToggle", "collectionToggle", "howOpen"]) {
     const el = document.getElementById(id);
     if (el) el.disabled = !!value;
   }
@@ -595,7 +604,7 @@ function applyMap() {
   if (mode === "play" || mode === "faceoff") playBed(mapMode === "night" ? "night" : "day");
 }
 applyMap();
-function cycleMap() { if (online || netPending || mapMode==='sink') return; mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
+function cycleMap() { if (online || netPending || cup || mapMode==='sink') return; mapMode = mapMode === "day" ? "night" : "day"; applyMap(); }
 for(const button of document.querySelectorAll('[data-arena]'))button.addEventListener('click',()=>{if(online||netPending||mode!=='garage')return;mapMode=button.dataset.arena==='sink'?'sink':'day';applyMap();});
 for(const button of document.querySelectorAll('[data-light]'))button.addEventListener('click',()=>{if(online||netPending||mode!=='garage'||mapMode==='sink')return;mapMode=button.dataset.light==='night'?'night':'day';applyMap();});
 mapBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); cycleMap(); });
@@ -662,6 +671,8 @@ let scoreA = 0, scoreB = 0, timeLeft = 90, playing = false, locked = false, paus
 let faceoffT = 0;
 let last = performance.now();
 const physicsClock = createPhysicsClock(simulateMatch);
+const cupUI = createCupUI({ onDirective: value => cup?.choose(value), onAction: chooseCupAction, onNext: nextCupHeat, onExit: returnToGarage, onEquip: equipDecal });
+cupUI.collection(progression.view);
 let boostSfxCool = 0;
 window.__controlsTest = { getYaw: () => P.yaw, getSpeed: () => Math.hypot(P.vx, P.vz), setKeys: (codes) => setQaKeys(codes) };
 function toast(msg, ms = 900, who = "p1") {
@@ -713,6 +724,7 @@ function setInspect(id) {
     preview.add(previewMesh);
     SFX.tick();
   }
+  paintRoofDecal(previewMesh, id, progression.view.equipped);
   [...garageEl.children].forEach((el) => el.classList.toggle("on", el.dataset.id === selectedId));
 }
 function rebuildGarage() {
@@ -766,6 +778,8 @@ function setMatchMode(mode) {
 rebuildGarage();
 setInspect("cybertruck");
 function resetKick() {
+  cancelCupInterventions();
+  cupPacing?.reset();
   goalCelebration=null;goalPresentation=null;goalViewId='';goalViewAge=0;
   lastSoapLaunch=0;lastSoapLanding=0;lastSoapRelease=0;
   clearInput(); resetContacts(); impactMarks.length = 0;
@@ -775,6 +789,7 @@ function resetKick() {
   const round = roundEpoch - 1, layout = kickoffLayout(matchSeed, round);
   P = bodyFrom(selectedId, layout.P.x, layout.P.z, layout.P.yaw);
   B = bodyFrom(botId, layout.B.x, layout.B.z, layout.B.yaw);
+  if (!online) P.cosmetic = progression.view.equipped;
   P.personality = driverPersonality(selectedId, matchSeed, round, 'P');
   B.personality = driverPersonality(botId, matchSeed, round, 'B');
   ball = { ...layout.ball, y: getBallRadius(), vx: 0, vy: gfxMode === "pixel" ? 0 : 6, vz: 0, flat: 0 };
@@ -988,6 +1003,7 @@ async function onGoal(who) {
   const serial = sessionSerial;
   if (locked) return;
   locked = true; drainAnimation=performance.now();
+  cancelCupInterventions();
   if(!soapMode())captureGoalStill(who);
   if(!soapMode()){SFX.goal(); if(mapMode==='sink')SFX.drain(); SFX.crowd(who === "A");}
   if (who === "A") { scoreA++; if(!soapMode())toast("P1 GOAL - " + byId(selectedId).name, 1100, "p1"); }
@@ -1000,7 +1016,7 @@ async function onGoal(who) {
     clearInput();
     return;
   }
-  if (scoreA >= 3 || scoreB >= 3) {
+  if (!cup && (scoreA >= 3 || scoreB >= 3)) {
     setTimeout(() => {
       if (serial !== sessionSerial) return;
       finishMatch();
@@ -1053,7 +1069,7 @@ function simulateMatch(dt) {
     timeLeft -= dt;
     if (timeLeft <= 0) {
       timeLeft = 0; SFX.whistle();
-      finishMatch();
+      if (cup) finishCupHeat(); else finishMatch();
       return;
     }
     const m = Math.floor(timeLeft / 60);
@@ -1061,22 +1077,32 @@ function simulateMatch(dt) {
     clockEl.textContent = m + ":" + s;
     const ctl = online && pauseLayer && !pauseLayer.classList.contains("hidden") ? { throttle: 0, steer: 0, boost: false } : readControls();
     // FSD steers; human chooses boost timing, tactics and signature moves.
-    botAI(P, B, ball, dt, -1, !!ctl.boost, ctl);
-    if (online) {
+    if (cupCoaches && cup?.phase === 'heat') {
+      const a = cupCoaches.A.beforeStep(dt, P, B, ball, -1, getField());
+      const b = cupCoaches.B.beforeStep(dt, B, P, ball, 1, getField());
+      botAI(P, B, ball, dt, -1, a.boost, a); cupCoaches.A.afterStep(P);
+      botAI(B, P, ball, dt, 1, b.boost, b); cupCoaches.B.afterStep(B);
+    } else {
+      botAI(P, B, ball, dt, -1, !!ctl.boost, ctl);
+      if (online) {
       const input = performance.now() - lastInput < 500 ? remoteInput : { throttle: 0, steer: 0, boost: false };
       botAI(B, P, ball, dt, 1, !!input.boost, input);
-    } else botAI(B, P, ball, dt, 1);
+      } else botAI(B, P, ball, dt, 1);
+    }
     if (matchChatIdle > 0) {
       matchChatIdle -= dt;
       if (matchChatIdle <= 0 && matchChat) matchChat.classList.add("idle");
     }
     if(mapMode==='sink')stepSink(arenaState,[P,B],ball,dt);
     const events = impactStream.emit(solveContacts([P, B], ball, dt));
+    if (cup) cupSaves += events.filter(e => e.save && e.pair.startsWith('P:')).length;
     consumeImpacts(events);
     simTick++;
     if (diagnostics.enabled) diagnostics.record({tick:simTick,input:[!!ctl.boost,!!remoteInput.boost],
       P:{...P,_boost:{...P._boost},_ai:{...P._ai,target:{...P._ai.target}}},B:{...B,_boost:{...B._boost},_ai:{...B._ai,target:{...B._ai.target}}},ball:{...ball},events});
-    const g = stepBall(ball, dt); if (g) void onGoal(g);
+    const g = stepBall(ball, dt);
+    if (g) void onGoal(g);
+    else if (cupPacing?.step(ball, dt)) { resetKick(); toast('FSD RECALIBRATING', 1100); }
   }
 }
 const impactLines = Array.from({length:2}, () => {
@@ -1129,8 +1155,13 @@ function updateGoalPresentation(dt) {
 }
 function stepGame(dt) {
   try {
+  if (cup && (cup.phase === 'draft' || cup.phase === 'reveal')) {
+    cup.advance(dt);
+    if (cup.phase === 'heat') beginCupHeat();
+  }
   if (playing && (!locked||goalCelebration) && !paused && !(online && NET.isGuest())) physicsClock.advance(dt);
   else physicsClock.reset();
+  cupUI.update(cup?.view, cupCoaches ? { A: cupCoaches.A.view, B: cupCoaches.B.view } : null, progression.view, cupReward, { playing, paused, car: selectedId });
   const me = localBody();
   if (me.boosting && !lastBoostActive) SFX.boost();
   lastBoostActive = !!me.boosting;
@@ -1290,7 +1321,80 @@ function kickoffNow(fromHost = false) {
   SFX.whistle();
   toast(mapMode==='sink'?'LET THAT SINK IN':gfxMode === "pixel" ? (online && NET.isGuest() ? "YOU ARE CYAN" : "YOU ARE AMBER") : (online ? (NET.isGuest() ? "P2 - BLUE GOAL" : "P1 - YELLOW GOAL") : "KICK OFF"), 1100, online && NET.isGuest() ? "cpu" : "p1");
 }
+function cancelCupInterventions(text) {
+  cupCoaches?.A.cancel(text); cupCoaches?.B.cancel(text);
+}
+function endCup() {
+  cancelCupInterventions(); cup?.cancel();
+  cup = null; cupCoaches = null; cupReward = null; cupSaves = 0; cupPacing = null;
+  document.body.classList.remove('cup-mode');
+  cupUI.update(null, null, progression.view, null, { playing: false, paused: false, car: selectedId });
+}
+function startCup() {
+  if (online || netPending) return;
+  setGfxMode('pixel'); mapMode = 'day'; applyMap();
+  startGame(true);
+  cup = createCup({ id: crypto.randomUUID() }); cupSaves = 0; cupPacing = createCupPacing();
+  mode = 'cup-draft'; playing = false; paused = true; timeLeft = CUP_RULES.heatSeconds;
+  faceLayer.classList.add('hidden'); document.body.classList.add('cup-mode');
+  syncTeamLabels(); syncPixelVisibility();
+  document.getElementById('fsdHint').textContent = 'FSD drives. Arm Boost or a signature move only during an offered opening.';
+  cupUI.update(cup.view, null, progression.view, null, { playing, paused, car: selectedId });
+}
+function beginCupHeat() {
+  if (cup?.phase !== 'heat') return;
+  resetKick(); physicsClock.reset();
+  scoreA = 0; scoreB = 0; scoreAEl.textContent = '0'; scoreBEl.textContent = '0';
+  timeLeft = CUP_RULES.heatSeconds;
+  const view = cup.view, scope = `${view.id}:${view.heat}`;
+  cupCoaches = {
+    A: createCoach({ type: 'human', seat: 'A', scope, tactic: view.pick, charges: view.allowances.A }),
+    B: createCoach({ type: 'cpu', seat: 'B', scope, tactic: view.rival, charges: view.allowances.B })
+  };
+  mode = 'faceoff'; faceoffT = 0; kickoffNow(true);
+}
+function chooseCupAction(action) {
+  if (!playing || paused || locked || cup?.phase !== 'heat') return false;
+  const offer = cupCoaches.A.view.offer;
+  return !!offer && cupCoaches.A.choose(offer.id, action);
+}
+function finishCupHeat() {
+  if (!cup?.finishHeat(scoreA, scoreB)) return;
+  cancelCupInterventions('Heat ended - charge kept'); clearInput(); sessionSerial++;
+  playing = false; paused = true; locked = false; physicsClock.reset();
+  mode = cup.phase === 'complete' ? 'cup-results' : 'cup-summary';
+  document.body.classList.remove('playing', 'fsd'); hud.classList.add('hidden');
+  stopCrowd(); playBed('garage');
+  if (cup.phase === 'complete') {
+    const view = cup.view;
+    cupReward = progression.completeCup({ id: view.id, heats: view.heats, saves: cupSaves });
+    cupUI.collection(progression.view);
+  }
+}
+function nextCupHeat() {
+  if (cup?.phase === 'complete') { startCup(); return; }
+  if (!cup?.nextHeat()) return;
+  cancelCupInterventions(); cupCoaches = null; clearInput(); sessionSerial++;
+  playing = false; paused = true; locked = false; mode = 'cup-draft';
+  hud.classList.add('hidden');
+}
+function equipDecal(id) {
+  if (!progression.equip(id)) return;
+  paintRoofDecal(previewMesh, hoverId, id);
+  if (!online) { P.cosmetic = id; paintRoofDecal(playerMesh, selectedId, id); }
+  cupUI.collection(progression.view);
+}
+window.addEventListener('keydown', e => {
+  if (e.repeat || e.isComposing || e.ctrlKey || e.altKey || e.metaKey || cup?.phase !== 'heat' || paused || !playing) return;
+  if (e.target.closest('input, textarea, [contenteditable], #pauseLayer, #cupLayer')) return;
+  const action = e.code === 'KeyE' ? 'special' : ['Space','ShiftLeft','ShiftRight'].includes(e.code) ? 'boost' : null;
+  if (!action || e.code === 'Space' && e.target.closest('button')) return;
+  e.preventDefault(); chooseCupAction(action);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && cup?.phase === 'heat' && !paused && playing) togglePause(true); });
 function startGame(useFsd, config = null) {
+  endCup();
+  document.getElementById('fsdHint').textContent = 'FSD always drives. You only hold BOOST / Ludicrous Mode.';
   closeQcMenu();
   chooseTactic('auto');
   lastGoalCard = null; bestGoalCard = null; lastGoalBy = null;
@@ -1325,6 +1429,7 @@ function startGame(useFsd, config = null) {
   if (!config) botId = pickBot();
   playerMesh = swapMesh(playerMesh, selectedId, "#f0c020");
   botMesh = swapMesh(botMesh, botId, "#3a6fff");
+  if (!online) paintRoofDecal(playerMesh, selectedId, progression.view.equipped);
   syncFsdUI();
   scoreA = 0; scoreB = 0; scoreAEl.textContent = "0"; scoreBEl.textContent = "0";
   roundEpoch = 0; simTick = 0; diagnostics.reset();
@@ -1358,6 +1463,7 @@ window.addEventListener("keydown", (e) => {
 });
 document.getElementById("go").addEventListener("click", () => startGame(true));
 document.getElementById('playNow').addEventListener('click',()=>{if(mode==='garage'&&!netPending&&!online)startGame(true);});
+document.getElementById('cupLaunch').addEventListener('click', startCup);
 const goFsd = document.getElementById("goFsd");
 if (goFsd) goFsd.addEventListener("click", () => startGame(true));
 function sayChat(i) {
@@ -1505,6 +1611,7 @@ function syncMenuUI() {
 function togglePause(force) {
   clearInput();
   if (mode !== "play") return;
+  cancelCupInterventions('Paused - charge kept');
   closeQcMenu();
   if (online) {
     pauseLayer.classList.toggle("hidden", force === false ? true : !pauseLayer.classList.contains("hidden"));
@@ -1633,6 +1740,7 @@ function requestRematch() {
   maybeStartRematch();
 }
 function returnToGarage() {
+  endCup();
   applyIdentityUI();
   if (online || netPending) leaveNetwork();
   sessionSerial++;
@@ -1671,7 +1779,7 @@ document.getElementById('howLayer').addEventListener('keydown',e=>{
   if(e.key==='Tab'){e.preventDefault();document.getElementById('howGotIt').focus();}
 });
 document.getElementById('howOpen').addEventListener('click',maybeShowHow);
-for(const [buttonId,panelId] of [['specsToggle','inspect'],['settingsToggle','garageSettings']]) {
+for(const [buttonId,panelId] of [['specsToggle','inspect'],['settingsToggle','garageSettings'],['collectionToggle','collection']]) {
   const button=document.getElementById(buttonId),panel=document.getElementById(panelId);
   button.addEventListener('click',()=>{panel.hidden=!panel.hidden;button.setAttribute('aria-expanded',String(!panel.hidden));});
 }
@@ -1687,8 +1795,12 @@ window.render_game_to_text = () => JSON.stringify({
   coordinates: "x across pitch; y up; P starts at +z, B at -z",
   P, B, ball, scoreA, scoreB, timeLeft, rulesHash, roundEpoch, matchSeed,
   faceoffName: kickoffLayout(matchSeed, Math.max(0,roundEpoch-1)).name,
-  diagnostics: diagnostics.export({tick:simTick}).counters, netStatus: netStatus.textContent
+  diagnostics: diagnostics.export({tick:simTick}).counters, netStatus: netStatus.textContent,
+  cup: cup?.view || null, cupRecalibrations: cupPacing?.resets || 0, coaches: cupCoaches ? { A: cupCoaches.A.view, B: cupCoaches.B.view } : null, progression: progression.view
 });
+window.coach_observation_to_text = () => cup?.phase === 'heat' ? JSON.stringify(coachObservation({
+  cup: cup.view, seat: 'A', coach: cupCoaches.A.view, car: P, foe: B, ball, timeLeft, scoreA, scoreB, roundEpoch, field: getField()
+})) : null;
 
 
 function playerLabel(opts = {}) {

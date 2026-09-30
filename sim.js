@@ -75,7 +75,8 @@ function drive(c, throttle, steer, wantBoost, dt, command = {}) {
   const d = config.drive, heavy = c.mass > d.heavy_mass_threshold;
   const { x: fwdX, z: fwdZ } = forwardXZ(c.yaw);
   const u = c.vx * fwdX + c.vz * fwdZ;
-  const active = updateBoost(c, !!wantBoost, command.safe !== false, dt, config, command.reason);
+  const heldBoost = !!wantBoost && (!command.boostArmed || command.safe !== false);
+  const active = updateBoost(c, heldBoost, command.safe !== false, dt, config, command.reason);
   const cap = c.max * (c.boosting ? heavy ? d.boost_cap_heavy : d.boost_cap_light : 1);
   const drag = heavy ? d.drag_heavy : d.drag_light;
   const brake = c.brake;
@@ -267,7 +268,8 @@ function botAI(me, foe, ball, dt, attackSign = 1, boostIntent, controls = {}) {
     ? ball.vz*attackSign < -5 && distance < me.l/2+7 && (me.z-ball.z)*attackSign < 0
     : me._ai?.mode === 'strike' && distance < me.l/2+7 && distance > me.l/2+1);
   updateMove(me, ball, dt, controls.special === true || cpuMove, config);
-  const input = planDrive(me, foe, ball, dt, attackSign, getField(), boostIntent);
+  const input = planDrive(me, foe, ball, dt, attackSign, getField(), boostIntent, controls);
+  if (controls.boostArmed === true) input.boostArmed = true;
   drive(me, input.throttle, input.steer, input.boost, dt, input);
 }
 
