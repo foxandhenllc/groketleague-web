@@ -63,6 +63,13 @@ try{
    }
    const result=await state(page);assert.equal(result.cup.phase,'complete');assert.equal(result.progression.cups,1);assert.ok(result.progression.unlocked.includes('beta'));
    await fs.writeFile(`${out}/natural-trace.json`,JSON.stringify(trace,null,2));
+   await page.locator('#cupPanel [data-equip="beta"]').click();assert.equal((await state(page)).progression.equipped,'beta');
+   await page.screenshot({path:`${out}/natural-equipped.png`});
+   await page.locator('[data-cup="exit"]').click();await page.locator('#collectionToggle').click();
+   assert.equal(await page.locator('.collectionItem[data-equip="beta"]').getAttribute('aria-pressed'),'true');
+   await page.reload();await until(page,()=>!!window.render_game_to_text);
+   const saved=(await state(page)).progression;assert.equal(saved.equipped,'beta');assert.equal(saved.cups,1);assert.equal(saved.claims,result.progression.claims);
+   checks.at(-1).savedProfile=saved;console.log('PASS natural cup, earned decal, equipment and reload');
   }else{
    await page.evaluate(()=>window.__cupFixture.opening());
    await until(page,()=>!!JSON.parse(window.render_game_to_text()).coaches.A.offer);
